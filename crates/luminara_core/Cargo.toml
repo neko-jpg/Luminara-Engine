@@ -4,3 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+downcast-rs = "1.2"
+parking_lot = "0.12"
+rayon = "1.10"
+serde = { workspace = true }
+log = "0.4"

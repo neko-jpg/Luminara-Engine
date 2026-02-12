@@ -1,23 +1,19 @@
+use crate::system::IntoSystem;
+use crate::plugin::Plugin;
+use crate::resource::Resource;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::collections::{HashMap, HashSet};
 
 pub type Entity = u64;
 
-pub trait Component: Send + Sync + 'static {
-    fn type_name() -> &'static str where Self: Sized;
-}
-
-pub trait Resource: Send + Sync + 'static {}
-
-pub trait Plugin: Send + Sync + 'static {
-    fn name(&self) -> &str;
-    fn build(&self, app: &mut App);
-}
+pub use crate::entity::Entity;
+pub use crate::component::Component;
 
 pub trait AppInterface {
     fn add_plugins(&mut self, plugin: impl Plugin) -> &mut Self;
-    fn add_system(&mut self, stage: CoreStage, system: impl IntoSystem) -> &mut Self;
+    fn add_system<Params>(&mut self, stage: CoreStage, system: impl IntoSystem<Params>) -> &mut Self;
+    fn add_startup_system<Params>(&mut self, system: impl IntoSystem<Params>) -> &mut Self;
     fn insert_resource<R: Resource>(&mut self, resource: R) -> &mut Self;
     fn run(self);
 }
