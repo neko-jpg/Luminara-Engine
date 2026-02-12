@@ -34,18 +34,27 @@ pub enum CoreStage {
 pub struct App;
 pub trait IntoSystem {}
 
-// Add ResMut for system params
-pub struct ResMut<T: ?Sized>(pub std::marker::PhantomData<T>);
+// Add Res and ResMut for system params
+pub struct Res<'a, T: ?Sized>(pub &'a T);
 
-impl<T: ?Sized> std::ops::Deref for ResMut<T> {
+impl<'a, T: ?Sized> std::ops::Deref for Res<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        unimplemented!("This is a skeleton")
+        self.0
     }
 }
-impl<T: ?Sized> std::ops::DerefMut for ResMut<T> {
+
+pub struct ResMut<'a, T: ?Sized>(pub &'a mut T);
+
+impl<'a, T: ?Sized> std::ops::Deref for ResMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl<'a, T: ?Sized> std::ops::DerefMut for ResMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unimplemented!("This is a skeleton")
+        self.0
     }
 }
 
