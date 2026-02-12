@@ -2,3 +2,4 @@ target/
 **/*.rs.bk
 test_output.txt
 .DS_Store
+Rust製 汎用ゲームエンジン Luminara Engine設計書.md

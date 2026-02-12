@@ -5,9 +5,7 @@ edition.workspace = true
 
 [dependencies]
 luminara_core = { workspace = true }
-raw-window-handle = "0.6"
-luminara_core = { path = "../luminara_core" }
-luminara_math = { path = "../luminara_math" }
+luminara_math = { workspace = true }
 winit = { workspace = true }
 raw-window-handle = "0.6"
 serde = { workspace = true }
