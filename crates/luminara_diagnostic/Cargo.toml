@@ -4,3 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+log = "0.4"
+env_logger = "0.11"
+instant = "0.1"
+luminara_core = { path = "../luminara_core" }
+luminara_platform = { path = "../luminara_platform" }

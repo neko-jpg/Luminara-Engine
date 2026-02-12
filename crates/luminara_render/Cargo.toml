@@ -4,3 +4,4 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+luminara_render_core = { path = "luminara_render_core" }
