@@ -4,3 +4,13 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+luminara_core = { workspace = true }
+raw-window-handle = "0.6"
+luminara_core = { path = "../luminara_core" }
+luminara_math = { path = "../luminara_math" }
+winit = { workspace = true }
+raw-window-handle = "0.6"
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0"

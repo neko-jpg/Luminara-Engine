@@ -14,3 +14,4 @@ pub mod change_detection;
 pub mod bundle;
 pub mod time;
 pub mod shared_types;
+pub use shared_types::*;
