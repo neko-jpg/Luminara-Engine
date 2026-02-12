@@ -1,3 +1,4 @@
+pub use glam::Vec2;
 pub use glam::{Vec2, Vec3, Vec4, Mat4, Quat};
 pub use glam::Vec4Swizzles;
 pub use glam::Vec3Swizzles;
