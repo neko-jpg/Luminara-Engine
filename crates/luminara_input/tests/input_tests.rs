@@ -1,7 +1,7 @@
-use luminara_input::Input;
+use luminara_input::input_map::InputMap;
 use luminara_input::keyboard::Key;
 use luminara_input::mouse::MouseButton;
-use luminara_input::input_map::InputMap;
+use luminara_input::Input;
 
 #[test]
 fn test_keyboard_state_transitions() {
@@ -90,7 +90,11 @@ fn test_multi_gamepad() {
         use luminara_input::gamepad::GamepadButton;
 
         // Gamepad 1 presses South (Jump)
-        gamepad.pressed.entry(1).or_default().insert(GamepadButton::South);
+        gamepad
+            .pressed
+            .entry(1)
+            .or_default()
+            .insert(GamepadButton::South);
 
         // Query for player 1
         assert!(input.action_pressed_for_player("jump", &map, 1));

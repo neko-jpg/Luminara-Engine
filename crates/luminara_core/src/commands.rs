@@ -1,7 +1,7 @@
-use crate::world::World;
-use crate::entity::Entity;
-use crate::component::Component;
 use crate::bundle::Bundle;
+use crate::component::Component;
+use crate::entity::Entity;
+use crate::world::World;
 
 pub trait Command: Send + Sync + 'static {
     fn apply(self: Box<Self>, world: &mut World);
@@ -9,6 +9,12 @@ pub trait Command: Send + Sync + 'static {
 
 pub struct CommandQueue {
     commands: Vec<Box<dyn Command>>,
+}
+
+impl Default for CommandQueue {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CommandQueue {
@@ -74,16 +80,22 @@ impl<'a, 'b> EntityCommands<'a, 'b> {
 
     pub fn insert<T: Component>(&mut self, component: T) -> &mut Self {
         if let Some(entity) = self.entity {
-            self.commands.queue.push(InsertCommand { entity, component });
+            self.commands
+                .queue
+                .push(InsertCommand { entity, component });
         } else {
-             self.commands.queue.push(SpawnAndInsertCommand { component: Some(component) });
+            self.commands.queue.push(SpawnAndInsertCommand {
+                component: Some(component),
+            });
         }
         self
     }
 
     pub fn insert_bundle<B: Bundle>(&mut self, bundle: B) -> &mut Self {
         if let Some(entity) = self.entity {
-            self.commands.queue.push(InsertBundleCommand { entity, bundle });
+            self.commands
+                .queue
+                .push(InsertBundleCommand { entity, bundle });
         } else {
             self.commands.queue.push(SpawnBundleCommand { bundle });
         }
@@ -92,7 +104,10 @@ impl<'a, 'b> EntityCommands<'a, 'b> {
 
     pub fn remove<T: Component>(&mut self) -> &mut Self {
         if let Some(entity) = self.entity {
-            self.commands.queue.push(RemoveComponentCommand::<T> { entity, _marker: std::marker::PhantomData });
+            self.commands.queue.push(RemoveComponentCommand::<T> {
+                entity,
+                _marker: std::marker::PhantomData,
+            });
         }
         self
     }

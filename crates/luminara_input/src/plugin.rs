@@ -1,7 +1,8 @@
-use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, ResMut};
-use luminara_platform::Time;
-use crate::Input;
 use crate::input_map::InputMap;
+use crate::Input;
+use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, ResMut};
+use luminara_core::system::FunctionMarker;
+use luminara_platform::Time;
 
 pub struct InputPlugin;
 
@@ -12,8 +13,13 @@ impl Plugin for InputPlugin {
 
     fn build(&self, app: &mut App) {
         app.insert_resource(Input::default())
-           .insert_resource(InputMap::default_mappings())
-           .add_system(CoreStage::PreUpdate, update_input_system);
+            .insert_resource(InputMap::default_mappings())
+            .add_system::<(
+                FunctionMarker,
+                ResMut<'static, Input>,
+                ResMut<'static, InputMap>,
+                ResMut<'static, Time>,
+            )>(CoreStage::PreUpdate, update_input_system);
     }
 }
 

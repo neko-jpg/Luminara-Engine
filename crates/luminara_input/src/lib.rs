@@ -1,20 +1,20 @@
+pub mod axis;
+pub mod gamepad;
+pub mod input_map;
 pub mod keyboard;
 pub mod mouse;
-pub mod gamepad;
-pub mod touch;
-pub mod axis;
-pub mod input_map;
 pub mod plugin;
+pub mod touch;
 
-use std::collections::HashMap;
+use axis::{GamepadAxisType, MouseAxisType};
+use gamepad::GamepadInput;
+use input_map::{InputMap, InputSource};
+use keyboard::{Key, KeyboardInput};
 use luminara_core::shared_types::Resource;
 use luminara_math::Vec2;
-use keyboard::{KeyboardInput, Key};
-use mouse::{MouseInput, MouseButton};
-use gamepad::GamepadInput;
+use mouse::{MouseButton, MouseInput};
+use std::collections::HashMap;
 use touch::TouchInput;
-use input_map::{InputMap, InputSource};
-use axis::{MouseAxisType, GamepadAxisType};
 
 /// The main input resource that provides a unified interface for all input devices.
 ///
@@ -118,9 +118,17 @@ impl Input {
         self.action_pressed_for_player(name, input_map, self.primary_gamepad_id)
     }
 
-    pub fn action_pressed_for_player(&self, name: &str, input_map: &InputMap, gamepad_id: u32) -> bool {
+    pub fn action_pressed_for_player(
+        &self,
+        name: &str,
+        input_map: &InputMap,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = input_map.actions.get(name) {
-            binding.inputs.iter().any(|&source| self.source_pressed_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_pressed_internal(source, gamepad_id))
         } else {
             false
         }
@@ -130,9 +138,17 @@ impl Input {
         self.action_just_pressed_for_player(name, input_map, self.primary_gamepad_id)
     }
 
-    pub fn action_just_pressed_for_player(&self, name: &str, input_map: &InputMap, gamepad_id: u32) -> bool {
+    pub fn action_just_pressed_for_player(
+        &self,
+        name: &str,
+        input_map: &InputMap,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = input_map.actions.get(name) {
-            binding.inputs.iter().any(|&source| self.source_just_pressed_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_just_pressed_internal(source, gamepad_id))
         } else {
             false
         }
@@ -142,9 +158,17 @@ impl Input {
         self.action_just_released_for_player(name, input_map, self.primary_gamepad_id)
     }
 
-    pub fn action_just_released_for_player(&self, name: &str, input_map: &InputMap, gamepad_id: u32) -> bool {
+    pub fn action_just_released_for_player(
+        &self,
+        name: &str,
+        input_map: &InputMap,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = input_map.actions.get(name) {
-            binding.inputs.iter().any(|&source| self.source_just_released_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_just_released_internal(source, gamepad_id))
         } else {
             false
         }
@@ -154,7 +178,10 @@ impl Input {
         match source {
             InputSource::Key(k) => self.keyboard.pressed(k),
             InputSource::MouseButton(b) => self.mouse.pressed(b),
-            InputSource::GamepadButton(b) => self.gamepad.as_ref().map_or(false, |g| g.pressed(gamepad_id, b)),
+            InputSource::GamepadButton(b) => self
+                .gamepad
+                .as_ref()
+                .is_some_and(|g| g.pressed(gamepad_id, b)),
             _ => false,
         }
     }
@@ -163,7 +190,10 @@ impl Input {
         match source {
             InputSource::Key(k) => self.keyboard.just_pressed(k),
             InputSource::MouseButton(b) => self.mouse.just_pressed(b),
-            InputSource::GamepadButton(b) => self.gamepad.as_ref().map_or(false, |g| g.just_pressed(gamepad_id, b)),
+            InputSource::GamepadButton(b) => self
+                .gamepad
+                .as_ref()
+                .is_some_and(|g| g.just_pressed(gamepad_id, b)),
             _ => false,
         }
     }
@@ -172,19 +202,24 @@ impl Input {
         match source {
             InputSource::Key(k) => self.keyboard.just_released(k),
             InputSource::MouseButton(b) => self.mouse.just_released(b),
-            InputSource::GamepadButton(b) => self.gamepad.as_ref().map_or(false, |g| g.just_released(gamepad_id, b)),
+            InputSource::GamepadButton(b) => self
+                .gamepad
+                .as_ref()
+                .is_some_and(|g| g.just_released(gamepad_id, b)),
             _ => false,
         }
     }
 
     pub fn handle_winit_event(&mut self, event: &winit::event::WindowEvent) {
         match event {
-            winit::event::WindowEvent::KeyboardInput { event: key_event, .. } => {
+            winit::event::WindowEvent::KeyboardInput {
+                event: key_event, ..
+            } => {
                 self.keyboard.handle_event(key_event);
             }
-            winit::event::WindowEvent::MouseInput { .. } |
-            winit::event::WindowEvent::CursorMoved { .. } |
-            winit::event::WindowEvent::MouseWheel { .. } => {
+            winit::event::WindowEvent::MouseInput { .. }
+            | winit::event::WindowEvent::CursorMoved { .. }
+            | winit::event::WindowEvent::MouseWheel { .. } => {
                 self.mouse.handle_event(event);
             }
             winit::event::WindowEvent::Touch(touch) => {
@@ -198,7 +233,12 @@ impl Input {
         self.update_axes_for_player(input_map, delta_time, self.primary_gamepad_id);
     }
 
-    pub fn update_axes_for_player(&mut self, input_map: &InputMap, delta_time: f32, gamepad_id: u32) {
+    pub fn update_axes_for_player(
+        &mut self,
+        input_map: &InputMap,
+        delta_time: f32,
+        gamepad_id: u32,
+    ) {
         for (name, binding) in &input_map.axes {
             let mut target = 0.0;
 
@@ -216,7 +256,9 @@ impl Input {
 
             if target.abs() > 0.001 {
                 // If snap is on and we are moving in the opposite direction, snap to zero
-                if binding.snap && ((target > 0.0 && current < 0.0) || (target < 0.0 && current > 0.0)) {
+                if binding.snap
+                    && ((target > 0.0 && current < 0.0) || (target < 0.0 && current > 0.0))
+                {
                     new_value = 0.0;
                 }
 
@@ -242,14 +284,27 @@ impl Input {
                 new_value = 0.0;
             }
 
-            self.axis_values.insert(name.clone(), new_value.clamp(-1.0, 1.0));
+            self.axis_values
+                .insert(name.clone(), new_value.clamp(-1.0, 1.0));
         }
     }
 
     fn get_source_value_internal(&self, source: InputSource, gamepad_id: u32) -> f32 {
         match source {
-            InputSource::Key(k) => if self.keyboard.pressed(k) { 1.0 } else { 0.0 },
-            InputSource::MouseButton(b) => if self.mouse.pressed(b) { 1.0 } else { 0.0 },
+            InputSource::Key(k) => {
+                if self.keyboard.pressed(k) {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            InputSource::MouseButton(b) => {
+                if self.mouse.pressed(b) {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
             InputSource::MouseAxis(a) => match a {
                 MouseAxisType::X => self.mouse.delta().x,
                 MouseAxisType::Y => self.mouse.delta().y,
@@ -269,14 +324,18 @@ impl Input {
                 } else {
                     0.0
                 }
-            },
+            }
             InputSource::GamepadButton(b) => {
                 if let Some(gamepad) = &self.gamepad {
-                    if gamepad.pressed(gamepad_id, b) { 1.0 } else { 0.0 }
+                    if gamepad.pressed(gamepad_id, b) {
+                        1.0
+                    } else {
+                        0.0
+                    }
                 } else {
                     0.0
                 }
-            },
+            }
         }
     }
 }

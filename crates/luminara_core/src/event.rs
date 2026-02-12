@@ -6,10 +6,14 @@ pub struct EventInstance<E: Event> {
     pub event: E,
 }
 
+use crate::resource::Resource;
+
 pub struct Events<E: Event> {
     events_current: Vec<EventInstance<E>>,
     events_previous: Vec<EventInstance<E>>,
 }
+
+impl<E: Event> Resource for Events<E> {}
 
 impl<E: Event> Default for Events<E> {
     fn default() -> Self {
@@ -62,9 +66,14 @@ pub struct EventReader<'a, E: Event> {
 
 impl<'a, E: Event> EventReader<'a, E> {
     pub fn new(events: &'a Events<E>) -> Self {
-        Self { events, _last_event_count: 0 }
+        Self {
+            events,
+            _last_event_count: 0,
+        }
     }
     pub fn iter(&self) -> impl Iterator<Item = &E> {
-        self.events.iter_previous().chain(self.events.iter_current())
+        self.events
+            .iter_previous()
+            .chain(self.events.iter_current())
     }
 }

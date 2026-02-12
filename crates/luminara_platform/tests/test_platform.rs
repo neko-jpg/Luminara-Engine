@@ -1,4 +1,4 @@
-use luminara_platform::{Time, FileSystem, PlatformInfo, Os};
+use luminara_platform::{FileSystem, Os, PlatformInfo, Time};
 use std::thread;
 use std::time::Duration;
 
@@ -12,7 +12,11 @@ fn test_time_delta() {
     thread::sleep(Duration::from_millis(50));
     time.update();
 
-    assert!(time.delta_seconds() > 0.0, "Delta seconds should be > 0.0, got {}", time.delta_seconds());
+    assert!(
+        time.delta_seconds() > 0.0,
+        "Delta seconds should be > 0.0, got {}",
+        time.delta_seconds()
+    );
     // On some CI/Sandbox, sleep might be imprecise, but > 0 should hold.
     assert!(time.elapsed_seconds() >= time.delta_seconds());
     assert_eq!(time.frame_count(), 1);

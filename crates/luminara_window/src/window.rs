@@ -1,8 +1,10 @@
-use luminara_math::IVec2;
-use serde::{Deserialize, Serialize};
-use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, WindowHandle};
-use std::sync::Arc;
 use luminara_core::shared_types::Resource;
+use luminara_math::IVec2;
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, WindowHandle,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WindowMode {
@@ -57,7 +59,10 @@ pub struct Window {
 impl Window {
     pub fn new(winit_window: Arc<winit::window::Window>, descriptor: &WindowDescriptor) -> Self {
         let size = winit_window.inner_size();
-        let pos = winit_window.outer_position().ok().map(|p| IVec2::new(p.x, p.y));
+        let pos = winit_window
+            .outer_position()
+            .ok()
+            .map(|p| IVec2::new(p.x, p.y));
         Self {
             title: descriptor.title.clone(),
             width: size.width,

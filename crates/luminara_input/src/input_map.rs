@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use luminara_core::shared_types::Resource;
-use serde::{Deserialize, Serialize};
+use crate::axis::{GamepadAxisType, MouseAxisType};
+use crate::gamepad::GamepadButton;
 use crate::keyboard::Key;
 use crate::mouse::MouseButton;
-use crate::axis::{MouseAxisType, GamepadAxisType};
-use crate::gamepad::GamepadButton;
+use luminara_core::shared_types::Resource;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A resource that defines how raw inputs are mapped to virtual axes and actions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,42 +59,69 @@ impl InputMap {
         let mut axes = HashMap::new();
 
         // Horizontal axis
-        axes.insert("horizontal".to_string(), AxisBinding {
-            positive: vec![InputSource::Key(Key::Right), InputSource::Key(Key::D)],
-            negative: vec![InputSource::Key(Key::Left), InputSource::Key(Key::A)],
-            sensitivity: 3.0,
-            gravity: 3.0,
-            dead_zone: 0.05,
-            snap: true,
-        });
+        axes.insert(
+            "horizontal".to_string(),
+            AxisBinding {
+                positive: vec![InputSource::Key(Key::Right), InputSource::Key(Key::D)],
+                negative: vec![InputSource::Key(Key::Left), InputSource::Key(Key::A)],
+                sensitivity: 3.0,
+                gravity: 3.0,
+                dead_zone: 0.05,
+                snap: true,
+            },
+        );
 
         // Vertical axis
-        axes.insert("vertical".to_string(), AxisBinding {
-            positive: vec![InputSource::Key(Key::Up), InputSource::Key(Key::W)],
-            negative: vec![InputSource::Key(Key::Down), InputSource::Key(Key::S)],
-            sensitivity: 3.0,
-            gravity: 3.0,
-            dead_zone: 0.05,
-            snap: true,
-        });
+        axes.insert(
+            "vertical".to_string(),
+            AxisBinding {
+                positive: vec![InputSource::Key(Key::Up), InputSource::Key(Key::W)],
+                negative: vec![InputSource::Key(Key::Down), InputSource::Key(Key::S)],
+                sensitivity: 3.0,
+                gravity: 3.0,
+                dead_zone: 0.05,
+                snap: true,
+            },
+        );
 
         let mut actions = HashMap::new();
-        actions.insert("jump".to_string(), ActionBinding {
-            inputs: vec![InputSource::Key(Key::Space), InputSource::GamepadButton(GamepadButton::South)],
-        });
-        actions.insert("fire".to_string(), ActionBinding {
-            inputs: vec![InputSource::MouseButton(MouseButton::Left), InputSource::GamepadButton(GamepadButton::East)],
-        });
-        actions.insert("submit".to_string(), ActionBinding {
-            inputs: vec![InputSource::Key(Key::Enter), InputSource::GamepadButton(GamepadButton::Start)],
-        });
-        actions.insert("cancel".to_string(), ActionBinding {
-            inputs: vec![InputSource::Key(Key::Escape), InputSource::GamepadButton(GamepadButton::Select)],
-        });
+        actions.insert(
+            "jump".to_string(),
+            ActionBinding {
+                inputs: vec![
+                    InputSource::Key(Key::Space),
+                    InputSource::GamepadButton(GamepadButton::South),
+                ],
+            },
+        );
+        actions.insert(
+            "fire".to_string(),
+            ActionBinding {
+                inputs: vec![
+                    InputSource::MouseButton(MouseButton::Left),
+                    InputSource::GamepadButton(GamepadButton::East),
+                ],
+            },
+        );
+        actions.insert(
+            "submit".to_string(),
+            ActionBinding {
+                inputs: vec![
+                    InputSource::Key(Key::Enter),
+                    InputSource::GamepadButton(GamepadButton::Start),
+                ],
+            },
+        );
+        actions.insert(
+            "cancel".to_string(),
+            ActionBinding {
+                inputs: vec![
+                    InputSource::Key(Key::Escape),
+                    InputSource::GamepadButton(GamepadButton::Select),
+                ],
+            },
+        );
 
-        Self {
-            axes,
-            actions,
-        }
+        Self { axes, actions }
     }
 }

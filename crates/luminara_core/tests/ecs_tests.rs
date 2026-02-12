@@ -1,14 +1,24 @@
-use luminara_core::world::World;
-use luminara_core::component::Component;
 use luminara_core::impl_component;
+use luminara_core::world::World;
+use luminara_core::Resource;
 
 #[derive(Debug, PartialEq, Eq)]
-struct Position { x: i32, y: i32 }
+struct Position {
+    x: i32,
+    y: i32,
+}
 impl_component!(Position);
 
 #[derive(Debug, PartialEq, Eq)]
-struct Velocity { dx: i32, dy: i32 }
+struct Velocity {
+    dx: i32,
+    dy: i32,
+}
 impl_component!(Velocity);
+
+#[derive(Debug, PartialEq, Eq)]
+struct TestResource(u32);
+impl Resource for TestResource {}
 
 #[test]
 fn test_world_spawn_and_components() {
@@ -18,7 +28,9 @@ fn test_world_spawn_and_components() {
     world.add_component(e1, Position { x: 10, y: 20 });
 
     {
-        let pos = world.get_component::<Position>(e1).expect("Position should exist");
+        let pos = world
+            .get_component::<Position>(e1)
+            .expect("Position should exist");
         assert_eq!(pos.x, 10);
         assert_eq!(pos.y, 20);
     }
@@ -26,9 +38,13 @@ fn test_world_spawn_and_components() {
     world.add_component(e1, Velocity { dx: 1, dy: 2 });
 
     {
-        let pos = world.get_component::<Position>(e1).expect("Position should still exist");
+        let pos = world
+            .get_component::<Position>(e1)
+            .expect("Position should still exist");
         assert_eq!(pos.x, 10);
-        let vel = world.get_component::<Velocity>(e1).expect("Velocity should exist");
+        let vel = world
+            .get_component::<Velocity>(e1)
+            .expect("Velocity should exist");
         assert_eq!(vel.dx, 1);
     }
 
@@ -39,12 +55,12 @@ fn test_world_spawn_and_components() {
 #[test]
 fn test_world_resources() {
     let mut world = World::new();
-    world.insert_resource(100u32);
+    world.insert_resource(TestResource(100));
 
-    assert_eq!(*world.get_resource::<u32>().unwrap(), 100);
+    assert_eq!(world.get_resource::<TestResource>().unwrap().0, 100);
 
-    *world.get_resource_mut::<u32>().unwrap() = 200;
-    assert_eq!(*world.get_resource::<u32>().unwrap(), 200);
+    world.get_resource_mut::<TestResource>().unwrap().0 = 200;
+    assert_eq!(world.get_resource::<TestResource>().unwrap().0, 200);
 }
 
 #[test]
@@ -132,8 +148,8 @@ fn test_world_query() {
 
 #[test]
 fn test_or_filter() {
-    use luminara_core::query::{Query, Or, With};
     use luminara_core::entity::Entity;
+    use luminara_core::query::{Or, Query, With};
 
     let mut world = World::new();
     let e1 = world.spawn();
@@ -142,7 +158,7 @@ fn test_or_filter() {
     let e2 = world.spawn();
     world.add_component(e2, Velocity { dx: 10, dy: 10 });
 
-    let e3 = world.spawn();
+    let _e3 = world.spawn();
     // No components
 
     // Query for entities with either Position OR Velocity

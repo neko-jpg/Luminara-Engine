@@ -1,4 +1,4 @@
-use luminara_core::shared_types::Resource;
+use luminara_core::Resource;
 use std::collections::{HashMap, VecDeque};
 
 pub struct DiagnosticEntry {
@@ -36,7 +36,6 @@ impl DiagnosticEntry {
 
 pub struct Diagnostics {
     pub entries: HashMap<String, DiagnosticEntry>,
-    entries: HashMap<String, DiagnosticEntry>,
 }
 
 impl Resource for Diagnostics {}
@@ -49,9 +48,10 @@ impl Diagnostics {
     }
 
     pub fn add(&mut self, name: &str, value: f64) {
-        let entry = self.entries.entry(name.to_string()).or_insert_with(|| {
-            DiagnosticEntry::new(name.to_string(), 120)
-        });
+        let entry = self
+            .entries
+            .entry(name.to_string())
+            .or_insert_with(|| DiagnosticEntry::new(name.to_string(), 120));
         entry.add(value);
     }
 

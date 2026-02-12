@@ -1,8 +1,8 @@
 #[cfg(feature = "gamepad")]
-use gilrs::{Gilrs};
-use std::collections::{HashMap, HashSet};
+use gilrs::Gilrs;
 use luminara_core::shared_types::Resource;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 pub struct GamepadInput {
     #[cfg(feature = "gamepad")]
@@ -38,19 +38,29 @@ impl GamepadInput {
     }
 
     pub fn pressed(&self, gamepad_id: u32, button: GamepadButton) -> bool {
-        self.pressed.get(&gamepad_id).map_or(false, |b| b.contains(&button))
+        self.pressed
+            .get(&gamepad_id)
+            .is_some_and(|b| b.contains(&button))
     }
 
     pub fn just_pressed(&self, gamepad_id: u32, button: GamepadButton) -> bool {
-        self.just_pressed.get(&gamepad_id).map_or(false, |b| b.contains(&button))
+        self.just_pressed
+            .get(&gamepad_id)
+            .is_some_and(|b| b.contains(&button))
     }
 
     pub fn just_released(&self, gamepad_id: u32, button: GamepadButton) -> bool {
-        self.just_released.get(&gamepad_id).map_or(false, |b| b.contains(&button))
+        self.just_released
+            .get(&gamepad_id)
+            .is_some_and(|b| b.contains(&button))
     }
 
     pub fn axis(&self, gamepad_id: u32, axis: GamepadAxis) -> f32 {
-        self.axes.get(&gamepad_id).and_then(|a| a.get(&axis)).cloned().unwrap_or(0.0)
+        self.axes
+            .get(&gamepad_id)
+            .and_then(|a| a.get(&axis))
+            .cloned()
+            .unwrap_or(0.0)
     }
 
     pub fn clear_just_states(&mut self) {
@@ -92,11 +102,23 @@ impl GamepadInput {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GamepadButton {
-    South, East, North, West,
-    L1, R1, L2, R2,
-    Select, Start, Mode,
-    L3, R3,
-    DPadUp, DPadDown, DPadLeft, DPadRight,
+    South,
+    East,
+    North,
+    West,
+    L1,
+    R1,
+    L2,
+    R2,
+    Select,
+    Start,
+    Mode,
+    L3,
+    R3,
+    DPadUp,
+    DPadDown,
+    DPadLeft,
+    DPadRight,
 }
 
 impl GamepadButton {
@@ -127,9 +149,12 @@ impl GamepadButton {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GamepadAxis {
-    LeftStickX, LeftStickY,
-    RightStickX, RightStickY,
-    LeftZ, RightZ,
+    LeftStickX,
+    LeftStickY,
+    RightStickX,
+    RightStickY,
+    LeftZ,
+    RightZ,
 }
 
 impl GamepadAxis {

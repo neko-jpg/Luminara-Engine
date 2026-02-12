@@ -1,5 +1,5 @@
 use luminara_core::shared_types::Component;
-use luminara_math::{Mat4, Color};
+use luminara_math::{Color, Mat4};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -36,17 +36,23 @@ impl Camera {
 }
 
 impl Component for Camera {
-    fn type_name() -> &'static str { "Camera" }
+    fn type_name() -> &'static str {
+        "Camera"
+    }
 }
 
 pub struct Camera3d;
 impl Component for Camera3d {
-    fn type_name() -> &'static str { "Camera3d" }
+    fn type_name() -> &'static str {
+        "Camera3d"
+    }
 }
 
 pub struct Camera2d;
 impl Component for Camera2d {
-    fn type_name() -> &'static str { "Camera2d" }
+    fn type_name() -> &'static str {
+        "Camera2d"
+    }
 }
 
 impl Default for Camera {

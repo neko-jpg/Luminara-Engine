@@ -1,9 +1,12 @@
-use luminara_core::world::World;
-use luminara_core::query::Query;
 use luminara_core::impl_component;
+use luminara_core::query::Query;
+use luminara_core::world::World;
 
 #[derive(Debug)]
-struct Position { x: i32, y: i32 }
+struct Position {
+    x: i32,
+    y: i32,
+}
 impl_component!(Position);
 
 #[test]

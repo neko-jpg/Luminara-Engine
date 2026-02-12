@@ -1,14 +1,14 @@
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
-use std::alloc::Layout;
-use std::cell::UnsafeCell;
-use crate::entity::{Entity, EntityAllocator};
-use crate::component::Component;
-use crate::archetype::{ArchetypeStorage};
-use crate::resource::{Resource, ResourceMap};
-use crate::event::{Event, Events};
-use crate::change_detection::{Tick, ComponentTicks};
+use crate::archetype::ArchetypeStorage;
 use crate::bundle::Bundle;
+use crate::change_detection::{ComponentTicks, Tick};
+use crate::component::Component;
+use crate::entity::{Entity, EntityAllocator};
+use crate::event::{Event, Events};
+use crate::resource::{Resource, ResourceMap};
+use std::alloc::Layout;
+use std::any::{Any, TypeId};
+use std::cell::UnsafeCell;
+use std::collections::HashMap;
 
 /// The collection of all data in the ECS engine.
 /// Holds entities, components, resources, and events.
@@ -30,6 +30,12 @@ pub struct ComponentInfo {
     pub drop_fn: Option<unsafe fn(*mut u8)>,
 }
 
+impl Default for World {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl World {
     pub fn new() -> Self {
         Self {
@@ -45,6 +51,10 @@ impl World {
 
     pub fn increment_tick(&mut self) {
         self.change_tick.increment();
+    }
+
+    pub fn entities(&self) -> Vec<Entity> {
+        self.entities.iter_alive().collect()
     }
 
     /// Spawns a new empty entity and returns its ID.
@@ -66,7 +76,10 @@ impl World {
         }
 
         let archetype_id = self.archetypes.get_archetype_id(types, &layouts);
-        let ticks = ComponentTicks { added: self.change_tick, changed: self.change_tick };
+        let ticks = ComponentTicks {
+            added: self.change_tick,
+            changed: self.change_tick,
+        };
         let components = bundle.get_components(&self.component_info, ticks);
 
         let index = {
@@ -87,15 +100,24 @@ impl World {
             }
         }
 
-        self.archetypes.set_entity_location(entity, archetype_id, index);
+        self.archetypes
+            .set_entity_location(entity, archetype_id, index);
         entity
     }
 
     pub fn add_bundle<B: Bundle>(&mut self, entity: Entity, bundle: B) {
         B::register_components(self);
-        let (old_archetype_id, old_index) = self.archetypes.get_entity_location(entity).expect("Entity not found");
+        let (old_archetype_id, old_index) = self
+            .archetypes
+            .get_entity_location(entity)
+            .expect("Entity not found");
 
-        let mut new_types = self.archetypes.get_archetype(old_archetype_id).unwrap().types().to_vec();
+        let mut new_types = self
+            .archetypes
+            .get_archetype(old_archetype_id)
+            .unwrap()
+            .types()
+            .to_vec();
         let bundle_types = B::component_ids();
 
         for t in &bundle_types {
@@ -112,23 +134,26 @@ impl World {
 
         let new_archetype_id = self.archetypes.get_archetype_id(new_types, &layouts);
         if old_archetype_id == new_archetype_id {
-             let ticks = ComponentTicks { added: self.change_tick, changed: self.change_tick };
-             let components = bundle.get_components(&self.component_info, ticks);
-             let archetype = self.archetypes.get_archetype_mut(old_archetype_id).unwrap();
-             for (type_id, (ptr, _)) in components {
-                 let target_ptr = archetype.get_component_mut_ptr(type_id, old_index).unwrap();
-                 let info = self.component_info.get(&type_id).unwrap();
-                 unsafe {
-                     if let Some(drop_fn) = info.drop_fn {
-                         drop_fn(target_ptr);
-                     }
-                     std::ptr::copy_nonoverlapping(ptr, target_ptr, info.layout.size());
-                     if info.layout.size() > 0 {
-                         std::alloc::dealloc(ptr as *mut u8, info.layout);
-                     }
-                 }
-             }
-             return;
+            let ticks = ComponentTicks {
+                added: self.change_tick,
+                changed: self.change_tick,
+            };
+            let components = bundle.get_components(&self.component_info, ticks);
+            let archetype = self.archetypes.get_archetype_mut(old_archetype_id).unwrap();
+            for (type_id, (ptr, _)) in components {
+                let target_ptr = archetype.get_component_mut_ptr(type_id, old_index).unwrap();
+                let info = self.component_info.get(&type_id).unwrap();
+                unsafe {
+                    if let Some(drop_fn) = info.drop_fn {
+                        drop_fn(target_ptr);
+                    }
+                    std::ptr::copy_nonoverlapping(ptr, target_ptr, info.layout.size());
+                    if info.layout.size() > 0 {
+                        std::alloc::dealloc(ptr as *mut u8, info.layout);
+                    }
+                }
+            }
+            return;
         }
 
         let (old_archetype, new_archetype) = if old_archetype_id < new_archetype_id {
@@ -139,11 +164,15 @@ impl World {
             (&mut right[0], &mut left[new_archetype_id])
         };
 
-        let ticks = ComponentTicks { added: self.change_tick, changed: self.change_tick };
+        let ticks = ComponentTicks {
+            added: self.change_tick,
+            changed: self.change_tick,
+        };
         let components = bundle.get_components(&self.component_info, ticks);
 
         let (new_index, swapped_entity) = unsafe {
-            let new_index = old_archetype.transfer_to(old_index, new_archetype, components.clone(), &[]);
+            let new_index =
+                old_archetype.transfer_to(old_index, new_archetype, components.clone(), &[]);
             for (type_id, (ptr, _)) in components {
                 let info = self.component_info.get(&type_id).unwrap();
                 if info.layout.size() > 0 {
@@ -158,15 +187,22 @@ impl World {
             (new_index, swapped_entity)
         };
 
-        self.archetypes.set_entity_location(entity, new_archetype_id, new_index);
+        self.archetypes
+            .set_entity_location(entity, new_archetype_id, new_index);
         if let Some(swapped) = swapped_entity {
-            self.archetypes.set_entity_location(swapped, old_archetype_id, old_index);
+            self.archetypes
+                .set_entity_location(swapped, old_archetype_id, old_index);
         }
     }
 
     pub fn remove_component<T: Component>(&mut self, entity: Entity) -> Option<T> {
         let (old_archetype_id, old_index) = self.archetypes.get_entity_location(entity)?;
-        let mut new_types = self.archetypes.get_archetype(old_archetype_id).unwrap().types().to_vec();
+        let mut new_types = self
+            .archetypes
+            .get_archetype(old_archetype_id)
+            .unwrap()
+            .types()
+            .to_vec();
         let type_id = TypeId::of::<T>();
 
         if let Some(pos) = new_types.iter().position(|&t| t == type_id) {
@@ -196,7 +232,8 @@ impl World {
         };
 
         let (new_index, swapped_entity) = unsafe {
-            let new_index = old_archetype.transfer_to(old_index, new_archetype, HashMap::new(), &[type_id]);
+            let new_index =
+                old_archetype.transfer_to(old_index, new_archetype, HashMap::new(), &[type_id]);
             let swapped_entity = if old_index < old_archetype.len() {
                 Some(old_archetype.entities()[old_index])
             } else {
@@ -205,9 +242,11 @@ impl World {
             (new_index, swapped_entity)
         };
 
-        self.archetypes.set_entity_location(entity, new_archetype_id, new_index);
+        self.archetypes
+            .set_entity_location(entity, new_archetype_id, new_index);
         if let Some(swapped) = swapped_entity {
-            self.archetypes.set_entity_location(swapped, old_archetype_id, old_index);
+            self.archetypes
+                .set_entity_location(swapped, old_archetype_id, old_index);
         }
 
         Some(component)
@@ -218,7 +257,8 @@ impl World {
             let archetype = self.archetypes.get_archetype_mut(archetype_id).unwrap();
             let swapped_entity = archetype.swap_remove(index);
             if swapped_entity != entity {
-                 self.archetypes.set_entity_location(swapped_entity, archetype_id, index);
+                self.archetypes
+                    .set_entity_location(swapped_entity, archetype_id, index);
             }
             self.archetypes.remove_entity_location(entity);
             self.entities.despawn(entity);
@@ -244,10 +284,14 @@ impl World {
         self.get_events_mut::<E>().send(event);
     }
 
+    /// # Safety
+    /// Interior mutability for events.
+    #[allow(clippy::mut_from_ref)]
     pub fn get_events_mut<E: Event>(&self) -> &mut Events<E> {
         unsafe {
             let bus = &mut *self.event_bus.get();
-            let any = bus.entry(TypeId::of::<E>())
+            let any = bus
+                .entry(TypeId::of::<E>())
                 .or_insert_with(|| Box::new(Events::<E>::default()));
             any.downcast_mut::<Events<E>>().unwrap()
         }
@@ -263,28 +307,36 @@ impl World {
 
     pub fn register_component<T: Component>(&mut self) {
         let type_id = TypeId::of::<T>();
-        if !self.component_info.contains_key(&type_id) {
-            self.component_info.insert(type_id, ComponentInfo {
+        self.component_info
+            .entry(type_id)
+            .or_insert_with(|| ComponentInfo {
                 layout: Layout::new::<T>(),
                 drop_fn: Some(|ptr| unsafe { std::ptr::drop_in_place(ptr as *mut T) }),
             });
-        }
     }
 
     pub fn add_component<T: Component>(&mut self, entity: Entity, component: T) {
         self.register_component::<T>();
-        let (old_archetype_id, old_index) = self.archetypes.get_entity_location(entity).expect("Entity not found");
+        let (old_archetype_id, old_index) = self
+            .archetypes
+            .get_entity_location(entity)
+            .expect("Entity not found");
 
-        let mut new_types = self.archetypes.get_archetype(old_archetype_id).unwrap().types().to_vec();
+        let mut new_types = self
+            .archetypes
+            .get_archetype(old_archetype_id)
+            .unwrap()
+            .types()
+            .to_vec();
         let type_id = TypeId::of::<T>();
         if new_types.contains(&type_id) {
-             let archetype = self.archetypes.get_archetype_mut(old_archetype_id).unwrap();
-             let ptr = archetype.get_component_mut_ptr(type_id, old_index).unwrap();
-             unsafe {
-                 std::ptr::drop_in_place(ptr as *mut T);
-                 std::ptr::write(ptr as *mut T, component);
-             }
-             return;
+            let archetype = self.archetypes.get_archetype_mut(old_archetype_id).unwrap();
+            let ptr = archetype.get_component_mut_ptr(type_id, old_index).unwrap();
+            unsafe {
+                std::ptr::drop_in_place(ptr as *mut T);
+                std::ptr::write(ptr as *mut T, component);
+            }
+            return;
         }
 
         new_types.push(type_id);
@@ -306,11 +358,15 @@ impl World {
         };
 
         let mut new_components = HashMap::new();
-        let ticks = ComponentTicks { added: self.change_tick, changed: self.change_tick };
+        let ticks = ComponentTicks {
+            added: self.change_tick,
+            changed: self.change_tick,
+        };
         new_components.insert(type_id, (&component as *const T as *const u8, ticks));
 
         let (new_index, swapped_entity) = unsafe {
-            let new_index = old_archetype.transfer_to(old_index, new_archetype, new_components, &[]);
+            let new_index =
+                old_archetype.transfer_to(old_index, new_archetype, new_components, &[]);
             std::mem::forget(component);
 
             let swapped_entity = if old_index < old_archetype.len() {
@@ -321,9 +377,11 @@ impl World {
             (new_index, swapped_entity)
         };
 
-        self.archetypes.set_entity_location(entity, new_archetype_id, new_index);
+        self.archetypes
+            .set_entity_location(entity, new_archetype_id, new_index);
         if let Some(swapped) = swapped_entity {
-            self.archetypes.set_entity_location(swapped, old_archetype_id, old_index);
+            self.archetypes
+                .set_entity_location(swapped, old_archetype_id, old_index);
         }
     }
 
@@ -341,6 +399,9 @@ impl World {
         }
     }
 
+    /// # Safety
+    /// Interior mutability for components.
+    #[allow(clippy::mut_from_ref)]
     pub fn get_component_mut<T: Component>(&self, entity: Entity) -> Option<&mut T> {
         let (archetype_id, index) = self.archetypes.get_entity_location(entity)?;
         let tick = self.change_tick;

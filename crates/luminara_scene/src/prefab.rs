@@ -25,6 +25,12 @@ impl Prefab {
             entities: vec![],
         };
 
-        scene.spawn_entity_recursive(world, &self.template, None, &mut id_map, &mut spawned_entities)
+        scene.spawn_entity_recursive(
+            world,
+            &self.template,
+            None,
+            &mut id_map,
+            &mut spawned_entities,
+        )
     }
 }
