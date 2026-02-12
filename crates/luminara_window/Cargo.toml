@@ -4,3 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+luminara_core = { workspace = true }
+raw-window-handle = "0.6"

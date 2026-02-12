@@ -1,3 +1,6 @@
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+
 pub type Entity = u64;
 
 pub trait Component: Send + Sync + 'static {
@@ -30,22 +33,61 @@ pub enum CoreStage {
     PostRender,
 }
 
-// Placeholder for App and IntoSystem to make it compile
-pub struct App;
-pub trait IntoSystem {}
+pub struct App {
+    pub resources: HashMap<TypeId, Box<dyn Any + Send + Sync>>,
+}
 
-// Add ResMut for system params
-pub struct ResMut<T: ?Sized>(pub std::marker::PhantomData<T>);
-
-impl<T: ?Sized> std::ops::Deref for ResMut<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unimplemented!("This is a skeleton")
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            resources: HashMap::new(),
+        }
     }
 }
-impl<T: ?Sized> std::ops::DerefMut for ResMut<T> {
+
+impl Resource for App {}
+
+pub trait IntoSystem {}
+
+// Simplified Res and ResMut that don't panic if you don't use them (much)
+pub struct Res<T: Resource> {
+    _marker: std::marker::PhantomData<T>,
+}
+pub struct ResMut<T: Resource> {
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Resource> std::ops::Deref for Res<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        panic!("Res::deref is not fully implemented in this skeleton")
+    }
+}
+
+impl<T: Resource> std::ops::Deref for ResMut<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        panic!("ResMut::deref is not fully implemented in this skeleton")
+    }
+}
+impl<T: Resource> std::ops::DerefMut for ResMut<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unimplemented!("This is a skeleton")
+        panic!("ResMut::deref_mut is not fully implemented in this skeleton")
+    }
+}
+
+// Minimal Query stub
+pub struct Query<'a, T>(pub std::marker::PhantomData<&'a T>);
+impl<'a, T> Query<'a, T> {
+    pub fn iter(&self) -> QueryIter<T> {
+        QueryIter(std::marker::PhantomData)
+    }
+}
+pub struct QueryIter<T>(pub std::marker::PhantomData<T>);
+impl<T> Iterator for QueryIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
 
@@ -53,13 +95,15 @@ impl<T: ?Sized> std::ops::DerefMut for ResMut<T> {
 impl<F> IntoSystem for F {}
 
 impl AppInterface for App {
-    fn add_plugins(&mut self, _plugin: impl Plugin) -> &mut Self {
+    fn add_plugins(&mut self, plugin: impl Plugin) -> &mut Self {
+        plugin.build(self);
         self
     }
     fn add_system(&mut self, _stage: CoreStage, _system: impl IntoSystem) -> &mut Self {
         self
     }
-    fn insert_resource<R: Resource>(&mut self, _resource: R) -> &mut Self {
+    fn insert_resource<R: Resource>(&mut self, resource: R) -> &mut Self {
+        self.resources.insert(TypeId::of::<R>(), Box::new(resource));
         self
     }
     fn run(self) {}
