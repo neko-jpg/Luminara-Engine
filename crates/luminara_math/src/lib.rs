@@ -1,1 +1,1 @@
-// Skeleton for luminara_math
+pub use glam::Vec2;

@@ -3,4 +3,14 @@ name = "luminara_input"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+gamepad = ["gilrs"]
+
 [dependencies]
+luminara_core = { workspace = true }
+luminara_math = { workspace = true }
+luminara_platform = { workspace = true }
+winit = { workspace = true }
+serde = { workspace = true }
+gilrs = { version = "0.11", optional = true }
