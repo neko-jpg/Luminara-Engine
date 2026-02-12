@@ -35,6 +35,15 @@ pub struct App;
 pub trait IntoSystem {}
 
 // Add ResMut for system params
+pub struct Res<T: ?Sized>(pub std::marker::PhantomData<T>);
+
+impl<T: ?Sized> std::ops::Deref for Res<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unimplemented!("This is a skeleton")
+    }
+}
+
 pub struct ResMut<T: ?Sized>(pub std::marker::PhantomData<T>);
 
 impl<T: ?Sized> std::ops::Deref for ResMut<T> {
