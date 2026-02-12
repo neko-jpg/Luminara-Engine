@@ -1,0 +1,6 @@
+[package]
+name = "luminara_scene"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

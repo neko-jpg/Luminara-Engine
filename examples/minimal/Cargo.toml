@@ -1,0 +1,7 @@
+[package]
+name = "minimal_example"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+luminara = { path = "../../crates/luminara" }

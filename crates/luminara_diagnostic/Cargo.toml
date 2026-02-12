@@ -1,0 +1,6 @@
+[package]
+name = "luminara_diagnostic"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

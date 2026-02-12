@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/*",
+    "tools/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Luminara Team"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+luminara_core = { path = "crates/luminara_core" }
+luminara_math = { path = "crates/luminara_math" }
+luminara_window = { path = "crates/luminara_window" }
+luminara_input = { path = "crates/luminara_input" }
+luminara_asset = { path = "crates/luminara_asset" }
+luminara_render = { path = "crates/luminara_render" }
+luminara_scene = { path = "crates/luminara_scene" }
+luminara_platform = { path = "crates/luminara_platform" }
+luminara_diagnostic = { path = "crates/luminara_diagnostic" }
+glam = "0.28"
+winit = "0.30"
+serde = { version = "1.0", features = ["derive"] }

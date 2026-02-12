@@ -1,0 +1,6 @@
+[package]
+name = "luminara"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
