@@ -31,5 +31,36 @@ pub enum CoreStage {
 }
 
 // Placeholder for App and IntoSystem to make it compile
-pub struct App; 
+pub struct App;
 pub trait IntoSystem {}
+
+// Add ResMut for system params
+pub struct ResMut<T: ?Sized>(pub std::marker::PhantomData<T>);
+
+impl<T: ?Sized> std::ops::Deref for ResMut<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unimplemented!("This is a skeleton")
+    }
+}
+impl<T: ?Sized> std::ops::DerefMut for ResMut<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unimplemented!("This is a skeleton")
+    }
+}
+
+// Implement IntoSystem for functions to allow compilation
+impl<F> IntoSystem for F {}
+
+impl AppInterface for App {
+    fn add_plugins(&mut self, _plugin: impl Plugin) -> &mut Self {
+        self
+    }
+    fn add_system(&mut self, _stage: CoreStage, _system: impl IntoSystem) -> &mut Self {
+        self
+    }
+    fn insert_resource<R: Resource>(&mut self, _resource: R) -> &mut Self {
+        self
+    }
+    fn run(self) {}
+}
