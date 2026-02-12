@@ -1,4 +1,6 @@
 use std::collections::{HashMap, VecDeque};
+use instant::{Duration, Instant};
+use std::cell::RefCell;
 use std::cell::RefCell;
 use instant::{Instant, Duration};
 
@@ -28,6 +30,8 @@ impl ProfileScope {
         if self.samples.is_empty() {
             return Duration::from_secs(0);
         }
+        let total: Duration = self.samples.iter().sum();
+        total / self.samples.len() as u32
         let sum: Duration = self.samples.iter().sum();
         sum / self.samples.len() as u32
     }
