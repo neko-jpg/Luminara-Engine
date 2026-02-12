@@ -36,6 +36,7 @@ impl DiagnosticEntry {
 
 pub struct Diagnostics {
     pub entries: HashMap<String, DiagnosticEntry>,
+    entries: HashMap<String, DiagnosticEntry>,
 }
 
 impl Resource for Diagnostics {}

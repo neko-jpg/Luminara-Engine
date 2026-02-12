@@ -1,6 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 use instant::{Duration, Instant};
 use std::cell::RefCell;
+use std::cell::RefCell;
+use instant::{Instant, Duration};
 
 pub struct ProfileScope {
     pub name: String,
@@ -30,6 +32,8 @@ impl ProfileScope {
         }
         let total: Duration = self.samples.iter().sum();
         total / self.samples.len() as u32
+        let sum: Duration = self.samples.iter().sum();
+        sum / self.samples.len() as u32
     }
 
     pub fn max(&self) -> Duration {
