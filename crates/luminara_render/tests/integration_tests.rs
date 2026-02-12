@@ -1,6 +1,6 @@
-use luminara_render_core::*;
-use luminara_math::*;
 use luminara_core::shared_types::{App, AppInterface};
+use luminara_math::*;
+use luminara_render::*;
 
 #[test]
 fn test_render_plugin_registration() {

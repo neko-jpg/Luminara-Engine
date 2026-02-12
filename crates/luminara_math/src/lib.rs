@@ -1,10 +1,17 @@
-pub use glam::Vec2;
-pub use glam::{Vec2, Vec3, Vec4, Mat4, Quat};
-pub use glam::Vec4Swizzles;
-pub use glam::Vec3Swizzles;
-pub use glam::Vec2Swizzles;
+//! # Luminara Math
+//!
+//! Provides mathematical primitives and utilities for the Luminara Engine.
+//! Powered by `glam`.
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+pub use glam::{self, Mat4, Quat, Vec2, Vec3, Vec4};
+pub use glam::{IVec2, IVec3, IVec4};
+pub use glam::{Vec2Swizzles, Vec3Swizzles, Vec4Swizzles};
+
+use luminara_core::Component;
+use serde::{Deserialize, Serialize};
+
+/// A color represented by RGBA components.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -45,7 +52,8 @@ impl From<[f32; 4]> for Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Represents the position, rotation, and scale of an entity.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
@@ -63,37 +71,6 @@ impl Transform {
         Self {
             translation,
             ..Self::IDENTITY
-use glam::{Vec3, Quat, Mat4};
-use serde::{Serialize, Deserialize};
-
-pub use glam;
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub struct Transform {
-    pub translation: Vec3,
-    pub rotation: Quat,
-    pub scale: Vec3,
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self {
-            translation: Vec3::ZERO,
-            rotation: Quat::IDENTITY,
-            scale: Vec3::ONE,
-        }
-    }
-}
-
-impl luminara_core::Component for Transform {
-    fn type_name() -> &'static str { "Transform" }
-}
-
-impl Transform {
-    pub fn from_translation(translation: Vec3) -> Self {
-        Self {
-            translation,
-            ..Default::default()
         }
     }
 
@@ -101,7 +78,6 @@ impl Transform {
         Self {
             rotation,
             ..Self::IDENTITY
-            ..Default::default()
         }
     }
 
@@ -109,25 +85,12 @@ impl Transform {
         Self {
             scale,
             ..Self::IDENTITY
-            ..Default::default()
         }
     }
 
     pub fn compute_matrix(&self) -> Mat4 {
         Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.translation)
     }
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self::IDENTITY
-    }
-}
-
-use luminara_core::shared_types::Component;
-impl Component for Transform {
-    fn type_name() -> &'static str { "Transform" }
-}
 
     pub fn mul_transform(&self, other: &Self) -> Self {
         let mat = self.compute_matrix() * other.compute_matrix();
@@ -137,5 +100,17 @@ impl Component for Transform {
             rotation,
             scale,
         }
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+impl Component for Transform {
+    fn type_name() -> &'static str {
+        "Transform"
     }
 }

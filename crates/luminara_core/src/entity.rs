@@ -16,20 +16,11 @@ impl Entity {
     }
 }
 
+#[derive(Default)]
 pub struct EntityAllocator {
     next_id: u32,
     free_list: Vec<Entity>,
     generations: Vec<u32>,
-}
-
-impl Default for EntityAllocator {
-    fn default() -> Self {
-        Self {
-            next_id: 0,
-            free_list: Vec::new(),
-            generations: Vec::new(),
-        }
-    }
 }
 
 impl EntityAllocator {
@@ -67,6 +58,23 @@ impl EntityAllocator {
 
     pub fn entities_count(&self) -> usize {
         self.generations.len() - self.free_list.len()
+    }
+
+    pub fn iter_alive(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.generations
+            .iter()
+            .enumerate()
+            .filter_map(|(id, &gen)| {
+                let entity = Entity {
+                    id: id as u32,
+                    generation: gen,
+                };
+                if self.is_alive(entity) {
+                    Some(entity)
+                } else {
+                    None
+                }
+            })
     }
 }
 

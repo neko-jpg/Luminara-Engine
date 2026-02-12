@@ -1,58 +1,24 @@
-use luminara_core::shared_types::Resource;
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle, DisplayHandle, WindowHandle, RawDisplayHandle, RawWindowHandle, HandleError};
+//! # Luminara Window
+//!
+//! Window management and event handling for the Luminara Engine.
+//! Powered by `winit`.
 
-pub struct Window {
-    pub width: u32,
-    pub height: u32,
-    display_handle: RawDisplayHandle,
-    window_handle: RawWindowHandle,
-}
-
-impl Window {
-    pub fn new(width: u32, height: u32, display_handle: RawDisplayHandle, window_handle: RawWindowHandle) -> Self {
-        Self {
-            width,
-            height,
-            display_handle,
-            window_handle,
-        }
-    }
-}
-
-// SAFETY: Window handles are generally safe to pass between threads on most modern platforms,
-// but wgpu and other libraries handle the actual synchronization.
-unsafe impl Send for Window {}
-unsafe impl Sync for Window {}
-
-impl Resource for Window {}
-
-impl HasDisplayHandle for Window {
-    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-        unsafe { Ok(DisplayHandle::borrow_raw(self.display_handle)) }
-    }
-}
-
-impl HasWindowHandle for Window {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        unsafe { Ok(WindowHandle::borrow_raw(self.window_handle)) }
-    }
-}
-pub mod window;
-pub mod window_plugin;
+pub mod cursor;
 pub mod events;
 pub mod monitor;
-pub mod cursor;
+pub mod window;
+pub mod window_plugin;
 
+pub use events::*;
 pub use window::*;
 pub use window_plugin::*;
-pub use events::*;
 
+use crate::events::WindowEvent as LuminaraWindowEvent;
 use luminara_core::shared_types::{App, AppInterface, Events};
+use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{WindowId, WindowAttributes};
-use crate::events::WindowEvent as LuminaraWindowEvent;
-use std::sync::Arc;
+use winit::window::{WindowAttributes, WindowId};
 
 struct LuminaraWinitHandler {
     app: App,
@@ -62,13 +28,19 @@ struct LuminaraWinitHandler {
 impl ApplicationHandler for LuminaraWinitHandler {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
-            // In a real implementation, we would get this from app resources.
-            // For now, we use default or a placeholder.
-            let descriptor = window::WindowDescriptor::default();
+            let descriptor = self
+                .app
+                .world
+                .get_resource::<window::WindowDescriptor>()
+                .cloned()
+                .unwrap_or_default();
 
             let attributes = WindowAttributes::default()
                 .with_title(&descriptor.title)
-                .with_inner_size(winit::dpi::LogicalSize::new(descriptor.width, descriptor.height))
+                .with_inner_size(winit::dpi::LogicalSize::new(
+                    descriptor.width,
+                    descriptor.height,
+                ))
                 .with_resizable(descriptor.resizable);
 
             let winit_window = Arc::new(event_loop.create_window(attributes).unwrap());
@@ -80,9 +52,18 @@ impl ApplicationHandler for LuminaraWinitHandler {
         }
     }
 
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, event: winit::event::WindowEvent) {
+    fn window_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: winit::event::WindowEvent,
+    ) {
         if let Some(lum_event) = luminara_window_event_from_winit(&event) {
-            if let Some(events) = self.app.get_resource_mut::<Events<LuminaraWindowEvent>>() {
+            if let Some(events) = self
+                .app
+                .world
+                .get_resource_mut::<Events<LuminaraWindowEvent>>()
+            {
                 events.send(lum_event);
             }
         }
@@ -105,7 +86,9 @@ impl ApplicationHandler for LuminaraWinitHandler {
     }
 }
 
-fn luminara_window_event_from_winit(event: &winit::event::WindowEvent) -> Option<LuminaraWindowEvent> {
+fn luminara_window_event_from_winit(
+    event: &winit::event::WindowEvent,
+) -> Option<LuminaraWindowEvent> {
     match event {
         winit::event::WindowEvent::Resized(size) => Some(LuminaraWindowEvent::Resized {
             width: size.width,
@@ -113,16 +96,19 @@ fn luminara_window_event_from_winit(event: &winit::event::WindowEvent) -> Option
         }),
         winit::event::WindowEvent::CloseRequested => Some(LuminaraWindowEvent::CloseRequested),
         winit::event::WindowEvent::Focused(focused) => Some(LuminaraWindowEvent::Focused(*focused)),
-        winit::event::WindowEvent::Moved(pos) => Some(LuminaraWindowEvent::Moved {
-            x: pos.x,
-            y: pos.y,
-        }),
+        winit::event::WindowEvent::Moved(pos) => {
+            Some(LuminaraWindowEvent::Moved { x: pos.x, y: pos.y })
+        }
         winit::event::WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-            Some(LuminaraWindowEvent::ScaleFactorChanged { scale_factor: *scale_factor })
+            Some(LuminaraWindowEvent::ScaleFactorChanged {
+                scale_factor: *scale_factor,
+            })
         }
         winit::event::WindowEvent::CursorEntered { .. } => Some(LuminaraWindowEvent::CursorEntered),
         winit::event::WindowEvent::CursorLeft { .. } => Some(LuminaraWindowEvent::CursorLeft),
-        winit::event::WindowEvent::DroppedFile(path) => Some(LuminaraWindowEvent::DroppedFile(path.clone())),
+        winit::event::WindowEvent::DroppedFile(path) => {
+            Some(LuminaraWindowEvent::DroppedFile(path.clone()))
+        }
         _ => None,
     }
 }

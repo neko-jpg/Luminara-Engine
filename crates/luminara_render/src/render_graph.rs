@@ -7,6 +7,12 @@ pub struct RenderGraph {
     pub nodes: Vec<Box<dyn RenderNode>>,
 }
 
+impl Default for RenderGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RenderGraph {
     pub fn new() -> Self {
         Self { nodes: Vec::new() }

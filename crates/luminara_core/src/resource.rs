@@ -1,11 +1,9 @@
 use std::any::{Any, TypeId};
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::cell::UnsafeCell;
 
 pub trait Resource: Send + Sync + 'static {}
-
-impl<T: Send + Sync + 'static> Resource for T {}
 
 pub struct ResourceMap {
     pub(crate) resources: HashMap<TypeId, UnsafeCell<Box<dyn Any + Send + Sync>>>,
@@ -13,6 +11,12 @@ pub struct ResourceMap {
 
 unsafe impl Send for ResourceMap {}
 unsafe impl Sync for ResourceMap {}
+
+impl Default for ResourceMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ResourceMap {
     pub fn new() -> Self {
@@ -22,19 +26,29 @@ impl ResourceMap {
     }
 
     pub fn insert<R: Resource>(&mut self, resource: R) {
-        self.resources.insert(TypeId::of::<R>(), UnsafeCell::new(Box::new(resource)));
+        self.resources
+            .insert(TypeId::of::<R>(), UnsafeCell::new(Box::new(resource)));
     }
 
     pub fn get<R: Resource>(&self) -> Option<&R> {
         unsafe {
-            self.resources.get(&TypeId::of::<R>())
+            self.resources
+                .get(&TypeId::of::<R>())
                 .map(|cell| (*cell.get()).downcast_ref::<R>().unwrap())
         }
     }
 
+    /// Fetches a mutable reference to a resource.
+    ///
+    /// # Safety
+    /// This method uses interior mutability to provide a mutable reference from a shared reference.
+    /// The caller (typically the ECS scheduler) MUST ensure that no other references (mutable or immutable)
+    /// to this resource exist simultaneously. Failure to do so will result in undefined behavior.
+    #[allow(clippy::mut_from_ref)]
     pub fn get_mut<R: Resource>(&self) -> Option<&mut R> {
         unsafe {
-            self.resources.get(&TypeId::of::<R>())
+            self.resources
+                .get(&TypeId::of::<R>())
                 .map(|cell| (*cell.get()).downcast_mut::<R>().unwrap())
         }
     }

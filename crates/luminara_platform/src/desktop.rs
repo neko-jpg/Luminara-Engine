@@ -1,4 +1,4 @@
-use crate::{PlatformInfo, Os, Arch};
+use crate::{Arch, Os, PlatformInfo};
 
 pub fn get_platform_info() -> PlatformInfo {
     let os = if cfg!(target_os = "windows") {
@@ -29,9 +29,5 @@ pub fn get_platform_info() -> PlatformInfo {
 
     let is_debug = cfg!(debug_assertions);
 
-    PlatformInfo {
-        os,
-        arch,
-        is_debug,
-    }
+    PlatformInfo { os, arch, is_debug }
 }

@@ -10,8 +10,10 @@ pub struct GpuContext {
     pub surface_config: wgpu::SurfaceConfiguration,
 }
 
+use crate::error::RenderError;
+
 impl GpuContext {
-    pub fn new(window: &Window) -> Self {
+    pub fn new(window: &Window) -> Result<Self, RenderError> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
@@ -20,7 +22,9 @@ impl GpuContext {
         // SAFETY: We transmute the surface to 'static to make it easier to store in a Resource.
         // This is safe as long as the Window (which the surface is tied to) outlives the GpuContext.
         // In Luminara, both are typically long-lived resources managed by the App.
-        let surface = instance.create_surface(window).expect("Failed to create surface");
+        let surface = instance
+            .create_surface(window)
+            .map_err(|e| RenderError::SurfaceCreationFailed(e.to_string()))?;
         let surface: wgpu::Surface<'static> = unsafe { std::mem::transmute(surface) };
 
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -28,7 +32,7 @@ impl GpuContext {
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         }))
-        .expect("Failed to find an appropriate adapter");
+        .ok_or(RenderError::AdapterRequestFailed)?;
 
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
@@ -39,10 +43,12 @@ impl GpuContext {
             },
             None,
         ))
-        .expect("Failed to create device");
+        .map_err(|e: wgpu::RequestDeviceError| RenderError::DeviceRequestFailed(e.to_string()))?;
 
         let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps.formats.iter()
+        let surface_format = surface_caps
+            .formats
+            .iter()
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
@@ -59,14 +65,14 @@ impl GpuContext {
         };
         surface.configure(&device, &config);
 
-        Self {
+        Ok(Self {
             instance,
             adapter,
             device,
             queue,
             surface,
             surface_config: config,
-        }
+        })
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -78,9 +84,13 @@ impl GpuContext {
     }
 
     pub fn begin_frame(&self) -> (wgpu::SurfaceTexture, wgpu::TextureView) {
-        let frame = self.surface.get_current_texture()
+        let frame = self
+            .surface
+            .get_current_texture()
             .expect("Failed to acquire next surface texture");
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
         (frame, view)
     }
 

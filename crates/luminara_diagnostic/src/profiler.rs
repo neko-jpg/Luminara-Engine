@@ -1,8 +1,6 @@
-use std::collections::{HashMap, VecDeque};
 use instant::{Duration, Instant};
 use std::cell::RefCell;
-use std::cell::RefCell;
-use instant::{Instant, Duration};
+use std::collections::{HashMap, VecDeque};
 
 pub struct ProfileScope {
     pub name: String,
@@ -32,21 +30,33 @@ impl ProfileScope {
         }
         let total: Duration = self.samples.iter().sum();
         total / self.samples.len() as u32
-        let sum: Duration = self.samples.iter().sum();
-        sum / self.samples.len() as u32
     }
 
     pub fn max(&self) -> Duration {
-        self.samples.iter().max().cloned().unwrap_or(Duration::from_secs(0))
+        self.samples
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or(Duration::from_secs(0))
     }
 
     pub fn min(&self) -> Duration {
-        self.samples.iter().min().cloned().unwrap_or(Duration::from_secs(0))
+        self.samples
+            .iter()
+            .min()
+            .cloned()
+            .unwrap_or(Duration::from_secs(0))
     }
 }
 
 pub struct Profiler {
     pub scopes: HashMap<String, ProfileScope>,
+}
+
+impl Default for Profiler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Profiler {

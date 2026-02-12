@@ -19,6 +19,12 @@ pub struct PipelineCache {
     pipelines: HashMap<String, RenderPipeline>,
 }
 
+impl Default for PipelineCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineCache {
     pub fn new() -> Self {
         Self {
@@ -37,19 +43,20 @@ impl PipelineCache {
             let module = shader.compile(device);
 
             // Phase 0: Simple camera bind group layout
-            let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("Camera Bind Group Layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+            let camera_bind_group_layout =
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Camera Bind Group Layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
 
             let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some(&format!("{} Layout", desc.label)),
@@ -105,7 +112,8 @@ impl PipelineCache {
                 cache: None,
             });
 
-            self.pipelines.insert(desc.label.clone(), RenderPipeline { pipeline });
+            self.pipelines
+                .insert(desc.label.clone(), RenderPipeline { pipeline });
         }
         self.pipelines.get(&desc.label).unwrap()
     }

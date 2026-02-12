@@ -1,5 +1,6 @@
 use crate::{asset_hot_reload_system, AssetServer, HotReloadWatcher};
-use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin};
+use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, ResMut};
+use luminara_core::system::FunctionMarker;
 use std::path::PathBuf;
 
 pub struct AssetPlugin {
@@ -27,7 +28,10 @@ impl Plugin for AssetPlugin {
             app.insert_resource(watcher);
         }
 
-        app.insert_resource(server)
-            .add_system(CoreStage::PreUpdate, asset_hot_reload_system);
+        app.insert_resource(server).add_system::<(
+            FunctionMarker,
+            ResMut<'static, AssetServer>,
+            ResMut<'static, HotReloadWatcher>,
+        )>(CoreStage::PreUpdate, asset_hot_reload_system);
     }
 }

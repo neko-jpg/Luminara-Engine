@@ -1,17 +1,10 @@
-use luminara_core::shared_types::{App, Plugin, AppInterface, Events};
-use crate::window::WindowDescriptor;
 use crate::events::WindowEvent;
+use crate::window::WindowDescriptor;
+use luminara_core::shared_types::{App, AppInterface, Events, Plugin};
 
+#[derive(Default)]
 pub struct WindowPlugin {
     pub descriptor: WindowDescriptor,
-}
-
-impl Default for WindowPlugin {
-    fn default() -> Self {
-        Self {
-            descriptor: WindowDescriptor::default(),
-        }
-    }
 }
 
 impl Plugin for WindowPlugin {

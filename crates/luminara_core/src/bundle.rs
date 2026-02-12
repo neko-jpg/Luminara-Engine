@@ -1,34 +1,50 @@
-use crate::world::{World, ComponentInfo};
-use crate::component::Component;
 use crate::change_detection::ComponentTicks;
+use crate::component::Component;
+use crate::world::{ComponentInfo, World};
 use std::any::TypeId;
 use std::collections::HashMap;
 
 pub trait Bundle: Send + Sync + 'static {
     fn register_components(world: &mut World);
-    fn get_components(self, info: &HashMap<TypeId, ComponentInfo>, ticks: ComponentTicks) -> HashMap<TypeId, (*const u8, ComponentTicks)>;
+    fn get_components(
+        self,
+        info: &HashMap<TypeId, ComponentInfo>,
+        ticks: ComponentTicks,
+    ) -> HashMap<TypeId, (*const u8, ComponentTicks)>;
     fn component_ids() -> Vec<TypeId>;
 }
 
 impl Bundle for () {
     fn register_components(_: &mut World) {}
-    fn get_components(self, _: &HashMap<TypeId, ComponentInfo>, _: ComponentTicks) -> HashMap<TypeId, (*const u8, ComponentTicks)> {
+    fn get_components(
+        self,
+        _: &HashMap<TypeId, ComponentInfo>,
+        _: ComponentTicks,
+    ) -> HashMap<TypeId, (*const u8, ComponentTicks)> {
         HashMap::new()
     }
-    fn component_ids() -> Vec<TypeId> { Vec::new() }
+    fn component_ids() -> Vec<TypeId> {
+        Vec::new()
+    }
 }
 
 impl<T: Component> Bundle for T {
     fn register_components(world: &mut World) {
         world.register_component::<T>();
     }
-    fn get_components(self, _info: &HashMap<TypeId, ComponentInfo>, ticks: ComponentTicks) -> HashMap<TypeId, (*const u8, ComponentTicks)> {
+    fn get_components(
+        self,
+        _info: &HashMap<TypeId, ComponentInfo>,
+        ticks: ComponentTicks,
+    ) -> HashMap<TypeId, (*const u8, ComponentTicks)> {
         let mut map = HashMap::new();
         let ptr = Box::into_raw(Box::new(self)) as *const u8;
         map.insert(TypeId::of::<T>(), (ptr, ticks));
         map
     }
-    fn component_ids() -> Vec<TypeId> { vec![TypeId::of::<T>()] }
+    fn component_ids() -> Vec<TypeId> {
+        vec![TypeId::of::<T>()]
+    }
 }
 
 // Implement for tuples

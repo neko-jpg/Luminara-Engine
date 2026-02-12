@@ -35,6 +35,13 @@ impl AssetServer {
     }
 
     pub fn load<T: Asset>(&self, path: &str) -> Handle<T> {
+        // Path validation to prevent path traversal
+        let path_obj = Path::new(path);
+        if path.contains("..") || path_obj.is_absolute() {
+            log::error!("Invalid asset path: {}", path);
+            return Handle::new(AssetId::from_path(path)); // Returns handle that will fail to get
+        }
+
         let id = AssetId::from_path(path);
 
         {

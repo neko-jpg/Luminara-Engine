@@ -1,10 +1,10 @@
+use crate::event::{Event, EventReader, EventWriter};
+use crate::query::{Query, QueryFilter, WorldQuery};
+use crate::resource::{Res, ResMut, Resource};
 use crate::world::World;
-use crate::resource::{Resource, Res, ResMut};
-use crate::query::{WorldQuery, Query, QueryFilter};
-use crate::event::{Event, EventWriter, EventReader};
-use std::marker::PhantomData;
 use std::any::TypeId;
 use std::collections::HashSet;
+use std::marker::PhantomData;
 
 #[derive(Default, Clone, Debug)]
 pub struct SystemAccess {
@@ -12,10 +12,14 @@ pub struct SystemAccess {
     pub resources_write: HashSet<TypeId>,
     pub components_read: HashSet<TypeId>,
     pub components_write: HashSet<TypeId>,
+    pub exclusive: bool,
 }
 
 pub trait System: Send + Sync {
     fn run(&mut self, world: &World);
+    fn run_exclusive(&mut self, world: &mut World) {
+        self.run(world);
+    }
     fn name(&self) -> &str {
         "AnonymousSystem"
     }
@@ -24,7 +28,7 @@ pub trait System: Send + Sync {
     }
 }
 
-pub trait SystemParam: Send + Sync {
+pub trait SystemParam: Send + Sync + 'static {
     type Item<'w>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w>;
     fn add_access(access: &mut SystemAccess);
@@ -33,7 +37,9 @@ pub trait SystemParam: Send + Sync {
 impl<T: Resource> SystemParam for Res<'static, T> {
     type Item<'w> = Res<'w, T>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
-        Res { value: world.get_resource::<T>().expect("Resource not found") }
+        Res {
+            value: world.get_resource::<T>().expect("Resource not found"),
+        }
     }
     fn add_access(access: &mut SystemAccess) {
         access.resources_read.insert(TypeId::of::<T>());
@@ -43,7 +49,9 @@ impl<T: Resource> SystemParam for Res<'static, T> {
 impl<T: Resource> SystemParam for ResMut<'static, T> {
     type Item<'w> = ResMut<'w, T>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
-        ResMut { value: world.get_resource_mut::<T>().expect("Resource not found") }
+        ResMut {
+            value: world.get_resource_mut::<T>().expect("Resource not found"),
+        }
     }
     fn add_access(access: &mut SystemAccess) {
         access.resources_write.insert(TypeId::of::<T>());
@@ -66,8 +74,18 @@ impl<E: Event> SystemParam for EventWriter<'static, E> {
         EventWriter::new(world.get_events_mut::<E>())
     }
     fn add_access(access: &mut SystemAccess) {
-        access.resources_write.insert(TypeId::of::<crate::event::Events<E>>());
+        access
+            .resources_write
+            .insert(TypeId::of::<crate::event::Events<E>>());
     }
+}
+
+impl SystemParam for World {
+    type Item<'w> = &'w World;
+    fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
+        world
+    }
+    fn add_access(_access: &mut SystemAccess) {}
 }
 
 impl<E: Event> SystemParam for EventReader<'static, E> {
@@ -76,11 +94,13 @@ impl<E: Event> SystemParam for EventReader<'static, E> {
         EventReader::new(world.get_events::<E>().expect("Events not found"))
     }
     fn add_access(access: &mut SystemAccess) {
-        access.resources_read.insert(TypeId::of::<crate::event::Events<E>>());
+        access
+            .resources_read
+            .insert(TypeId::of::<crate::event::Events<E>>());
     }
 }
 
-pub trait IntoSystem<Params> {
+pub trait IntoSystem<Marker> {
     type System: System + 'static;
     fn into_system(self) -> Self::System;
 }
@@ -98,7 +118,8 @@ impl<F, Params> FunctionSystem<F, Params> {
     }
 }
 
-pub struct WorldRefParam;
+pub struct FunctionMarker;
+pub struct ExclusiveMarker;
 
 macro_rules! impl_system_func {
     ($($param:ident),*) => {
@@ -106,7 +127,7 @@ macro_rules! impl_system_func {
         impl<Func, $($param),*> System for FunctionSystem<Func, ($($param,)*)>
         where
             Func: for<'a> FnMut($($param::Item<'a>),*) + Send + Sync + 'static,
-            $($param: SystemParam + 'static),*
+            $($param: SystemParam),*
         {
             fn run(&mut self, world: &World) {
                 (self.f)($($param::get_param(world)),*);
@@ -117,10 +138,10 @@ macro_rules! impl_system_func {
         }
 
         #[allow(non_snake_case)]
-        impl<Func, $($param),*> IntoSystem<($($param,)*)> for Func
+        impl<Func, $($param),*> IntoSystem<(FunctionMarker, $($param),*)> for Func
         where
             Func: for<'a> FnMut($($param::Item<'a>),*) + Send + Sync + 'static,
-            $($param: SystemParam + 'static),*
+            $($param: SystemParam),*
         {
             type System = FunctionSystem<Func, ($($param,)*)>;
             fn into_system(self) -> Self::System {
@@ -144,34 +165,14 @@ impl_system_func!(A, B, C, D, E);
 impl_system_func!(A, B, C, D, E, F);
 impl_system_func!(A, B, C, D, E, F, G);
 impl_system_func!(A, B, C, D, E, F, G, H);
-impl_system_func!(A, B, C, D, E, F, G, H, I);
-impl_system_func!(A, B, C, D, E, F, G, H, I, J);
-impl_system_func!(A, B, C, D, E, F, G, H, I, J, K);
-impl_system_func!(A, B, C, D, E, F, G, H, I, J, K, L);
 
-impl<F> IntoSystem<WorldRefParam> for F
+impl<F> IntoSystem<ExclusiveMarker> for F
 where
-    F: FnMut(&World) + Send + Sync + 'static,
+    F: FnMut(&mut World) + Send + Sync + 'static,
 {
-    type System = FunctionSystem<F, WorldRefParam>;
+    type System = ExclusiveFunctionSystem<F>;
     fn into_system(self) -> Self::System {
-        FunctionSystem {
-            f: self,
-            system_access: SystemAccess::default(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<F> System for FunctionSystem<F, WorldRefParam>
-where
-    F: FnMut(&World) + Send + Sync + 'static,
-{
-    fn run(&mut self, world: &World) {
-        (self.f)(world);
-    }
-    fn access(&self) -> SystemAccess {
-        self.system_access.clone()
+        ExclusiveFunctionSystem { f: self }
     }
 }
 
@@ -184,3 +185,50 @@ where
         self
     }
 }
+
+impl<F> IntoSystem<ExclusiveMarker> for ExclusiveFunctionSystem<F>
+where
+    Self: System + 'static,
+{
+    type System = Self;
+    fn into_system(self) -> Self::System {
+        self
+    }
+}
+
+pub struct ExclusiveFunctionSystem<F> {
+    f: F,
+}
+
+impl<F> System for ExclusiveFunctionSystem<F>
+where
+    F: FnMut(&mut World) + Send + Sync + 'static,
+{
+    fn run(&mut self, _world: &World) {
+        panic!("Exclusive systems must be run with run_exclusive");
+    }
+    fn run_exclusive(&mut self, world: &mut World) {
+        (self.f)(world);
+    }
+    fn access(&self) -> SystemAccess {
+        SystemAccess {
+            exclusive: true,
+            ..Default::default()
+        }
+    }
+}
+
+unsafe impl<F, P> Send for FunctionSystem<F, P>
+where
+    F: Send,
+    P: Send,
+{
+}
+unsafe impl<F, P> Sync for FunctionSystem<F, P>
+where
+    F: Sync,
+    P: Sync,
+{
+}
+unsafe impl<F> Send for ExclusiveFunctionSystem<F> where F: Send {}
+unsafe impl<F> Sync for ExclusiveFunctionSystem<F> where F: Sync {}
