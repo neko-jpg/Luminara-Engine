@@ -87,7 +87,7 @@ impl PipelineCache {
                     topology: desc.topology,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None, // Phase 0: disable culling to avoid winding issues
                     polygon_mode: wgpu::PolygonMode::Fill,
                     unclipped_depth: false,
                     conservative: false,

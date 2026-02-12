@@ -53,13 +53,31 @@ impl GpuContext {
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
+        let present_mode = if surface_caps
+            .present_modes
+            .contains(&wgpu::PresentMode::Fifo)
+        {
+            wgpu::PresentMode::Fifo
+        } else {
+            surface_caps.present_modes[0]
+        };
+
+        let alpha_mode = if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::Opaque)
+        {
+            wgpu::CompositeAlphaMode::Opaque
+        } else {
+            surface_caps.alpha_modes[0]
+        };
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: window.width,
             height: window.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
+            present_mode,
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -83,15 +101,53 @@ impl GpuContext {
         }
     }
 
-    pub fn begin_frame(&self) -> (wgpu::SurfaceTexture, wgpu::TextureView) {
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next surface texture");
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        (frame, view)
+    pub fn begin_frame(&mut self) -> Option<(wgpu::SurfaceTexture, wgpu::TextureView)> {
+        match self.surface.get_current_texture() {
+            Ok(frame) => {
+                let view = frame
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                Some((frame, view))
+            }
+            Err(wgpu::SurfaceError::Timeout) => {
+                log::warn!("Surface texture checkout timeout — skipping frame");
+                None
+            }
+            Err(wgpu::SurfaceError::Outdated) => {
+                log::info!("Surface outdated, reconfiguring... ({}x{})", self.surface_config.width, self.surface_config.height);
+                self.surface.configure(&self.device, &self.surface_config);
+                // Retry immediately instead of skipping the frame
+                match self.surface.get_current_texture() {
+                    Ok(frame) => {
+                        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+                        Some((frame, view))
+                    }
+                    Err(e) => {
+                        log::error!("Surface still unavailable after reconfigure: {:?}", e);
+                        None
+                    }
+                }
+            }
+            Err(wgpu::SurfaceError::Lost) => {
+                log::warn!("Surface lost, reconfiguring...");
+                self.surface.configure(&self.device, &self.surface_config);
+                // Retry immediately instead of skipping the frame
+                match self.surface.get_current_texture() {
+                    Ok(frame) => {
+                        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+                        Some((frame, view))
+                    }
+                    Err(e) => {
+                        log::error!("Surface still unavailable after reconfigure: {:?}", e);
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("Surface error: {:?}", e);
+                None
+            }
+        }
     }
 
     pub fn end_frame(&self, frame: wgpu::SurfaceTexture) {

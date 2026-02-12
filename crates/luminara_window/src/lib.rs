@@ -14,7 +14,7 @@ pub use window::*;
 pub use window_plugin::*;
 
 use crate::events::WindowEvent as LuminaraWindowEvent;
-use luminara_core::shared_types::{App, AppInterface, Events};
+use luminara_core::shared_types::{App, AppInterface};
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -35,13 +35,17 @@ impl ApplicationHandler for LuminaraWinitHandler {
                 .cloned()
                 .unwrap_or_default();
 
+            // (4) Use .with_transparent(false) to hint the compositor that the
+            //     window background should be opaque. This reduces the chance of
+            //     a white flash if a frame is missed during resize.
             let attributes = WindowAttributes::default()
                 .with_title(&descriptor.title)
                 .with_inner_size(winit::dpi::LogicalSize::new(
                     descriptor.width,
                     descriptor.height,
                 ))
-                .with_resizable(descriptor.resizable);
+                .with_resizable(descriptor.resizable)
+                .with_transparent(false);
 
             let winit_window = Arc::new(event_loop.create_window(attributes).unwrap());
             let window = window::Window::new(winit_window.clone(), &descriptor);
@@ -49,6 +53,10 @@ impl ApplicationHandler for LuminaraWinitHandler {
             // Update app with the actual window resource
             self.app.insert_resource(window);
             self.window = Some(winit_window);
+
+            // Run startup systems now that the window is available
+            // (GPU context init, user setup systems, etc.)
+            self.app.schedule.run_startup(&mut self.app.world);
         }
     }
 
@@ -59,16 +67,29 @@ impl ApplicationHandler for LuminaraWinitHandler {
         event: winit::event::WindowEvent,
     ) {
         if let Some(lum_event) = luminara_window_event_from_winit(&event) {
-            if let Some(events) = self
-                .app
-                .world
-                .get_resource_mut::<Events<LuminaraWindowEvent>>()
-            {
-                events.send(lum_event);
-            }
+            self.app.world.get_events_mut::<LuminaraWindowEvent>().send(lum_event);
         }
 
         match event {
+            winit::event::WindowEvent::Resized(size) => {
+                // (1) The Resized event's physical_size is the authoritative value.
+                //     On WSLg/Wayland, inner_size() may lag, so we trust the event.
+                // (3) Guard against (0,0) which occurs on minimize and would crash wgpu.
+                if size.width > 0 && size.height > 0 {
+                    if let Some(window) = self.app.world.get_resource_mut::<window::Window>() {
+                        window.resize(size.width, size.height);
+                    }
+                    // Run a full update cycle so window_resize_system picks up
+                    // the new stored size, reconfigures the GPU surface, and
+                    // render_system draws a frame at the correct dimensions.
+                    self.app.update();
+                    // (2) Request redraw immediately so the compositor gets a fresh
+                    //     frame at the new size, preventing white/stale borders.
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+            }
             winit::event::WindowEvent::CloseRequested => {
                 _event_loop.exit();
             }

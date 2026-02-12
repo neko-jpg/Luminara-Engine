@@ -91,7 +91,7 @@ impl SystemParam for World {
 impl<E: Event> SystemParam for EventReader<'static, E> {
     type Item<'w> = EventReader<'w, E>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
-        EventReader::new(world.get_events::<E>().expect("Events not found"))
+        EventReader::new(world.get_events_mut::<E>())
     }
     fn add_access(access: &mut SystemAccess) {
         access

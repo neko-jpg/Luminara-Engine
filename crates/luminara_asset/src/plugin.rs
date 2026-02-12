@@ -24,14 +24,22 @@ impl Plugin for AssetPlugin {
         let server = AssetServer::new(&self.asset_dir);
 
         // Setup hot reload watcher if possible
-        if let Ok(watcher) = HotReloadWatcher::new(self.asset_dir.clone()) {
+        let watcher_available = if let Ok(watcher) = HotReloadWatcher::new(self.asset_dir.clone()) {
             app.insert_resource(watcher);
-        }
+            true
+        } else {
+            false
+        };
 
-        app.insert_resource(server).add_system::<(
-            FunctionMarker,
-            ResMut<'static, AssetServer>,
-            ResMut<'static, HotReloadWatcher>,
-        )>(CoreStage::PreUpdate, asset_hot_reload_system);
+        app.insert_resource(server);
+
+        // Only register the hot reload system if the watcher was successfully created
+        if watcher_available {
+            app.add_system::<(
+                FunctionMarker,
+                ResMut<'static, AssetServer>,
+                ResMut<'static, HotReloadWatcher>,
+            )>(CoreStage::PreUpdate, asset_hot_reload_system);
+        }
     }
 }

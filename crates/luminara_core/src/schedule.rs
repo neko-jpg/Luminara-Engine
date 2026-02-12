@@ -73,7 +73,11 @@ impl Schedule {
 
         for mut batch in batches {
             if batch.len() == 1 {
-                batch[0].run(world);
+                if batch[0].access().exclusive {
+                    batch[0].run_exclusive(world);
+                } else {
+                    batch[0].run(world);
+                }
             } else {
                 let world_ptr = world as *const World as usize;
                 let systems_ptrs: Vec<usize> = batch

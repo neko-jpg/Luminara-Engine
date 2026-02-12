@@ -25,3 +25,4 @@ luminara_render = { workspace = true, optional = true }
 luminara_scene = { workspace = true, optional = true }
 luminara_platform = { workspace = true, optional = true }
 luminara_diagnostic = { workspace = true, optional = true }
+

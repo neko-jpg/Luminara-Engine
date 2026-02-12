@@ -4,7 +4,7 @@ use crate::mesh::Mesh;
 use crate::pipeline::PipelineCache;
 use crate::render_graph::RenderGraph;
 use crate::CameraUniformBuffer;
-use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, Query, ResMut, World};
+use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, Query, Res, ResMut, World};
 use luminara_core::system::{ExclusiveMarker, FunctionMarker};
 use luminara_math::Transform;
 use luminara_window::Window;
@@ -25,6 +25,14 @@ impl Plugin for RenderPlugin {
         // Register startup system to initialize GPU context once Window is available
         app.add_system::<ExclusiveMarker>(CoreStage::Startup, setup_gpu_context);
 
+        // Register window resize system
+        app.add_system::<(
+            FunctionMarker,
+            ResMut<'static, GpuContext>,
+            luminara_core::event::EventReader<'static, luminara_window::WindowEvent>,
+            Res<'static, luminara_window::Window>,
+        )>(CoreStage::PreUpdate, crate::window_resize_system);
+
         // Register mesh upload system
         app.add_system::<(
             FunctionMarker,
@@ -40,6 +48,7 @@ impl Plugin for RenderPlugin {
             ResMut<'static, CameraUniformBuffer>,
             Query<'static, (&Camera, &Transform)>,
             Query<'static, (&Mesh, &Transform)>,
+            Res<'static, luminara_window::Window>,
         )>(CoreStage::Render, crate::render_system);
     }
 }

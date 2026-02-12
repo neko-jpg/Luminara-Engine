@@ -83,6 +83,30 @@ impl Window {
     pub fn request_redraw(&self) {
         self.winit_window.request_redraw();
     }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.width = width;
+            self.height = height;
+        }
+    }
+
+    /// Returns the current physical pixel dimensions.
+    /// Uses the stored values from the last Resized event, which are the
+    /// authoritative source of truth. On WSLg/Wayland, inner_size() can
+    /// lag behind the actual compositor size, so we must NOT query it here.
+    pub fn physical_size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    /// Queries the underlying winit window for the current inner size.
+    /// This is used as a **self-healing fallback** in the render loop:
+    /// if the Resized event was missed or filtered, this will still return
+    /// the actual size once the compositor has finished the resize.
+    pub fn inner_size(&self) -> (u32, u32) {
+        let size = self.winit_window.inner_size();
+        (size.width, size.height)
+    }
 }
 
 impl Resource for Window {}

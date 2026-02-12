@@ -31,6 +31,6 @@ pub use plugin::Plugin;
 pub use query::{Added, Changed, Query, With, Without};
 pub use resource::{Res, ResMut, Resource};
 pub use shared_types::{AppInterface, CoreStage};
-pub use system::{IntoSystem, System, SystemParam};
+pub use system::{ExclusiveMarker, IntoSystem, System, SystemParam};
 pub use time::Time;
 pub use world::World;

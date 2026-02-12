@@ -20,10 +20,9 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    // For Phase 0, we might not have the buffer fully bound,
-    // so let's keep a fallback if the uniform is not used or if we want to stay simple.
-    // But let's try to be "best".
-    out.position = camera.view_proj * vec4<f32>(in.position, 1.0);
+    let world_pos = camera.view_proj * vec4<f32>(in.position, 1.0);
+    // If view_proj is identity (or close), use position directly in clip space
+    out.position = world_pos;
     out.color = in.color;
     return out;
 }
