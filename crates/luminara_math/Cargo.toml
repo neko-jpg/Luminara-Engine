@@ -7,3 +7,4 @@ edition.workspace = true
 glam = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 luminara_core = { workspace = true }
+glam = { workspace = true }

@@ -37,6 +37,29 @@ pub struct App;
 pub trait IntoSystem {}
 
 pub struct ResMut<T: ?Sized>(pub std::marker::PhantomData<T>);
+
+pub struct Events<T> {
+    events: Vec<T>,
+}
+
+impl<T: Send + Sync + 'static> Resource for Events<T> {}
+
+impl<T> Default for Events<T> {
+    fn default() -> Self {
+        Self { events: Vec::new() }
+    }
+}
+
+impl<T> Events<T> {
+    pub fn send(&mut self, event: T) {
+        self.events.push(event);
+    }
+
+    pub fn update(&mut self) {
+        self.events.clear();
+    }
+}
+
 impl<T: ?Sized> std::ops::Deref for ResMut<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target { unimplemented!() }
@@ -67,6 +90,9 @@ impl World {
             components: HashMap::new(),
             next_entity: 0,
         }
+    fn add_plugins(&mut self, plugin: impl Plugin) -> &mut Self {
+        plugin.build(self);
+        self
     }
 
     pub fn spawn(&mut self) -> Entity {
@@ -105,6 +131,11 @@ impl World {
 
     pub fn entities(&self) -> Vec<Entity> {
         self.entities.iter().cloned().collect()
+    }
+    fn run(mut self) {
+        if let Some(runner) = self.runner.take() {
+            (runner)(self);
+        }
     }
 }
 
