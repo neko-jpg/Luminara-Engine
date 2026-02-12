@@ -4,3 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+dirs = "5.0"
+instant = "0.1"
+num_cpus = "1.16"
+luminara_core = { path = "../luminara_core" }
