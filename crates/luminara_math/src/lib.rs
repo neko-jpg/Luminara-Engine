@@ -62,6 +62,37 @@ impl Transform {
         Self {
             translation,
             ..Self::IDENTITY
+use glam::{Vec3, Quat, Mat4};
+use serde::{Serialize, Deserialize};
+
+pub use glam;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct Transform {
+    pub translation: Vec3,
+    pub rotation: Quat,
+    pub scale: Vec3,
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::ONE,
+        }
+    }
+}
+
+impl luminara_core::Component for Transform {
+    fn type_name() -> &'static str { "Transform" }
+}
+
+impl Transform {
+    pub fn from_translation(translation: Vec3) -> Self {
+        Self {
+            translation,
+            ..Default::default()
         }
     }
 
@@ -69,6 +100,7 @@ impl Transform {
         Self {
             rotation,
             ..Self::IDENTITY
+            ..Default::default()
         }
     }
 
@@ -76,6 +108,7 @@ impl Transform {
         Self {
             scale,
             ..Self::IDENTITY
+            ..Default::default()
         }
     }
 
@@ -93,4 +126,15 @@ impl Default for Transform {
 use luminara_core::shared_types::Component;
 impl Component for Transform {
     fn type_name() -> &'static str { "Transform" }
+}
+
+    pub fn mul_transform(&self, other: &Self) -> Self {
+        let mat = self.compute_matrix() * other.compute_matrix();
+        let (scale, rotation, translation) = mat.to_scale_rotation_translation();
+        Self {
+            translation,
+            rotation,
+            scale,
+        }
+    }
 }
