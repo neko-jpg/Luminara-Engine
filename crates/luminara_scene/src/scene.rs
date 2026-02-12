@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 use luminara_core::{Entity, World};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -62,11 +62,19 @@ impl Name {
 }
 
 impl luminara_core::Component for Name {
-    fn type_name() -> &'static str { "Name" }
+    fn type_name() -> &'static str {
+        "Name"
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag(pub std::collections::HashSet<String>);
+
+impl Default for Tag {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Tag {
     pub fn new() -> Self {
@@ -83,7 +91,9 @@ impl Tag {
 }
 
 impl luminara_core::Component for Tag {
-    fn type_name() -> &'static str { "Tag" }
+    fn type_name() -> &'static str {
+        "Tag"
+    }
 }
 
 impl Scene {
@@ -116,7 +126,13 @@ impl Scene {
         let mut spawned_entities = Vec::new();
 
         for entity_data in &self.entities {
-            self.spawn_entity_recursive(world, entity_data, None, &mut id_map, &mut spawned_entities);
+            self.spawn_entity_recursive(
+                world,
+                entity_data,
+                None,
+                &mut id_map,
+                &mut spawned_entities,
+            );
         }
 
         spawned_entities
@@ -152,7 +168,9 @@ impl Scene {
         }
 
         if let Some(transform_val) = data.components.get("Transform") {
-            if let Ok(transform) = serde_json::from_value::<luminara_math::Transform>(transform_val.clone()) {
+            if let Ok(transform) =
+                serde_json::from_value::<luminara_math::Transform>(transform_val.clone())
+            {
                 world.add_component(entity, transform);
             }
         }

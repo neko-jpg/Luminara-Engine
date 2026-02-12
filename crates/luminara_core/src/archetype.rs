@@ -1,10 +1,11 @@
-use std::any::TypeId;
-use std::alloc::Layout;
-use std::collections::HashMap;
+use crate::change_detection::ComponentTicks;
 use crate::entity::Entity;
-use crate::change_detection::{ComponentTicks};
+use std::alloc::Layout;
+use std::any::TypeId;
+use std::collections::HashMap;
 
 pub type ArchetypeId = usize;
+pub type ComponentLayoutMap = HashMap<TypeId, (Layout, Option<unsafe fn(*mut u8)>)>;
 
 pub struct Column {
     data: Vec<u8>,
@@ -25,15 +26,20 @@ impl Column {
         }
     }
 
+    /// # Safety
+    /// `ptr` must point to a valid instance of the component type associated with this column.
     pub unsafe fn push(&mut self, ptr: *const u8, ticks: ComponentTicks) {
         let size = self.item_layout.size();
         if size > 0 {
-            self.data.extend_from_slice(std::slice::from_raw_parts(ptr, size));
+            self.data
+                .extend_from_slice(std::slice::from_raw_parts(ptr, size));
         }
         self.ticks.push(ticks);
         self.len += 1;
     }
 
+    /// # Safety
+    /// `index` must be within bounds.
     pub unsafe fn swap_remove(&mut self, index: usize) {
         let size = self.item_layout.size();
         let last_index = self.len - 1;
@@ -46,16 +52,12 @@ impl Column {
                 let src = self.data.as_ptr().add(last_index * size);
                 let dst = self.data.as_mut_ptr().add(index * size);
                 std::ptr::copy_nonoverlapping(src, dst, size);
-            } else {
-                if let Some(drop_fn) = self.drop_fn {
-                    drop_fn(self.data.as_mut_ptr().add(index * size));
-                }
+            } else if let Some(drop_fn) = self.drop_fn {
+                drop_fn(self.data.as_mut_ptr().add(index * size));
             }
             self.data.set_len(self.data.len() - size);
-        } else {
-             if let Some(drop_fn) = self.drop_fn {
-                 drop_fn(std::ptr::NonNull::dangling().as_ptr());
-             }
+        } else if let Some(drop_fn) = self.drop_fn {
+            drop_fn(std::ptr::NonNull::dangling().as_ptr());
         }
         self.ticks.swap_remove(index);
         self.len -= 1;
@@ -81,6 +83,10 @@ impl Column {
 
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 
@@ -110,7 +116,7 @@ pub struct Archetype {
 }
 
 impl Archetype {
-    pub fn new(id: ArchetypeId, mut types: Vec<TypeId>, layouts: HashMap<TypeId, (Layout, Option<unsafe fn(*mut u8)>)>) -> Self {
+    pub fn new(id: ArchetypeId, mut types: Vec<TypeId>, layouts: ComponentLayoutMap) -> Self {
         types.sort();
         let mut columns = HashMap::new();
         for &type_id in &types {
@@ -137,7 +143,13 @@ impl Archetype {
         &self.entities
     }
 
-    pub unsafe fn push(&mut self, entity: Entity, components: HashMap<TypeId, (*const u8, ComponentTicks)>) {
+    /// # Safety
+    /// `components` must contain valid pointers for all component types in this archetype.
+    pub unsafe fn push(
+        &mut self,
+        entity: Entity,
+        components: HashMap<TypeId, (*const u8, ComponentTicks)>,
+    ) {
         self.entities.push(entity);
         for (type_id, (ptr, ticks)) in components {
             self.columns.get_mut(&type_id).unwrap().push(ptr, ticks);
@@ -164,7 +176,19 @@ impl Archetype {
         self.entities.len()
     }
 
-    pub unsafe fn transfer_to(&mut self, index: usize, other: &mut Archetype, mut new_components: HashMap<TypeId, (*const u8, ComponentTicks)>, skip_drop: &[TypeId]) -> usize {
+    pub fn is_empty(&self) -> bool {
+        self.entities.is_empty()
+    }
+
+    /// # Safety
+    /// Structural change. `index` must be valid.
+    pub unsafe fn transfer_to(
+        &mut self,
+        index: usize,
+        other: &mut Archetype,
+        mut new_components: HashMap<TypeId, (*const u8, ComponentTicks)>,
+        skip_drop: &[TypeId],
+    ) -> usize {
         let entity = self.entities.swap_remove(index);
         other.entities.push(entity);
         let new_index = other.entities.len() - 1;
@@ -175,7 +199,10 @@ impl Archetype {
             if let Some((ptr, ticks)) = new_components.remove(&type_id) {
                 other_column.push(ptr, ticks);
             } else {
-                let self_column = self.columns.get_mut(&type_id).expect("Component missing during transfer");
+                let self_column = self
+                    .columns
+                    .get_mut(&type_id)
+                    .expect("Component missing during transfer");
                 let size = self_column.item_layout.size();
                 let ticks = self_column.ticks[index];
                 let dst = other_column.allocate_next(ticks);
@@ -190,7 +217,7 @@ impl Archetype {
         // After copying all needed components, perform swap_remove on ALL columns of the old archetype
         for (&type_id, self_column) in self.columns.iter_mut() {
             if !other.columns.contains_key(&type_id) && skip_drop.contains(&type_id) {
-                 // Manual swap_remove logic without drop
+                // Manual swap_remove logic without drop
                 let size = self_column.item_layout.size();
                 let last_index = self_column.len - 1;
                 if size > 0 {
@@ -233,7 +260,8 @@ impl Archetype {
 }
 
 impl Column {
-    // Helper for transfer
+    /// # Safety
+    /// Allocates space for the next component.
     pub unsafe fn allocate_next(&mut self, ticks: ComponentTicks) -> *mut u8 {
         let size = self.item_layout.size();
         self.ticks.push(ticks);
@@ -256,6 +284,12 @@ pub struct ArchetypeStorage {
     entity_location: HashMap<Entity, (ArchetypeId, usize)>,
 }
 
+impl Default for ArchetypeStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ArchetypeStorage {
     pub fn new() -> Self {
         Self {
@@ -266,7 +300,11 @@ impl ArchetypeStorage {
         }
     }
 
-    pub fn get_archetype_id(&mut self, mut types: Vec<TypeId>, layouts: &HashMap<TypeId, (Layout, Option<unsafe fn(*mut u8)>)>) -> ArchetypeId {
+    pub fn get_archetype_id(
+        &mut self,
+        mut types: Vec<TypeId>,
+        layouts: &ComponentLayoutMap,
+    ) -> ArchetypeId {
         types.sort();
         if let Some(&id) = self.signature_to_archetype.get(&types) {
             return id;
@@ -309,6 +347,9 @@ impl ArchetypeStorage {
     }
 
     pub fn archetypes_with_type(&self, type_id: TypeId) -> &[ArchetypeId] {
-        self.type_to_archetypes.get(&type_id).map(|v| v.as_slice()).unwrap_or(&[])
+        self.type_to_archetypes
+            .get(&type_id)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 }

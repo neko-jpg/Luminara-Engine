@@ -3,4 +3,25 @@ name = "luminara"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["core", "math", "window", "input", "asset", "render", "scene", "platform", "diagnostic"]
+core = ["dep:luminara_core"]
+math = ["dep:luminara_math"]
+window = ["dep:luminara_window"]
+input = ["dep:luminara_input"]
+asset = ["dep:luminara_asset"]
+render = ["dep:luminara_render"]
+scene = ["dep:luminara_scene"]
+platform = ["dep:luminara_platform"]
+diagnostic = ["dep:luminara_diagnostic"]
+
 [dependencies]
+luminara_core = { workspace = true, optional = true }
+luminara_math = { workspace = true, optional = true }
+luminara_window = { workspace = true, optional = true }
+luminara_input = { workspace = true, optional = true }
+luminara_asset = { workspace = true, optional = true }
+luminara_render = { workspace = true, optional = true }
+luminara_scene = { workspace = true, optional = true }
+luminara_platform = { workspace = true, optional = true }
+luminara_diagnostic = { workspace = true, optional = true }

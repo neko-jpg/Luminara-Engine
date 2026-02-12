@@ -1,1 +1,3 @@
-fn main() { println!("Luminara CLI"); }
+fn main() {
+    println!("Luminara CLI");
+}

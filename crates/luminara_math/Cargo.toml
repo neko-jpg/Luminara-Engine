@@ -5,5 +5,5 @@ edition.workspace = true
 
 [dependencies]
 glam = { workspace = true, features = ["serde"] }
-luminara_core = { workspace = true }
 serde = { workspace = true }
+luminara_core = { workspace = true }

@@ -56,6 +56,10 @@ impl Texture {
             ..Default::default()
         });
 
-        Ok(Self { texture, view, sampler })
+        Ok(Self {
+            texture,
+            view,
+            sampler,
+        })
     }
 }

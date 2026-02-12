@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use luminara_core::shared_types::Resource;
 use luminara_math::Vec2;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct TouchInput {
@@ -23,7 +23,14 @@ impl TouchInput {
 
         match phase {
             TouchPhase::Started | TouchPhase::Moved => {
-                self.touches.insert(id, TouchPoint { id, position: pos, phase });
+                self.touches.insert(
+                    id,
+                    TouchPoint {
+                        id,
+                        position: pos,
+                        phase,
+                    },
+                );
             }
             TouchPhase::Ended | TouchPhase::Cancelled => {
                 self.touches.remove(&id);

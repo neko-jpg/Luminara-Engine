@@ -1,7 +1,7 @@
+use dirs;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use dirs;
 
 pub struct FileSystem;
 

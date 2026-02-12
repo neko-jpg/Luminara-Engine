@@ -1,4 +1,4 @@
-use luminara_core::shared_types::Resource;
+use luminara_core::Resource;
 use std::collections::VecDeque;
 
 pub struct FrameStats {
@@ -26,10 +26,8 @@ impl FrameStats {
         if self.frame_time_history.is_empty() {
             return 0.0;
         }
-        let avg_ms: f32 = self.frame_time_history.iter().sum::<f32>() / self.frame_time_history.len() as f32;
-        if avg_ms > 0.0 {
-            1000.0 / avg_ms
-        let avg_frame_time: f32 = self.frame_time_history.iter().sum::<f32>() / self.frame_time_history.len() as f32;
+        let avg_frame_time: f32 =
+            self.frame_time_history.iter().sum::<f32>() / self.frame_time_history.len() as f32;
         if avg_frame_time > 0.0 {
             1000.0 / avg_frame_time
         } else {
@@ -37,19 +35,17 @@ impl FrameStats {
         }
     }
 
-    /// Returns the p-th percentile frame time in milliseconds.
-    /// p should be in range [0.0, 100.0].
     /// Calculates the percentile frame time in milliseconds.
     /// `p` should be between 0.0 and 100.0 (e.g. 99.0 for P99).
     pub fn percentile_frame_time(&self, p: f32) -> f32 {
         if self.frame_time_history.is_empty() {
             return 0.0;
         }
-        let mut sorted: Vec<f32> = self.frame_time_history.iter().cloned().collect();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-        let index = ((p / 100.0) * (sorted.len() as f32 - 1.0)).round() as usize;
-        let mut sorted = self.frame_time_history.iter().cloned().collect::<Vec<f32>>();
+        let mut sorted = self
+            .frame_time_history
+            .iter()
+            .cloned()
+            .collect::<Vec<f32>>();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let p = p.clamp(0.0, 100.0);

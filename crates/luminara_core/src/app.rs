@@ -1,9 +1,9 @@
-use crate::world::World;
-use crate::schedule::Schedule;
-use crate::system::IntoSystem;
 use crate::plugin::Plugin;
-use crate::shared_types::{CoreStage, AppInterface};
 use crate::resource::Resource;
+use crate::schedule::Schedule;
+use crate::shared_types::{AppInterface, CoreStage};
+use crate::system::IntoSystem;
+use crate::world::World;
 
 /// The main entry point for a Luminara application.
 /// Manages the `World`, `Schedule`, and engine loop.
@@ -27,17 +27,10 @@ impl App {
             schedule: Schedule::new(),
             runner: Box::new(|mut app| {
                 app.schedule.run_startup(&mut app.world);
-                loop {
-                    app.schedule.run(&mut app.world);
-                    // In a real engine, we would have a way to break the loop or handle events.
-                    // For now, this is just a placeholder runner.
-                    break;
-                }
+                app.schedule.run(&mut app.world);
             }),
         }
     }
-
-    /// Adds a system that runs exactly once when the application starts.
 
     pub fn set_runner(&mut self, runner: impl FnOnce(App) + 'static) -> &mut Self {
         self.runner = Box::new(runner);
@@ -55,13 +48,18 @@ impl AppInterface for App {
         self
     }
 
-    fn add_system<Params>(&mut self, stage: CoreStage, system: impl IntoSystem<Params>) -> &mut Self {
+    fn add_system<Marker>(
+        &mut self,
+        stage: CoreStage,
+        system: impl IntoSystem<Marker>,
+    ) -> &mut Self {
         self.schedule.add_system(stage, system.into_system());
         self
     }
 
-    fn add_startup_system<Params>(&mut self, system: impl IntoSystem<Params>) -> &mut Self {
-        self.schedule.add_system(CoreStage::Startup, system.into_system());
+    fn add_startup_system<Marker>(&mut self, system: impl IntoSystem<Marker>) -> &mut Self {
+        self.schedule
+            .add_system(CoreStage::Startup, system.into_system());
         self
     }
 

@@ -1,29 +1,17 @@
 use crate::Asset;
 use std::path::Path;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum AssetLoadError {
-    Io(std::io::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Parse error: {0}")]
     Parse(String),
+    #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
-}
-
-impl std::fmt::Display for AssetLoadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AssetLoadError::Io(err) => write!(f, "IO error: {}", err),
-            AssetLoadError::Parse(err) => write!(f, "Parse error: {}", err),
-            AssetLoadError::UnsupportedFormat(err) => write!(f, "Unsupported format: {}", err),
-        }
-    }
-}
-
-impl std::error::Error for AssetLoadError {}
-
-impl From<std::io::Error> for AssetLoadError {
-    fn from(err: std::io::Error) -> Self {
-        AssetLoadError::Io(err)
-    }
+    #[error("Invalid path: {0}")]
+    InvalidPath(String),
 }
 
 pub trait AssetLoader: Send + Sync + 'static {

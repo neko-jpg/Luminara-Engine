@@ -1,26 +1,32 @@
 use luminara_core::{Entity, World};
 use luminara_math::Transform;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parent(pub Entity);
 
 impl luminara_core::Component for Parent {
-    fn type_name() -> &'static str { "Parent" }
+    fn type_name() -> &'static str {
+        "Parent"
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Children(pub Vec<Entity>);
 
 impl luminara_core::Component for Children {
-    fn type_name() -> &'static str { "Children" }
+    fn type_name() -> &'static str {
+        "Children"
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalTransform(pub Transform);
 
 impl luminara_core::Component for GlobalTransform {
-    fn type_name() -> &'static str { "GlobalTransform" }
+    fn type_name() -> &'static str {
+        "GlobalTransform"
+    }
 }
 
 pub fn set_parent(world: &mut World, child: Entity, parent: Entity) {
@@ -56,8 +62,12 @@ pub fn remove_parent(world: &mut World, child: Entity) {
 /// infrastructure is minimal, we implement it using World for now.
 pub fn transform_propagate_system(world: &mut World) {
     let entities = world.entities();
-    let roots: Vec<Entity> = entities.into_iter()
-        .filter(|&e| world.get_component::<Transform>(e).is_some() && world.get_component::<Parent>(e).is_none())
+    let roots: Vec<Entity> = entities
+        .into_iter()
+        .filter(|&e| {
+            world.get_component::<Transform>(e).is_some()
+                && world.get_component::<Parent>(e).is_none()
+        })
         .collect();
 
     for root in roots {

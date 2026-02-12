@@ -1,12 +1,15 @@
-use luminara_scene::*;
+use glam::Vec3;
 use luminara_core::World;
 use luminara_math::Transform;
-use glam::Vec3;
+use luminara_scene::*;
 
 #[test]
 fn test_scene_serialization_ron() {
     let mut components = std::collections::HashMap::new();
-    components.insert("Transform".to_string(), serde_json::to_value(Transform::from_translation(Vec3::new(1.0, 2.0, 3.0))).unwrap());
+    components.insert(
+        "Transform".to_string(),
+        serde_json::to_value(Transform::from_translation(Vec3::new(1.0, 2.0, 3.0))).unwrap(),
+    );
 
     let scene = Scene {
         meta: SceneMeta {
@@ -15,25 +18,21 @@ fn test_scene_serialization_ron() {
             version: "1.0".to_string(),
             tags: vec!["test".to_string()],
         },
-        entities: vec![
-            EntityData {
-                name: "Main Entity".to_string(),
-                id: Some(1),
-                parent: None,
-                components,
-                children: vec![
-                    EntityData {
-                        name: "Child Entity".to_string(),
-                        id: Some(2),
-                        parent: Some(1),
-                        components: std::collections::HashMap::new(),
-                        children: vec![],
-                        tags: vec!["child".to_string()],
-                    }
-                ],
-                tags: vec!["main".to_string()],
-            }
-        ],
+        entities: vec![EntityData {
+            name: "Main Entity".to_string(),
+            id: Some(1),
+            parent: None,
+            components,
+            children: vec![EntityData {
+                name: "Child Entity".to_string(),
+                id: Some(2),
+                parent: Some(1),
+                components: std::collections::HashMap::new(),
+                children: vec![],
+                tags: vec!["child".to_string()],
+            }],
+            tags: vec!["main".to_string()],
+        }],
     };
 
     let ron_string = scene.to_ron().unwrap();
@@ -69,7 +68,10 @@ fn test_hierarchy_propagation() {
 
     world.add_component(root, Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)));
     world.add_component(child, Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)));
-    world.add_component(grandchild, Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)));
+    world.add_component(
+        grandchild,
+        Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)),
+    );
 
     set_parent(&mut world, child, root);
     set_parent(&mut world, grandchild, child);
@@ -78,7 +80,10 @@ fn test_hierarchy_propagation() {
 
     let root_global = world.get_component::<GlobalTransform>(root).unwrap().0;
     let child_global = world.get_component::<GlobalTransform>(child).unwrap().0;
-    let grandchild_global = world.get_component::<GlobalTransform>(grandchild).unwrap().0;
+    let grandchild_global = world
+        .get_component::<GlobalTransform>(grandchild)
+        .unwrap()
+        .0;
 
     assert_eq!(root_global.translation, Vec3::new(1.0, 0.0, 0.0));
     assert_eq!(child_global.translation, Vec3::new(2.0, 0.0, 0.0));
@@ -118,10 +123,13 @@ fn test_prefab_instantiation() {
             components: std::collections::HashMap::new(),
             children: vec![],
             tags: vec!["prefab".to_string()],
-        }
+        },
     };
 
     let instance = prefab.instantiate(&mut world);
     assert_eq!(world.get_component::<Name>(instance).unwrap().0, "Template");
-    assert!(world.get_component::<Tag>(instance).unwrap().contains("prefab"));
+    assert!(world
+        .get_component::<Tag>(instance)
+        .unwrap()
+        .contains("prefab"));
 }

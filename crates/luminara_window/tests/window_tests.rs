@@ -11,7 +11,10 @@ fn test_window_descriptor_default() {
 
 #[test]
 fn test_window_event_serialization() {
-    let event = WindowEvent::Resized { width: 800, height: 600 };
+    let event = WindowEvent::Resized {
+        width: 800,
+        height: 600,
+    };
     let serialized = serde_json::to_string(&event).unwrap();
     let deserialized: WindowEvent = serde_json::from_str(&serialized).unwrap();
     assert_eq!(event, deserialized);

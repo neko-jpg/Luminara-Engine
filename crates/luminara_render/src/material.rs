@@ -23,5 +23,7 @@ impl Material {
 
 use luminara_core::shared_types::Component;
 impl Component for Material {
-    fn type_name() -> &'static str { "Material" }
+    fn type_name() -> &'static str {
+        "Material"
+    }
 }

@@ -22,10 +22,12 @@ impl Shader {
     pub fn compile(&mut self, device: &wgpu::Device) -> &wgpu::ShaderModule {
         if self.module.is_none() {
             let module = match &self.source {
-                ShaderSource::Wgsl(code) => device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: None,
-                    source: wgpu::ShaderSource::Wgsl(code.into()),
-                }),
+                ShaderSource::Wgsl(code) => {
+                    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: None,
+                        source: wgpu::ShaderSource::Wgsl(code.into()),
+                    })
+                }
                 ShaderSource::WgslFile(path) => {
                     let code = std::fs::read_to_string(path).expect("Failed to read shader file");
                     device.create_shader_module(wgpu::ShaderModuleDescriptor {
