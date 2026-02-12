@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+glam = { workspace = true }
+luminara_core = { workspace = true }
 glam = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 luminara_core = { workspace = true }
