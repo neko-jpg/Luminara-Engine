@@ -1,0 +1,11 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9040729da36585bda2a8ffaebef9ab4a92a6c3095c231b17c0509b9992017d1c # shrinks to m1 = Motor { s: 1.0, e12: 0.0, e13: 0.0, e23: 0.0, e01: 0.0, e02: 0.0, e03: 0.0, e0123: 0.0 }, m2 = Motor { s: 0.288067, e12: 0.95761025, e13: 0.0, e23: 0.0, e01: 0.0, e02: 0.0, e03: -0.6718231, e0123: -2.2333162 }, t = 0.87451255
+cc ca73caa7db238a132e4df168cd27b27c6a20788ef1e8c5887a5faf2d685973ad # shrinks to m1 = Motor { s: 1.0, e12: 0.0, e13: 0.0, e23: 0.0, e01: 2.2869055, e02: 0.0, e03: 0.0, e0123: 0.0 }, m2 = Motor { s: 0.9994956, e12: 0.0, e13: 0.0, e23: -0.03175754, e01: 0.0, e02: 0.0, e03: 0.0, e0123: 0.0 }
+cc ecb8f1cd98de18fad8e32ecb84be4d858776d8cb1439f75e3046244025d33a1e # shrinks to m1 = Motor { s: 1.0, e12: 0.0, e13: 0.0, e23: 0.0, e01: 0.0, e02: 0.0, e03: 0.0, e0123: 0.0 }, m2 = Motor { s: 0.28747585, e12: 0.9577879, e13: 0.0, e23: 0.0, e01: 0.0, e02: 0.0, e03: 0.0, e0123: 0.0 }, px = 0.0, py = 6.701914, pz = 0.0
+cc 74ebefed9b75115757e3483acd05e82b353bd692120fa3332973ff5f71cc6f40 # shrinks to m1 = Motor { s: 1.0, e12: 0.0, e13: 0.0, e23: 0.0, e01: 0.0, e02: 0.0, e03: 0.0, e0123: 0.0 }, m2 = Motor { s: 0.15508986, e12: 0.8107619, e13: 0.0, e23: 0.5644575, e01: -1.7061534, e02: 1.6389884, e03: 1.1208249, e0123: -0.35030568 }, t = 0.59840876
+cc f2d9825b4de62e738e0a086f60d9b630de07b7aac598a2f78036d7e945bd4775 # shrinks to m1 = Motor { s: 1.0, e12: 0.0, e13: 0.0, e23: 0.0, e01: -0.21395677, e02: -2.9652581, e03: 2.0864704, e0123: 0.0 }, m2 = Motor { s: 0.32472807, e12: -0.6768544, e13: -0.2727023, e23: -0.6017086, e01: 3.413745, e02: 0.33366632, e03: -2.8986523, e0123: -0.003456831 }, t = 0.51710755

@@ -2,10 +2,27 @@
 //!
 //! Provides mathematical primitives and utilities for the Luminara Engine.
 //! Powered by `glam`.
+//!
+//! ## Modules
+//!
+//! - `foundations`: Exact predicates and adaptive precision arithmetic
+//! - `algebra`: PGA Motor, Lie group integrators, dual quaternions
+//! - `symbolic`: Symbolic computation engine and code generation
+//! - `geometry`: BVH, Reeb graph, manifold surfaces, Heat Method
+//! - `dynamics`: Spectral fluid solver and FFT utilities
+//! - `dsl`: MathDesignCommand DSL for AI integration
 
 pub use glam::{self, EulerRot, Mat4, Quat, Vec2, Vec3, Vec4};
 pub use glam::{IVec2, IVec3, IVec4, UVec2};
 pub use glam::{Vec2Swizzles, Vec3Swizzles, Vec4Swizzles};
+
+// Mathematical foundation modules
+pub mod algebra;
+pub mod dsl;
+pub mod dynamics;
+pub mod foundations;
+pub mod geometry;
+pub mod symbolic;
 
 use luminara_core::Component;
 use serde::{Deserialize, Serialize};
