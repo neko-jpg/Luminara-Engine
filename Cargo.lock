@@ -1810,6 +1810,7 @@ name = "luminara_window"
 version = "0.1.0"
 dependencies = [
  "luminara_core",
+ "luminara_input",
  "luminara_math",
  "raw-window-handle",
  "serde",

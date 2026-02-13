@@ -13,6 +13,7 @@ pub struct Time {
     frame_count: u64,
     fixed_timestep: f32,
     fixed_accumulator: f32,
+    pub time_scale: f32,
 }
 
 impl Resource for Time {}
@@ -30,6 +31,7 @@ impl Time {
             frame_count: 0,
             fixed_timestep: 1.0 / 60.0, // Default to 60Hz fixed update
             fixed_accumulator: 0.0,
+            time_scale: 1.0,
         }
     }
 
@@ -38,9 +40,11 @@ impl Time {
         let delta = now - self.last_frame;
         self.last_frame = now;
 
-        self.delta = delta;
-        self.delta_seconds = delta.as_secs_f32();
+        // Apply time scaling
+        self.delta = delta.mul_f32(self.time_scale);
+        self.delta_seconds = delta.as_secs_f32() * self.time_scale;
 
+        // Elapsed time is wall-clock time, not scaled time (usually)
         self.elapsed = now - self.startup;
         self.elapsed_seconds = self.elapsed.as_secs_f32();
 

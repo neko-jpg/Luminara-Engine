@@ -15,6 +15,7 @@ pub use window_plugin::*;
 
 use crate::events::WindowEvent as LuminaraWindowEvent;
 use luminara_core::shared_types::{App, AppInterface};
+use luminara_input::Input;
 use std::sync::Arc;
 use winit::application::ApplicationHandler;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -66,6 +67,11 @@ impl ApplicationHandler for LuminaraWinitHandler {
         _window_id: WindowId,
         event: winit::event::WindowEvent,
     ) {
+        // Dispatch raw winit event to Input resource if it exists
+        if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+            input.handle_winit_event(&event);
+        }
+
         if let Some(lum_event) = luminara_window_event_from_winit(&event) {
             self.app
                 .world
