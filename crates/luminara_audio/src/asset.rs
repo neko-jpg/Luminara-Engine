@@ -1,5 +1,5 @@
-use luminara_asset::{Asset, AssetLoadError, AssetLoader};
 use kira::sound::static_sound::StaticSoundData;
+use luminara_asset::{Asset, AssetLoadError, AssetLoader};
 use std::path::Path;
 
 /// Audio clip asset that can be played by the audio system
@@ -28,7 +28,7 @@ impl AssetLoader for AudioClipLoader {
         // Kira 0.9 uses from_file, but we have bytes, so we need to write to a temp file
         // or use a different approach. For now, let's just create a placeholder.
         // In a real implementation, we would need to decode the audio data properly.
-        
+
         // For now, return an error indicating this needs proper implementation
         Err(AssetLoadError::Parse(format!(
             "Audio loading from bytes not yet implemented for {:?}. \

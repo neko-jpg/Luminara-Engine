@@ -19,19 +19,19 @@ fn test_all_rigid_body_types_creation() {
         mass: 1.0,
         ..Default::default()
     };
-    
+
     let kinematic = RigidBody {
         body_type: RigidBodyType::Kinematic,
         mass: 1.0,
         ..Default::default()
     };
-    
+
     let static_body = RigidBody {
         body_type: RigidBodyType::Static,
         mass: 0.0,
         ..Default::default()
     };
-    
+
     assert_eq!(dynamic.body_type, RigidBodyType::Dynamic);
     assert_eq!(kinematic.body_type, RigidBodyType::Kinematic);
     assert_eq!(static_body.body_type, RigidBodyType::Static);
@@ -47,10 +47,16 @@ fn test_dynamic_body_properties() {
         angular_damping: 0.1,
         gravity_scale: 1.0,
     };
-    
+
     assert_eq!(dynamic.body_type, RigidBodyType::Dynamic);
-    assert!(dynamic.mass > 0.0, "Dynamic bodies should have positive mass");
-    assert!(dynamic.gravity_scale != 0.0, "Dynamic bodies typically have gravity");
+    assert!(
+        dynamic.mass > 0.0,
+        "Dynamic bodies should have positive mass"
+    );
+    assert!(
+        dynamic.gravity_scale != 0.0,
+        "Dynamic bodies typically have gravity"
+    );
 }
 
 /// Test that static bodies don't need mass
@@ -62,7 +68,7 @@ fn test_static_body_properties() {
         gravity_scale: 0.0,
         ..Default::default()
     };
-    
+
     assert_eq!(static_body.body_type, RigidBodyType::Static);
     // Static bodies don't move, so mass and gravity are irrelevant
 }
@@ -76,7 +82,7 @@ fn test_kinematic_body_properties() {
         gravity_scale: 0.0, // Kinematic bodies typically ignore gravity
         ..Default::default()
     };
-    
+
     assert_eq!(kinematic.body_type, RigidBodyType::Kinematic);
 }
 
@@ -95,7 +101,7 @@ proptest! {
             gravity_scale,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, RigidBodyType::Dynamic);
         prop_assert_eq!(rigid_body.mass, mass);
         prop_assert_eq!(rigid_body.gravity_scale, gravity_scale);
@@ -112,7 +118,7 @@ proptest! {
             gravity_scale: 0.0,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, RigidBodyType::Kinematic);
     }
 
@@ -126,7 +132,7 @@ proptest! {
             mass,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, RigidBodyType::Static);
     }
 
@@ -140,7 +146,7 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         prop_assert_eq!(body_type, body_type);
     }
 
@@ -155,13 +161,13 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let type_b = match type_b_index {
             0 => RigidBodyType::Dynamic,
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         if type_a_index == type_b_index {
             prop_assert_eq!(type_a, type_b);
         } else {
@@ -181,20 +187,20 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let rigid_body = RigidBody {
             body_type,
             mass,
             ..Default::default()
         };
-        
+
         let collider = Collider {
             shape: ColliderShape::Sphere { radius },
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, body_type);
-        
+
         if let ColliderShape::Sphere { radius: r } = collider.shape {
             prop_assert_eq!(r, radius);
         }
@@ -212,7 +218,7 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let rigid_body = RigidBody {
             body_type,
             mass: 1.0,
@@ -220,7 +226,7 @@ proptest! {
             angular_damping,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, body_type);
         prop_assert_eq!(rigid_body.linear_damping, linear_damping);
         prop_assert_eq!(rigid_body.angular_damping, angular_damping);
@@ -237,24 +243,24 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let new_type = match new_type_index {
             0 => RigidBodyType::Dynamic,
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let mut rigid_body = RigidBody {
             body_type: initial_type,
             mass: 1.0,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, initial_type);
-        
+
         // Change body type
         rigid_body.body_type = new_type;
-        
+
         prop_assert_eq!(rigid_body.body_type, new_type);
     }
 
@@ -271,14 +277,14 @@ proptest! {
             1 => RigidBodyType::Kinematic,
             _ => RigidBodyType::Static,
         };
-        
+
         let transform = Transform::from_xyz(x, y, z);
         let rigid_body = RigidBody {
             body_type,
             mass: 1.0,
             ..Default::default()
         };
-        
+
         // Transform values should be independent of body type
         prop_assert_eq!(transform.translation.x, x);
         prop_assert_eq!(transform.translation.y, y);

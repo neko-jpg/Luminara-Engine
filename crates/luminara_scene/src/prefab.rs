@@ -1,3 +1,4 @@
+use crate::registry::TypeRegistry;
 use crate::scene::EntityData;
 use luminara_core::{Entity, World};
 use std::collections::HashMap;
@@ -9,6 +10,7 @@ pub struct Prefab {
 
 impl Prefab {
     pub fn instantiate(&self, world: &mut World) -> Entity {
+        let registry = world.remove_resource::<TypeRegistry>();
         let mut id_map = HashMap::new();
         let mut spawned_entities = Vec::new();
 
@@ -25,12 +27,19 @@ impl Prefab {
             entities: vec![],
         };
 
-        scene.spawn_entity_recursive(
+        let entity = scene.spawn_entity_recursive(
             world,
+            registry.as_ref(),
             &self.template,
             None,
             &mut id_map,
             &mut spawned_entities,
-        )
+        );
+
+        if let Some(reg) = registry {
+            world.insert_resource(reg);
+        }
+
+        entity
     }
 }

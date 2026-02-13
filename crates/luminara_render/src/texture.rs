@@ -57,27 +57,27 @@ impl Texture {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
         // First, try to detect if this is an HDR file by checking the header
         // HDR files start with "#?RADIANCE" or "#?RGBE"
-        let is_hdr = bytes.len() > 10 && 
-            (bytes.starts_with(b"#?RADIANCE") || bytes.starts_with(b"#?RGBE"));
-        
+        let is_hdr =
+            bytes.len() > 10 && (bytes.starts_with(b"#?RADIANCE") || bytes.starts_with(b"#?RGBE"));
+
         if is_hdr {
             // Load as HDR format using the HDR-specific decoder
-            use std::io::Cursor;
             use image::ImageDecoder;
-            
+            use std::io::Cursor;
+
             let cursor = Cursor::new(bytes);
             let decoder = image::codecs::hdr::HdrDecoder::new(cursor)?;
             let (width, height) = decoder.dimensions();
-            
+
             // Read raw HDR data as bytes
             let total_bytes = decoder.total_bytes() as usize;
             let mut buffer = vec![0u8; total_bytes];
             decoder.read_image(&mut buffer)?;
-            
+
             // The buffer contains RGB f32 values, convert to RGBA f32
             let pixel_count = (width * height) as usize;
             let mut rgba_data = Vec::with_capacity(pixel_count * 16); // 4 floats * 4 bytes
-            
+
             // Read RGB triplets and add alpha
             for i in 0..pixel_count {
                 let offset = i * 12; // 3 floats * 4 bytes
@@ -88,28 +88,28 @@ impl Texture {
                     rgba_data.extend_from_slice(&1.0f32.to_le_bytes());
                 }
             }
-            
+
             let data = TextureData {
                 width,
                 height,
                 data: rgba_data,
                 format: TextureFormat::Rgba32F,
             };
-            
+
             Ok(Self::new(data))
         } else {
             // Try to load as standard image format (PNG, JPG)
             let img = image::load_from_memory(bytes)?;
             let rgba = img.to_rgba8();
             let (width, height) = rgba.dimensions();
-            
+
             let data = TextureData {
                 width,
                 height,
                 data: rgba.into_raw(),
                 format: TextureFormat::Rgba8,
             };
-            
+
             Ok(Self::new(data))
         }
     }
@@ -175,18 +175,18 @@ impl Texture {
     pub fn solid_color(width: u32, height: u32, color: [u8; 4]) -> Self {
         let pixel_count = (width * height) as usize;
         let mut data = Vec::with_capacity(pixel_count * 4);
-        
+
         for _ in 0..pixel_count {
             data.extend_from_slice(&color);
         }
-        
+
         let texture_data = TextureData {
             width,
             height,
             data,
             format: TextureFormat::Rgba8,
         };
-        
+
         Self::new(texture_data)
     }
 }
@@ -212,7 +212,7 @@ mod tests {
             data: vec![255, 0, 0, 255],
             format: TextureFormat::Rgba8,
         };
-        
+
         let texture = Texture::new(data);
         assert_eq!(texture.data.width, 1);
         assert_eq!(texture.data.height, 1);

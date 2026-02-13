@@ -68,14 +68,14 @@ impl Plugin for Physics2dPlugin {
     fn name(&self) -> &str {
         "Physics2dPlugin"
     }
-    
+
     fn build(&self, app: &mut luminara_core::App) {
         // Initialize physics world resource
         app.world.insert_resource(PhysicsWorld2D::default());
-        
+
         // Register collision event
         app.world.insert_resource(CollisionEvents2D::default());
-        
+
         log::info!("Physics2dPlugin initialized");
     }
 }
@@ -113,10 +113,10 @@ pub fn physics_body_creation_system_2d(
             RigidBodyType::Kinematic => rapier2d::prelude::RigidBodyType::KinematicPositionBased,
             RigidBodyType::Static => rapier2d::prelude::RigidBodyType::Fixed,
         };
-        
+
         // Extract rotation angle from quaternion (Z-axis rotation for 2D)
         let angle = 2.0 * transform.rotation.w.acos();
-        
+
         let rapier_body = RigidBodyBuilder::new(rapier_body_type)
             .translation(vector![transform.translation.x, transform.translation.y])
             .rotation(angle)
@@ -124,16 +124,16 @@ pub fn physics_body_creation_system_2d(
             .angular_damping(rigid_body.angular_damping)
             .gravity_scale(rigid_body.gravity_scale)
             .build();
-        
+
         let body_handle = physics_world.rigid_body_set.insert(rapier_body);
-        
+
         // Store mappings
         physics_world.entity_to_body.insert(entity, body_handle);
         physics_world.body_to_entity.insert(body_handle, entity);
-        
+
         // Mark as created
         commands.entity(entity).insert(PhysicsBodyCreated2D);
-        
+
         log::debug!("Created 2D physics body for entity {:?}", entity);
     }
 }
@@ -151,27 +151,29 @@ pub fn physics_collider_creation_system_2d(
                 SharedShape::cuboid(half_extents.x, half_extents.y)
             }
             ColliderShape::Sphere { radius } => SharedShape::ball(*radius),
-            ColliderShape::Capsule { half_height, radius } => {
-                SharedShape::capsule_y(*half_height, *radius)
-            }
-            ColliderShape::Mesh { vertices, indices: _ } => {
+            ColliderShape::Capsule {
+                half_height,
+                radius,
+            } => SharedShape::capsule_y(*half_height, *radius),
+            ColliderShape::Mesh {
+                vertices,
+                indices: _,
+            } => {
                 // For 2D, convert 3D mesh to 2D polygon (use X and Y)
-                let vertices: Vec<Point<f32>> = vertices
-                    .iter()
-                    .map(|v| point![v.x, v.y])
-                    .collect();
+                let vertices: Vec<Point<f32>> = vertices.iter().map(|v| point![v.x, v.y]).collect();
                 SharedShape::convex_hull(&vertices).unwrap_or_else(|| SharedShape::ball(0.5))
             }
         };
-        
+
         let rapier_collider = ColliderBuilder::new(shape)
             .friction(collider.friction)
             .restitution(collider.restitution)
             .sensor(collider.is_sensor)
             .build();
-        
+
         // Attach to rigid body if it exists
-        let collider_handle = if let Some(&body_handle) = physics_world.entity_to_body.get(&entity) {
+        let collider_handle = if let Some(&body_handle) = physics_world.entity_to_body.get(&entity)
+        {
             let mut rigid_body_set = std::mem::take(&mut physics_world.rigid_body_set);
             let handle = physics_world.collider_set.insert_with_parent(
                 rapier_collider,
@@ -183,14 +185,18 @@ pub fn physics_collider_creation_system_2d(
         } else {
             physics_world.collider_set.insert(rapier_collider)
         };
-        
+
         // Store mappings
-        physics_world.entity_to_collider.insert(entity, collider_handle);
-        physics_world.collider_to_entity.insert(collider_handle, entity);
-        
+        physics_world
+            .entity_to_collider
+            .insert(entity, collider_handle);
+        physics_world
+            .collider_to_entity
+            .insert(collider_handle, entity);
+
         // Mark as created
         commands.entity(entity).insert(PhysicsColliderCreated2D);
-        
+
         log::debug!("Created 2D collider for entity {:?}", entity);
     }
 }
@@ -212,7 +218,7 @@ pub fn physics_step_system_2d(mut physics_world: ResMut<PhysicsWorld2D>) {
         ref mut query_pipeline,
         ..
     } = *physics_world;
-    
+
     physics_pipeline.step(
         gravity,
         integration_parameters,
@@ -240,19 +246,22 @@ pub fn physics_sync_system_2d(
             if let Some(body) = physics_world.rigid_body_set.get(body_handle) {
                 let position: &Vector<f32> = body.translation();
                 let rotation = body.rotation();
-                
+
                 // Check for NaN
                 if position.x.is_nan() || position.y.is_nan() {
-                    log::error!("NaN detected in physics body for entity {:?}, resetting", entity);
+                    log::error!(
+                        "NaN detected in physics body for entity {:?}, resetting",
+                        entity
+                    );
                     transform.translation = Vec3::ZERO;
                     transform.rotation = Quat::IDENTITY;
                     continue;
                 }
-                
+
                 // Update position (keep Z unchanged for 2D)
                 transform.translation.x = position.x;
                 transform.translation.y = position.y;
-                
+
                 // Update rotation (Z-axis rotation for 2D)
                 let angle = rotation.angle();
                 transform.rotation = Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), angle);
@@ -267,19 +276,19 @@ pub fn collision_detection_system_2d(
     mut collision_events: ResMut<CollisionEvents2D>,
 ) {
     collision_events.0.clear();
-    
+
     // Iterate through contact pairs
     for contact_pair in physics_world.narrow_phase.contact_pairs() {
         let collider1 = contact_pair.collider1;
         let collider2 = contact_pair.collider2;
-        
+
         if let (Some(&entity_a), Some(&entity_b)) = (
             physics_world.collider_to_entity.get(&collider1),
             physics_world.collider_to_entity.get(&collider2),
         ) {
             // Check if there's actual contact
             let has_contact = contact_pair.has_any_active_contact;
-            
+
             if has_contact {
                 collision_events.0.push(CollisionEvent {
                     entity_a,

@@ -35,13 +35,13 @@ fn quat_strategy() -> impl Strategy<Value = Quat> {
 
 /// Strategy for generating random Transform
 fn transform_strategy() -> impl Strategy<Value = Transform> {
-    (vec3_strategy(), quat_strategy(), vec3_strategy()).prop_map(|(translation, rotation, scale)| {
-        Transform {
+    (vec3_strategy(), quat_strategy(), vec3_strategy()).prop_map(
+        |(translation, rotation, scale)| Transform {
             translation,
             rotation,
             scale,
-        }
-    })
+        },
+    )
 }
 
 /// Strategy for generating component data
@@ -133,7 +133,7 @@ fn scene_strategy() -> impl Strategy<Value = Scene> {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
-    
+
     /// Property 1: Scene Round-Trip Consistency
     /// For any valid scene with entities, components, and hierarchy relationships,
     /// serializing to RON format and then deserializing should produce an equivalent
@@ -143,19 +143,19 @@ proptest! {
     fn prop_scene_ron_roundtrip_consistency(scene in scene_strategy()) {
         // Serialize to RON
         let ron_string = scene.to_ron().expect("Failed to serialize scene to RON");
-        
+
         // Deserialize from RON
         let deserialized = Scene::from_ron(&ron_string).expect("Failed to deserialize scene from RON");
-        
+
         // Verify metadata is preserved
         prop_assert_eq!(&deserialized.meta.name, &scene.meta.name);
         prop_assert_eq!(&deserialized.meta.description, &scene.meta.description);
         prop_assert_eq!(&deserialized.meta.version, &scene.meta.version);
         prop_assert_eq!(&deserialized.meta.tags, &scene.meta.tags);
-        
+
         // Verify entity count is preserved
         prop_assert_eq!(deserialized.entities.len(), scene.entities.len());
-        
+
         // Verify each entity's data is preserved
         for (original, deserialized_entity) in scene.entities.iter().zip(deserialized.entities.iter()) {
             prop_assert_eq!(&deserialized_entity.name, &original.name);
@@ -163,7 +163,7 @@ proptest! {
             prop_assert_eq!(&deserialized_entity.parent, &original.parent);
             prop_assert_eq!(&deserialized_entity.tags, &original.tags);
             prop_assert_eq!(deserialized_entity.components.len(), original.components.len());
-            
+
             // Verify children are preserved
             prop_assert_eq!(deserialized_entity.children.len(), original.children.len());
             for (orig_child, deser_child) in original.children.iter().zip(deserialized_entity.children.iter()) {
@@ -172,33 +172,33 @@ proptest! {
             }
         }
     }
-    
+
     /// Property 1 (JSON variant): Scene Round-Trip Consistency with JSON
     /// Same as above but using JSON serialization format
     #[test]
     fn prop_scene_json_roundtrip_consistency(scene in scene_strategy()) {
         // Serialize to JSON
         let json_string = scene.to_json().expect("Failed to serialize scene to JSON");
-        
+
         // Deserialize from JSON
         let deserialized = Scene::from_json(&json_string).expect("Failed to deserialize scene from JSON");
-        
+
         // Verify metadata is preserved
         prop_assert_eq!(&deserialized.meta.name, &scene.meta.name);
         prop_assert_eq!(&deserialized.meta.description, &scene.meta.description);
         prop_assert_eq!(&deserialized.meta.version, &scene.meta.version);
         prop_assert_eq!(&deserialized.meta.tags, &scene.meta.tags);
-        
+
         // Verify entity count is preserved
         prop_assert_eq!(deserialized.entities.len(), scene.entities.len());
-        
+
         // Verify each entity's data is preserved
         for (original, deserialized_entity) in scene.entities.iter().zip(deserialized.entities.iter()) {
             prop_assert_eq!(&deserialized_entity.name, &original.name);
             prop_assert_eq!(&deserialized_entity.id, &original.id);
             prop_assert_eq!(&deserialized_entity.parent, &original.parent);
             prop_assert_eq!(&deserialized_entity.tags, &original.tags);
-            
+
             // Verify children are preserved
             prop_assert_eq!(deserialized_entity.children.len(), original.children.len());
         }
@@ -214,7 +214,7 @@ proptest! {
 fn prop_component_schema_availability() {
     // Initialize default component schemas
     init_default_component_schemas();
-    
+
     // List of component types that should have schemas registered
     let expected_components = vec![
         "Name",
@@ -224,7 +224,7 @@ fn prop_component_schema_availability() {
         "Children",
         "GlobalTransform",
     ];
-    
+
     // Verify each component type has a schema
     for component_type in &expected_components {
         let schema = get_component_schema(component_type);
@@ -233,29 +233,29 @@ fn prop_component_schema_availability() {
             "Component schema for '{}' should be registered",
             component_type
         );
-        
+
         let schema = schema.unwrap();
-        
+
         // Verify schema contains type name
         assert_eq!(
             schema.type_name, *component_type,
             "Schema type_name should match component type"
         );
-        
+
         // Verify schema contains description
         assert!(
             !schema.description.is_empty(),
             "Schema for '{}' should have a non-empty description",
             component_type
         );
-        
+
         // Verify schema contains fields
         assert!(
             !schema.fields.is_empty(),
             "Schema for '{}' should have at least one field",
             component_type
         );
-        
+
         // Verify each field has required metadata
         for field in &schema.fields {
             assert!(
@@ -275,7 +275,7 @@ fn prop_component_schema_availability() {
             );
         }
     }
-    
+
     // Verify we can retrieve all schemas
     let all_schemas = get_all_component_schemas();
     assert!(
@@ -288,7 +288,7 @@ fn prop_component_schema_availability() {
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(50))]
-    
+
     /// Property test: Registering a new component schema makes it available
     #[test]
     fn prop_component_schema_registration(
@@ -303,20 +303,20 @@ proptest! {
                 description: format!("Field {} description", i),
             })
             .collect();
-        
+
         let schema = ComponentSchema {
             type_name: type_name.clone(),
             description,
             fields,
         };
-        
+
         // Register the schema
         register_component_schema(schema.clone());
-        
+
         // Verify it can be retrieved
         let retrieved = get_component_schema(&type_name);
         prop_assert!(retrieved.is_some(), "Schema should be retrievable after registration");
-        
+
         let retrieved = retrieved.unwrap();
         prop_assert_eq!(&retrieved.type_name, &type_name);
         prop_assert_eq!(&retrieved.description, &schema.description);
@@ -340,81 +340,80 @@ fn hierarchy_tree_strategy() -> impl Strategy<Value = Vec<(usize, Option<usize>,
     hierarchy_depth_strategy().prop_flat_map(|max_depth| {
         // Generate 1-10 entities per level
         let entities_per_level = 1usize..=10;
-        
-        prop::collection::vec(
-            (entities_per_level, transform_strategy()),
-            1..=max_depth
-        ).prop_map(move |levels| {
-            let mut hierarchy = Vec::new();
-            let mut entity_counter = 0;
-            let mut prev_level_start = 0;
-            let mut prev_level_count = 0;
-            
-            for (level_idx, (entity_count, _)) in levels.iter().enumerate() {
-                for i in 0..*entity_count {
-                    let transform = Transform {
-                        translation: Vec3::new(
-                            (i as f32 + 1.0) * 2.0,
-                            (level_idx as f32 + 1.0) * 3.0,
-                            (entity_counter as f32) * 1.5,
-                        ),
-                        rotation: Quat::from_rotation_y((i as f32) * 0.1),
-                        scale: Vec3::splat(1.0 + (i as f32) * 0.1),
-                    };
-                    
-                    let parent = if level_idx == 0 {
-                        None
-                    } else {
-                        // Assign parent from previous level (distribute children across parents)
-                        Some(prev_level_start + (i % prev_level_count))
-                    };
-                    
-                    hierarchy.push((entity_counter, parent, transform));
-                    entity_counter += 1;
+
+        prop::collection::vec((entities_per_level, transform_strategy()), 1..=max_depth).prop_map(
+            move |levels| {
+                let mut hierarchy = Vec::new();
+                let mut entity_counter = 0;
+                let mut prev_level_start = 0;
+                let mut prev_level_count = 0;
+
+                for (level_idx, (entity_count, _)) in levels.iter().enumerate() {
+                    for i in 0..*entity_count {
+                        let transform = Transform {
+                            translation: Vec3::new(
+                                (i as f32 + 1.0) * 2.0,
+                                (level_idx as f32 + 1.0) * 3.0,
+                                (entity_counter as f32) * 1.5,
+                            ),
+                            rotation: Quat::from_rotation_y((i as f32) * 0.1),
+                            scale: Vec3::splat(1.0 + (i as f32) * 0.1),
+                        };
+
+                        let parent = if level_idx == 0 {
+                            None
+                        } else {
+                            // Assign parent from previous level (distribute children across parents)
+                            Some(prev_level_start + (i % prev_level_count))
+                        };
+
+                        hierarchy.push((entity_counter, parent, transform));
+                        entity_counter += 1;
+                    }
+
+                    prev_level_start += prev_level_count;
+                    prev_level_count = *entity_count;
                 }
-                
-                prev_level_start += prev_level_count;
-                prev_level_count = *entity_count;
-            }
-            
-            hierarchy
-        })
+
+                hierarchy
+            },
+        )
     })
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
-    
+
     /// **Property 8: Transform Hierarchy Propagation**
-    /// 
+    ///
     /// For any entity hierarchy with parent-child relationships, when a parent's
     /// local transform changes, all descendant entities' world transforms should
     /// be updated such that each child's world transform equals its parent's world
     /// transform multiplied by its own local transform.
-    /// 
+    ///
     /// **Validates: Requirements 5.1, 5.2, 5.3**
     #[test]
     fn prop_transform_hierarchy_propagation(hierarchy in hierarchy_tree_strategy()) {
         use luminara_core::World;
         use luminara_scene::{transform_propagate_system, GlobalTransform, Parent, Children};
-        
+
         let mut world = World::new();
-        
+
         // Create entities and add components
         let entities: Vec<_> = (0..hierarchy.len())
             .map(|_| world.spawn())
             .collect();
-        
+
         // Add Transform and GlobalTransform components
         for (idx, parent_idx, transform) in &hierarchy {
             world.add_component(entities[*idx], *transform);
             world.add_component(entities[*idx], GlobalTransform::default());
-            
+
             if let Some(parent) = parent_idx {
                 world.add_component(entities[*idx], Parent(entities[*parent]));
             }
         }
-        
+
         // Build Children components
         for (idx, parent_idx, _) in &hierarchy {
             if let Some(parent) = parent_idx {
@@ -425,31 +424,31 @@ proptest! {
                 }
             }
         }
-        
+
         // Run transform propagation system
         transform_propagate_system(&mut world);
-        
+
         // Verify the property: child_world = parent_world * child_local
         for (idx, parent_idx, local_transform) in &hierarchy {
             let child_entity = entities[*idx];
             let child_global = world.get_component::<GlobalTransform>(child_entity)
                 .expect("Child should have GlobalTransform");
             let child_global_matrix = child_global.matrix();
-            
+
             if let Some(parent) = parent_idx {
                 let parent_entity = entities[*parent];
                 let parent_global = world.get_component::<GlobalTransform>(parent_entity)
                     .expect("Parent should have GlobalTransform");
                 let parent_global_matrix = parent_global.matrix();
-                
+
                 // Compute expected: parent_world * child_local
                 let local_matrix = local_transform.to_matrix();
                 let expected_matrix = parent_global_matrix * local_matrix;
-                
+
                 // Extract translation from matrices for comparison
                 let expected_translation = expected_matrix.w_axis.truncate();
                 let actual_translation = child_global_matrix.w_axis.truncate();
-                
+
                 // Verify translation components (with tolerance for floating point)
                 let diff = (expected_translation - actual_translation).length();
                 prop_assert!(
@@ -462,11 +461,11 @@ proptest! {
                     actual_translation,
                     diff
                 );
-                
+
                 // Verify rotation (compare quaternions)
                 let (_, expected_rotation, _) = expected_matrix.to_scale_rotation_translation();
                 let (_, actual_rotation, _) = child_global_matrix.to_scale_rotation_translation();
-                
+
                 // Quaternions can represent the same rotation in two ways (q and -q)
                 // So we check if they're equal or negated
                 let rot_diff = (expected_rotation.dot(actual_rotation).abs() - 1.0).abs();
@@ -480,7 +479,7 @@ proptest! {
                     actual_rotation,
                     expected_rotation.dot(actual_rotation)
                 );
-                
+
                 // Verify scale
                 let (expected_scale, _, _) = expected_matrix.to_scale_rotation_translation();
                 let (actual_scale, _, _) = child_global_matrix.to_scale_rotation_translation();
@@ -500,7 +499,7 @@ proptest! {
                 let expected_matrix = local_transform.to_matrix();
                 let expected_translation = expected_matrix.w_axis.truncate();
                 let actual_translation = child_global_matrix.w_axis.truncate();
-                
+
                 let diff = (expected_translation - actual_translation).length();
                 prop_assert!(
                     diff < 0.01,
@@ -552,36 +551,40 @@ fn reasonable_quat_strategy() -> impl Strategy<Value = Quat> {
 
 /// Strategy for generating uniform scale values (to avoid matrix decomposition issues)
 fn uniform_scale_strategy() -> impl Strategy<Value = Vec3> {
-    (0.5f32..2.0f32)
-        .prop_map(|s| Vec3::splat(s))
+    (0.5f32..2.0f32).prop_map(|s| Vec3::splat(s))
 }
 
 /// Strategy for generating reasonable transforms (constrained values with uniform scaling)
 fn reasonable_transform_strategy() -> impl Strategy<Value = Transform> {
-    (reasonable_vec3_strategy(), reasonable_quat_strategy(), uniform_scale_strategy())
-        .prop_map(|(translation, rotation, scale)| {
-            Transform {
-                translation,
-                rotation,
-                scale,
-            }
+    (
+        reasonable_vec3_strategy(),
+        reasonable_quat_strategy(),
+        uniform_scale_strategy(),
+    )
+        .prop_map(|(translation, rotation, scale)| Transform {
+            translation,
+            rotation,
+            scale,
         })
 }
 
 /// Strategy for generating parent-child transform pairs
 fn parent_child_pair_strategy() -> impl Strategy<Value = (Transform, Transform)> {
-    (reasonable_transform_strategy(), reasonable_transform_strategy())
+    (
+        reasonable_transform_strategy(),
+        reasonable_transform_strategy(),
+    )
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
-    
+
     /// **Property 9: Child Detachment Preserves World Position**
-    /// 
+    ///
     /// For any child entity with a parent, detaching it from the parent should
     /// update its local transform such that its world position, rotation, and
     /// scale remain unchanged.
-    /// 
+    ///
     /// **Validates: Requirements 5.5**
     #[test]
     fn prop_child_detachment_preserves_world_position(
@@ -589,60 +592,60 @@ proptest! {
     ) {
         use luminara_core::World;
         use luminara_scene::{transform_propagate_system, GlobalTransform, Parent, Children, remove_parent};
-        
+
         let mut world = World::new();
-        
+
         // Create parent entity
         let parent = world.spawn();
         world.add_component(parent, parent_transform);
         world.add_component(parent, GlobalTransform::default());
-        
+
         // Create child entity with parent relationship
         let child = world.spawn();
         world.add_component(child, child_local_transform);
         world.add_component(child, GlobalTransform::default());
         world.add_component(child, Parent(parent));
         world.add_component(parent, Children(vec![child]));
-        
+
         // Run transform propagation to compute world transforms
         transform_propagate_system(&mut world);
-        
+
         // Capture the child's world transform before detachment
         let child_world_before = world.get_component::<GlobalTransform>(child)
             .expect("Child should have GlobalTransform")
             .clone();
         let world_matrix_before = child_world_before.matrix();
-        let (world_scale_before, world_rotation_before, world_translation_before) = 
+        let (world_scale_before, world_rotation_before, world_translation_before) =
             world_matrix_before.to_scale_rotation_translation();
-        
+
         // Detach the child from parent
         // According to requirement 5.5, we need to update the child's local transform
         // to preserve its world position
-        
+
         // Compute the new local transform that preserves world position
         // Since: world = parent_world * child_local
         // We need: new_child_local = parent_world^-1 * old_world
         // But after detachment, there's no parent, so: new_child_local = old_world
-        
+
         // Get the child's current world transform
         let new_local_transform = child_world_before.0;
-        
+
         // Remove parent relationship
         remove_parent(&mut world, child);
-        
+
         // Update child's local transform to match its previous world transform
         world.add_component(child, new_local_transform);
-        
+
         // Run transform propagation again
         transform_propagate_system(&mut world);
-        
+
         // Get the child's world transform after detachment
         let child_world_after = world.get_component::<GlobalTransform>(child)
             .expect("Child should have GlobalTransform");
         let world_matrix_after = child_world_after.matrix();
-        let (world_scale_after, world_rotation_after, world_translation_after) = 
+        let (world_scale_after, world_rotation_after, world_translation_after) =
             world_matrix_after.to_scale_rotation_translation();
-        
+
         // Verify world position is preserved
         let translation_diff = (world_translation_before - world_translation_after).length();
         prop_assert!(
@@ -655,7 +658,7 @@ proptest! {
             world_translation_after,
             translation_diff
         );
-        
+
         // Verify world rotation is preserved
         // Quaternions can represent the same rotation in two ways (q and -q)
         let rotation_dot = world_rotation_before.dot(world_rotation_after).abs();
@@ -669,7 +672,7 @@ proptest! {
             world_rotation_after,
             rotation_dot
         );
-        
+
         // Verify world scale is preserved
         let scale_diff = (world_scale_before - world_scale_after).length();
         prop_assert!(

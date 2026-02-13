@@ -72,10 +72,20 @@ impl Default for Collider {
 /// Shape of a collider
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ColliderShape {
-    Box { half_extents: Vec3 },
-    Sphere { radius: f32 },
-    Capsule { half_height: f32, radius: f32 },
-    Mesh { vertices: Vec<Vec3>, indices: Vec<[u32; 3]> },
+    Box {
+        half_extents: Vec3,
+    },
+    Sphere {
+        radius: f32,
+    },
+    Capsule {
+        half_height: f32,
+        radius: f32,
+    },
+    Mesh {
+        vertices: Vec<Vec3>,
+        indices: Vec<[u32; 3]>,
+    },
 }
 
 /// Collision event emitted when two entities collide

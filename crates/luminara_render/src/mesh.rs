@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
+use luminara_asset::Asset;
 use luminara_core::shared_types::Component;
 use luminara_math::Vec3;
-use luminara_asset::Asset;
 use wgpu;
 
 /// Axis-Aligned Bounding Box for mesh culling
@@ -329,7 +329,7 @@ impl Mesh {
 
                 let normal = [x / radius, y / radius, z / radius];
                 let uv = [j as f32 / segments as f32, i as f32 / segments as f32];
-                
+
                 // Compute tangent (derivative with respect to theta)
                 let tx = -phi.sin() * theta.sin();
                 let ty = 0.0;
@@ -406,37 +406,37 @@ impl Mesh {
     /// Load a mesh from GLTF/GLB bytes
     pub fn from_gltf(bytes: &[u8]) -> Result<Vec<Self>, Box<dyn std::error::Error>> {
         let (document, buffers, _images) = gltf::import_slice(bytes)?;
-        
+
         let mut meshes = Vec::new();
-        
+
         for mesh in document.meshes() {
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-                
+
                 // Read positions (required)
                 let positions: Vec<[f32; 3]> = reader
                     .read_positions()
                     .ok_or("Missing position attribute")?
                     .collect();
-                
+
                 // Read normals (required for PBR)
                 let normals: Vec<[f32; 3]> = reader
                     .read_normals()
                     .ok_or("Missing normal attribute")?
                     .collect();
-                
+
                 // Read UVs (optional, default to [0, 0])
                 let uvs: Vec<[f32; 2]> = reader
                     .read_tex_coords(0)
                     .map(|iter| iter.into_f32().collect())
                     .unwrap_or_else(|| vec![[0.0, 0.0]; positions.len()]);
-                
+
                 // Read tangents (optional, default to [1, 0, 0, 1])
                 let tangents: Vec<[f32; 4]> = reader
                     .read_tangents()
                     .map(|iter| iter.collect())
                     .unwrap_or_else(|| vec![[1.0, 0.0, 0.0, 1.0]; positions.len()]);
-                
+
                 // Build vertices
                 let mut vertices = Vec::new();
                 for i in 0..positions.len() {
@@ -447,21 +447,21 @@ impl Mesh {
                         tangent: tangents.get(i).copied().unwrap_or([1.0, 0.0, 0.0, 1.0]),
                     });
                 }
-                
+
                 // Read indices
                 let indices: Vec<u32> = reader
                     .read_indices()
                     .map(|iter| iter.into_u32().collect())
                     .unwrap_or_else(|| (0..vertices.len() as u32).collect());
-                
+
                 meshes.push(Mesh::new(vertices, indices));
             }
         }
-        
+
         if meshes.is_empty() {
             return Err("No meshes found in GLTF file".into());
         }
-        
+
         Ok(meshes)
     }
 }
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(mesh.vertices.len(), 24);
         assert_eq!(mesh.indices.len(), 36);
     }
-    
+
     #[test]
     fn test_aabb_from_vertices() {
         let vertices = vec![
@@ -507,14 +507,14 @@ mod tests {
                 tangent: [1.0, 0.0, 0.0, 1.0],
             },
         ];
-        
+
         let aabb = AABB::from_vertices(&vertices);
         assert_eq!(aabb.min, Vec3::new(-1.0, -1.0, -1.0));
         assert_eq!(aabb.max, Vec3::new(1.0, 1.0, 1.0));
         assert_eq!(aabb.center(), Vec3::ZERO);
         assert_eq!(aabb.extents(), Vec3::ONE);
     }
-    
+
     #[test]
     fn test_aabb_empty_vertices() {
         let vertices = vec![];

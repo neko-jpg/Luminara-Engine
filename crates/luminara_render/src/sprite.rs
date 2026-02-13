@@ -196,7 +196,7 @@ impl SpriteBatcher {
             let z_cmp = a_z_val
                 .partial_cmp(&b_z_val)
                 .unwrap_or(std::cmp::Ordering::Equal);
-            
+
             if z_cmp != std::cmp::Ordering::Equal {
                 return z_cmp;
             }
@@ -257,7 +257,12 @@ impl SpriteBatcher {
 
         let instance = SpriteInstance {
             transform: transform.to_cols_array_2d(),
-            color: [sprite.color.r, sprite.color.g, sprite.color.b, sprite.color.a],
+            color: [
+                sprite.color.r,
+                sprite.color.g,
+                sprite.color.b,
+                sprite.color.a,
+            ],
             uv_rect,
         };
 

@@ -1,15 +1,15 @@
-use crate::{AudioListener, AudioSource};
 use crate::plugin::KiraAudioManager;
-use kira::sound::static_sound::{StaticSoundHandle};
-use kira::spatial::emitter::{EmitterHandle};
-use kira::spatial::listener::{ListenerSettings, ListenerHandle};
-use kira::spatial::scene::{SpatialSceneSettings, SpatialSceneHandle};
+use crate::{AudioListener, AudioSource};
+use kira::sound::static_sound::StaticSoundHandle;
+use kira::spatial::emitter::EmitterHandle;
+use kira::spatial::listener::{ListenerHandle, ListenerSettings};
+use kira::spatial::scene::{SpatialSceneHandle, SpatialSceneSettings};
 use kira::tween::Tween;
+use log::{error, info};
 use luminara_core::{Entity, World};
-use luminara_math::{Vec3, Quat};
+use luminara_math::{Quat, Vec3};
 use luminara_scene::GlobalTransform;
 use std::collections::HashMap;
-use log::{error, info};
 
 /// Resource to track active audio playback
 pub struct AudioPlayback {
@@ -53,9 +53,12 @@ pub fn audio_system(world: &mut World) {
     {
         let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
         let audio_manager = world.get_resource_mut::<KiraAudioManager>().unwrap();
-        
+
         if playback.spatial_scene.is_none() {
-            match audio_manager.0.add_spatial_scene(SpatialSceneSettings::default()) {
+            match audio_manager
+                .0
+                .add_spatial_scene(SpatialSceneSettings::default())
+            {
                 Ok(scene) => {
                     playback.spatial_scene = Some(scene);
                     info!("Initialized spatial audio scene");
@@ -113,11 +116,11 @@ fn update_listener_position(world: &mut World) {
 
     if let Some((_, transform)) = listener_query.first() {
         let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
-        
+
         if let Some(listener) = &mut playback.listener {
             let pos: [f32; 3] = transform.0.translation.into();
             let rot: [f32; 4] = transform.0.rotation.into();
-            
+
             // Update listener position and orientation
             // Note: In kira 0.9, these methods don't return Result
             listener.set_position(pos, Tween::default());
@@ -157,10 +160,7 @@ fn update_spatial_audio(world: &mut World) {
 }
 
 /// Helper function to play an audio source
-pub fn play_audio(
-    world: &mut World,
-    entity: Entity,
-) {
+pub fn play_audio(world: &mut World, entity: Entity) {
     let source = match world.get_component::<AudioSource>(entity) {
         Some(s) => s.clone(),
         None => {
@@ -173,7 +173,7 @@ pub fn play_audio(
     // In a real implementation, we would load the audio clip from the asset server
     // and play it through the audio manager
     info!("Playing audio for entity {:?}: {:?}", entity, source.clip);
-    
+
     // TODO: Implement actual audio playback once asset loading is integrated
     // This would involve:
     // 1. Getting the AudioClip from the asset server using source.clip
@@ -185,7 +185,7 @@ pub fn play_audio(
 /// Helper function to pause an audio source
 pub fn pause_audio(world: &mut World, entity: Entity) {
     let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
-    
+
     if let Some(sound) = playback.sounds.get_mut(&entity) {
         sound.pause(Tween::default());
     }
@@ -194,7 +194,7 @@ pub fn pause_audio(world: &mut World, entity: Entity) {
 /// Helper function to resume an audio source
 pub fn resume_audio(world: &mut World, entity: Entity) {
     let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
-    
+
     if let Some(sound) = playback.sounds.get_mut(&entity) {
         sound.resume(Tween::default());
     }
@@ -203,11 +203,11 @@ pub fn resume_audio(world: &mut World, entity: Entity) {
 /// Helper function to stop an audio source
 pub fn stop_audio(world: &mut World, entity: Entity) {
     let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
-    
+
     if let Some(mut sound) = playback.sounds.remove(&entity) {
         sound.stop(Tween::default());
     }
-    
+
     // Also remove emitter if it exists
     playback.emitters.remove(&entity);
 }

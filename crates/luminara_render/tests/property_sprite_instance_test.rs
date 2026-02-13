@@ -6,7 +6,6 @@
 /// For any sprite with a texture, color, transform, and optional texture rect,
 /// the batch renderer should create a sprite instance with the correct transform matrix,
 /// color values, and UV coordinates.
-
 use luminara_asset::{AssetId, Handle};
 use luminara_math::{Color, Mat4, Quat, Vec2, Vec3};
 use luminara_render::{Anchor, Rect, Sprite, SpriteBatcher, Texture, ZOrder};
@@ -37,13 +36,13 @@ fn arb_transform() -> impl Strategy<Value = Mat4> {
 
 // Generator for optional UV rect
 fn arb_uv_rect() -> impl Strategy<Value = Option<Rect>> {
-    prop::option::of((0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(
-        |(x, y, w, h)| {
+    prop::option::of(
+        (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(|(x, y, w, h)| {
             let min = Vec2::new(x, y);
             let max = Vec2::new((x + w).min(1.0), (y + h).min(1.0));
             Rect::new(min, max)
-        },
-    ))
+        }),
+    )
 }
 
 proptest! {

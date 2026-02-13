@@ -1,3 +1,4 @@
+use crate::registry::TypeRegistry;
 use luminara_core::{Entity, World};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -20,8 +21,9 @@ pub struct FieldSchema {
 }
 
 /// Global component schema registry
-static COMPONENT_SCHEMA_REGISTRY: once_cell::sync::Lazy<Arc<RwLock<HashMap<String, ComponentSchema>>>> =
-    once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(HashMap::new())));
+static COMPONENT_SCHEMA_REGISTRY: once_cell::sync::Lazy<
+    Arc<RwLock<HashMap<String, ComponentSchema>>>,
+> = once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(HashMap::new())));
 
 /// Register a component schema for AI introspection
 pub fn register_component_schema(schema: ComponentSchema) {
@@ -160,17 +162,26 @@ impl Scene {
     }
 
     pub fn spawn_into(&self, world: &mut World) -> Vec<Entity> {
+        // Attempt to extract TypeRegistry from world to use it for deserialization
+        let registry = world.remove_resource::<TypeRegistry>();
+
         let mut id_map = HashMap::new();
         let mut spawned_entities = Vec::new();
 
         for entity_data in &self.entities {
             self.spawn_entity_recursive(
                 world,
+                registry.as_ref(),
                 entity_data,
                 None,
                 &mut id_map,
                 &mut spawned_entities,
             );
+        }
+
+        // Put the registry back
+        if let Some(reg) = registry {
+            world.insert_resource(reg);
         }
 
         spawned_entities
@@ -179,6 +190,7 @@ impl Scene {
     pub(crate) fn spawn_entity_recursive(
         &self,
         world: &mut World,
+        registry: Option<&TypeRegistry>,
         data: &EntityData,
         parent: Option<Entity>,
         id_map: &mut HashMap<u64, Entity>,
@@ -191,8 +203,10 @@ impl Scene {
             id_map.insert(id, entity);
         }
 
+        // Always add Name component
         world.add_component(entity, Name::new(&data.name));
 
+        // Always add Tag component if tags exist
         if !data.tags.is_empty() {
             let mut tag = Tag::new();
             for tag_str in &data.tags {
@@ -201,20 +215,45 @@ impl Scene {
             world.add_component(entity, tag);
         }
 
+        // Handle hierarchy
         if let Some(p) = parent {
             crate::hierarchy::set_parent(world, entity, p);
         }
 
-        if let Some(transform_val) = data.components.get("Transform") {
-            if let Ok(transform) =
-                serde_json::from_value::<luminara_math::Transform>(transform_val.clone())
-            {
-                world.add_component(entity, transform);
+        // Process other components
+        for (type_name, value) in &data.components {
+            // Special handling for Transform (optimization/legacy)
+            if type_name == "Transform" {
+                if let Ok(transform) =
+                    serde_json::from_value::<luminara_math::Transform>(value.clone())
+                {
+                    world.add_component(entity, transform);
+                }
+                continue;
+            }
+
+            // Try to use registry
+            if let Some(reg) = registry {
+                if let Err(e) = reg.deserialize_and_add(world, entity, type_name, value.clone()) {
+                    // We can't use log here easily as it might not be initialized or accessible?
+                    // But typically log macros work anywhere.
+                    // For now, silently ignore or print to stderr if critical?
+                    // Better to rely on the fact that if it's missing, it's just not added.
+                    // Ideally, we'd have a warning.
+                    eprintln!("Scene warning: {}", e);
+                }
             }
         }
 
         for child_data in &data.children {
-            self.spawn_entity_recursive(world, child_data, Some(entity), id_map, spawned_entities);
+            self.spawn_entity_recursive(
+                world,
+                registry,
+                child_data,
+                Some(entity),
+                id_map,
+                spawned_entities,
+            );
         }
 
         entity

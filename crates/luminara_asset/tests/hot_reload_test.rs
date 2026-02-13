@@ -1,13 +1,14 @@
 /// Test to verify hot-reload functionality (task 4.2)
-/// 
+///
 /// Requirements from task 4.2:
 /// - notify crate dependency (already in Cargo.toml)
 /// - FileWatcher using notify::RecommendedWatcher
 /// - asset_hot_reload_system to poll file events
 /// - Watch assets directory recursively
 /// - Requirements: 4.1, 4.2
-
-use luminara_asset::{Asset, AssetLoader, AssetLoadError, AssetServer, HotReloadWatcher, LoadState};
+use luminara_asset::{
+    Asset, AssetLoadError, AssetLoader, AssetServer, HotReloadWatcher, LoadState,
+};
 use std::fs;
 use std::path::Path;
 use std::thread;
@@ -36,8 +37,8 @@ impl AssetLoader for TestAssetLoader {
     }
 
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
-        let data = String::from_utf8(bytes.to_vec())
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+        let data =
+            String::from_utf8(bytes.to_vec()).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
         Ok(TestAsset { data })
     }
 }
@@ -49,7 +50,10 @@ fn test_hot_reload_watcher_creation() {
     fs::create_dir_all(&temp_dir).unwrap();
 
     let watcher = HotReloadWatcher::new(temp_dir.clone());
-    assert!(watcher.is_ok(), "HotReloadWatcher should be created successfully");
+    assert!(
+        watcher.is_ok(),
+        "HotReloadWatcher should be created successfully"
+    );
 
     // Cleanup
     fs::remove_dir_all(&temp_dir).unwrap();
@@ -85,7 +89,10 @@ fn test_hot_reload_watcher_recursive() {
     }
 
     // We should have received at least one event (file creation or modification)
-    assert!(event_count > 0, "Watcher should detect events in subdirectories");
+    assert!(
+        event_count > 0,
+        "Watcher should detect events in subdirectories"
+    );
 
     // Cleanup
     fs::remove_dir_all(&temp_dir).unwrap();
@@ -191,7 +198,7 @@ fn test_all_task_4_2_requirements() {
     // 2. FileWatcher using notify::RecommendedWatcher - verified by HotReloadWatcher
     // 3. asset_hot_reload_system to poll file events - verified by function existence
     // 4. Watch assets directory recursively - verified by recursive test
-    
+
     let temp_dir = std::env::temp_dir().join("luminara_hot_reload_test_5");
     fs::create_dir_all(&temp_dir).unwrap();
 
@@ -207,20 +214,23 @@ fn test_all_task_4_2_requirements() {
     // 4. Recursive watching is enabled (RecursiveMode::Recursive)
     let sub_dir = temp_dir.join("nested").join("deep");
     fs::create_dir_all(&sub_dir).unwrap();
-    
+
     let watcher = watcher.unwrap();
     let test_file = sub_dir.join("deep.txt");
     fs::write(&test_file, b"deep content").unwrap();
-    
+
     thread::sleep(Duration::from_millis(100));
-    
+
     // Should receive events from deeply nested directories
     let mut event_count = 0;
     while watcher.receiver().try_recv().is_ok() {
         event_count += 1;
     }
-    
-    assert!(event_count > 0, "Should detect events in nested directories");
+
+    assert!(
+        event_count > 0,
+        "Should detect events in nested directories"
+    );
 
     // Cleanup
     fs::remove_dir_all(&temp_dir).unwrap();

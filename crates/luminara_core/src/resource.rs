@@ -52,6 +52,12 @@ impl ResourceMap {
                 .map(|cell| (*cell.get()).downcast_mut::<R>().unwrap())
         }
     }
+
+    pub fn remove<R: Resource>(&mut self) -> Option<R> {
+        self.resources
+            .remove(&TypeId::of::<R>())
+            .map(|cell| *cell.into_inner().downcast::<R>().unwrap())
+    }
 }
 
 // Res and ResMut will be used in Systems, but for now they can be simple wrappers

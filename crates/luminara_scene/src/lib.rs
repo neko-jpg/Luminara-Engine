@@ -1,6 +1,7 @@
 pub mod hierarchy;
 pub mod plugin;
 pub mod prefab;
+pub mod registry;
 pub mod scene;
 pub mod serialization;
 
@@ -9,8 +10,9 @@ pub use hierarchy::{
 };
 pub use plugin::ScenePlugin;
 pub use prefab::Prefab;
+pub use registry::{ComponentRegistration, ReflectComponent, TypeRegistry};
 pub use scene::{
-    find_entities_by_tag, find_entity_by_name, EntityData, Name, Scene, SceneError, SceneMeta, Tag,
-    ComponentSchema, FieldSchema, register_component_schema, get_component_schema, get_all_component_schemas,
-    init_default_component_schemas,
+    find_entities_by_tag, find_entity_by_name, get_all_component_schemas, get_component_schema,
+    init_default_component_schemas, register_component_schema, ComponentSchema, EntityData,
+    FieldSchema, Name, Scene, SceneError, SceneMeta, Tag,
 };

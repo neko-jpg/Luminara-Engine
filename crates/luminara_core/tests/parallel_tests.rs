@@ -35,11 +35,13 @@ fn test_parallel_systems() {
 
     app.add_system(
         CoreStage::Update,
-        IntoSystem::<(FunctionMarker, World)>::into_system(sys_a as fn(&World)).with_access(access_a),
+        IntoSystem::<(FunctionMarker, World)>::into_system(sys_a as fn(&World))
+            .with_access(access_a),
     );
     app.add_system(
         CoreStage::Update,
-        IntoSystem::<(FunctionMarker, World)>::into_system(sys_b as fn(&World)).with_access(access_b),
+        IntoSystem::<(FunctionMarker, World)>::into_system(sys_b as fn(&World))
+            .with_access(access_b),
     );
 
     app.update();

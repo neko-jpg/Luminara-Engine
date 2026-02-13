@@ -117,7 +117,7 @@ pub mod prelude {
     pub use luminara_physics::{Collider, ColliderShape, RigidBody, RigidBodyType};
 
     #[cfg(feature = "audio")]
-    pub use luminara_audio::{AudioSource, AudioListener};
+    pub use luminara_audio::{AudioListener, AudioSource};
 
     #[cfg(all(
         feature = "core",
@@ -133,4 +133,3 @@ pub mod prelude {
     ))]
     pub use crate::DefaultPlugins;
 }
-

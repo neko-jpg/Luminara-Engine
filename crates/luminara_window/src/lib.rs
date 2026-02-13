@@ -67,7 +67,10 @@ impl ApplicationHandler for LuminaraWinitHandler {
         event: winit::event::WindowEvent,
     ) {
         if let Some(lum_event) = luminara_window_event_from_winit(&event) {
-            self.app.world.get_events_mut::<LuminaraWindowEvent>().send(lum_event);
+            self.app
+                .world
+                .get_events_mut::<LuminaraWindowEvent>()
+                .send(lum_event);
         }
 
         match event {

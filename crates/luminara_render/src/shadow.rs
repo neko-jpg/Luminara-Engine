@@ -107,12 +107,7 @@ impl ShadowMapResources {
 }
 
 /// Calculate cascade split depths using logarithmic distribution
-pub fn calculate_cascade_splits(
-    near: f32,
-    far: f32,
-    cascade_count: u32,
-    lambda: f32,
-) -> Vec<f32> {
+pub fn calculate_cascade_splits(near: f32, far: f32, cascade_count: u32, lambda: f32) -> Vec<f32> {
     let mut splits = Vec::with_capacity(cascade_count as usize);
 
     for i in 0..cascade_count {
@@ -136,7 +131,8 @@ pub fn calculate_cascade_view_proj(
     aspect: f32,
 ) -> Mat4 {
     // Get camera frustum corners in world space
-    let frustum_corners = get_frustum_corners_world_space(camera_transform, camera, near, far, aspect);
+    let frustum_corners =
+        get_frustum_corners_world_space(camera_transform, camera, near, far, aspect);
 
     // Calculate frustum center
     let mut center = Vec3::ZERO;
@@ -146,11 +142,7 @@ pub fn calculate_cascade_view_proj(
     center /= frustum_corners.len() as f32;
 
     // Create light view matrix
-    let light_view = Mat4::look_at_rh(
-        center - light_direction.normalize() * 10.0,
-        center,
-        Vec3::Y,
-    );
+    let light_view = Mat4::look_at_rh(center - light_direction.normalize() * 10.0, center, Vec3::Y);
 
     // Transform frustum corners to light space
     let mut min = Vec3::splat(f32::MAX);
@@ -220,9 +212,7 @@ pub fn update_shadow_cascades_system(
     };
 
     // Get first directional light that casts shadows
-    let Some((_light, light_transform)) = directional_lights
-        .iter()
-        .find(|(l, _)| l.cast_shadows)
+    let Some((_light, light_transform)) = directional_lights.iter().find(|(l, _)| l.cast_shadows)
     else {
         return;
     };
@@ -241,8 +231,14 @@ pub fn update_shadow_cascades_system(
     // Update cascade uniforms
     let mut prev_split = near;
     for (i, &split) in splits.iter().enumerate() {
-        let view_proj =
-            calculate_cascade_view_proj(light_direction, camera_transform, camera, prev_split, split, aspect);
+        let view_proj = calculate_cascade_view_proj(
+            light_direction,
+            camera_transform,
+            camera,
+            prev_split,
+            split,
+            aspect,
+        );
 
         shadow_resources.cascade_uniforms[i] = CascadeUniform {
             view_proj: view_proj.to_cols_array_2d(),

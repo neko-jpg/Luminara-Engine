@@ -27,7 +27,7 @@ pub fn camera_resize_system(
         let (width, height) = window.inner_size();
         if width > 0 && height > 0 {
             let new_aspect = width as f32 / height as f32;
-            
+
             for _camera in cameras.iter_mut() {
                 // The camera will use this aspect ratio when projection_matrix() is called
                 // We don't store aspect ratio in Camera, but we log the update
@@ -47,17 +47,14 @@ pub fn camera_resize_system(
 /// recomputes the projection matrix.
 ///
 /// **Validates: Requirements 6.2**
-pub fn camera_projection_system(
-    cameras: Query<&Camera>,
-    window: Res<Window>,
-) {
+pub fn camera_projection_system(cameras: Query<&Camera>, window: Res<Window>) {
     let (width, height) = window.inner_size();
     if width == 0 || height == 0 {
         return;
     }
-    
+
     let aspect_ratio = width as f32 / height as f32;
-    
+
     // For each camera, compute the projection matrix
     // In a real implementation, we would detect changes and only recompute when needed
     // For now, we validate that the projection matrix can be computed

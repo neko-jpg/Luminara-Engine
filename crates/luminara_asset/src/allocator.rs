@@ -2,7 +2,7 @@ use crate::AssetId;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Handle allocator for generating unique asset IDs
-/// 
+///
 /// This allocator provides two strategies:
 /// 1. Path-based IDs using UUID v5 (deterministic, same path = same ID)
 /// 2. Sequential IDs for runtime-generated assets

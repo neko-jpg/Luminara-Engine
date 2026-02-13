@@ -1,30 +1,31 @@
+use luminara_audio::{AudioClipHandle, AudioSource};
 use proptest::prelude::*;
-use luminara_audio::{AudioSource, AudioClipHandle};
 
 /// **Property 22: Audio Looping**
 /// **Validates: Requirements 8.4**
-/// 
-/// For any audio source with looping enabled, when the audio clip finishes playing, 
+///
+/// For any audio source with looping enabled, when the audio clip finishes playing,
 /// it should automatically restart from the beginning.
 
 fn arb_audio_source_with_looping() -> impl Strategy<Value = AudioSource> {
     (
         prop::string::string_regex("[a-z]{5,10}\\.wav").unwrap(),
-        0.0f32..=1.0f32,  // volume
-        0.5f32..=2.0f32,  // pitch
-        prop::bool::ANY,  // looping (we'll test both true and false)
-        prop::bool::ANY,  // spatial
-        10.0f32..=200.0f32,  // max_distance
-    ).prop_map(|(clip_name, volume, pitch, looping, spatial, max_distance)| {
-        AudioSource {
-            clip: AudioClipHandle(clip_name),
-            volume,
-            pitch,
-            looping,
-            spatial,
-            max_distance,
-        }
-    })
+        0.0f32..=1.0f32,    // volume
+        0.5f32..=2.0f32,    // pitch
+        prop::bool::ANY,    // looping (we'll test both true and false)
+        prop::bool::ANY,    // spatial
+        10.0f32..=200.0f32, // max_distance
+    )
+        .prop_map(
+            |(clip_name, volume, pitch, looping, spatial, max_distance)| AudioSource {
+                clip: AudioClipHandle(clip_name),
+                volume,
+                pitch,
+                looping,
+                spatial,
+                max_distance,
+            },
+        )
 }
 
 #[cfg(test)]
@@ -41,11 +42,11 @@ mod tests {
         ) {
             // Verify the looping flag is preserved in the audio source
             assert_eq!(
-                source.looping, 
+                source.looping,
                 source.looping,
                 "Looping flag should be preserved"
             );
-            
+
             // Property: When looping is enabled, the audio should restart
             // When looping is disabled, the audio should stop after finishing
             if source.looping {
@@ -62,14 +63,14 @@ mod tests {
                 // 3. Verify it stops and doesn't restart
                 assert!(!source.looping, "Looping should be disabled");
             }
-            
+
             // Note: Actual looping behavior verification requires:
             // - Loaded audio clips with known duration
             // - Time-based testing to wait for clip completion
             // - Monitoring playback state to verify restart behavior
             // This test verifies the looping flag is properly stored and accessible.
         }
-        
+
         /// Verify looping flag is correctly set for looping audio
         #[test]
         fn prop_looping_enabled_sources_have_flag_set(
@@ -85,10 +86,10 @@ mod tests {
                 spatial: false,
                 max_distance: 100.0,
             };
-            
+
             assert!(source.looping, "Looping should be enabled when explicitly set to true");
         }
-        
+
         /// Verify looping flag is correctly unset for non-looping audio
         #[test]
         fn prop_non_looping_sources_have_flag_unset(
@@ -104,7 +105,7 @@ mod tests {
                 spatial: false,
                 max_distance: 100.0,
             };
-            
+
             assert!(!source.looping, "Looping should be disabled when explicitly set to false");
         }
     }
