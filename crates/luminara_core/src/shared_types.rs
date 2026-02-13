@@ -17,6 +17,7 @@ pub trait AppInterface {
     ) -> &mut Self;
     fn add_startup_system<Marker>(&mut self, system: impl IntoSystem<Marker>) -> &mut Self;
     fn insert_resource<R: Resource>(&mut self, resource: R) -> &mut Self;
+    fn register_component<C: Component>(&mut self) -> &mut Self;
     fn run(self);
 }
 

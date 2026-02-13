@@ -189,6 +189,12 @@ impl Transform {
         Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.translation)
     }
 
+    /// Convert the transform to a 4x4 transformation matrix.
+    /// This is an alias for `compute_matrix()` to match the design specification.
+    pub fn to_matrix(&self) -> Mat4 {
+        self.compute_matrix()
+    }
+
     pub fn mul_transform(&self, other: &Self) -> Self {
         let mat = self.compute_matrix() * other.compute_matrix();
         let (scale, rotation, translation) = mat.to_scale_rotation_translation();
@@ -212,6 +218,21 @@ impl Transform {
     /// Rotate around the local Z axis by `angle` radians.
     pub fn rotate_z(&mut self, angle: f32) {
         self.rotation *= Quat::from_rotation_z(angle);
+    }
+
+    /// Get the forward direction vector (local -Z axis in world space).
+    pub fn forward(&self) -> Vec3 {
+        self.rotation * Vec3::NEG_Z
+    }
+
+    /// Get the right direction vector (local X axis in world space).
+    pub fn right(&self) -> Vec3 {
+        self.rotation * Vec3::X
+    }
+
+    /// Get the up direction vector (local Y axis in world space).
+    pub fn up(&self) -> Vec3 {
+        self.rotation * Vec3::Y
     }
 }
 

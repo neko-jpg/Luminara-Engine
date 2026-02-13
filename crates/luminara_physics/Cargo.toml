@@ -1,0 +1,19 @@
+[package]
+name = "luminara_physics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+luminara_core = { path = "../luminara_core" }
+luminara_math = { path = "../luminara_math" }
+luminara_scene = { path = "../luminara_scene" }
+
+rapier3d = { version = "0.22", features = ["serde-serialize"] }
+rapier2d = { version = "0.22", features = ["serde-serialize"] }
+
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+[dev-dependencies]
+proptest = "1.0"
+env_logger = "0.11"

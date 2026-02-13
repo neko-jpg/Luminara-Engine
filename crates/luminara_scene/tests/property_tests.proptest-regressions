@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 64e671412d9740431848493fa79be15d33935fcf51b786992ce71b8346d7afe7 # shrinks to (parent_transform, child_local_transform) = (Transform { translation: Vec3(9.6678523e-29, 9.001394e33, 0.00017727257), rotation: Quat(0.0, 0.0, 0.0, 0.0), scale: Vec3(1.199362e29, 9.162967e32, 9.125078e-33) }, Transform { translation: Vec3(9.671995e-29, 2.7728854e19, 8.1268934e18), rotation: Quat(2.790102e-29, 1.4450449e-30, 1.7155287e-32, 1.0), scale: Vec3(5.8605205e-9, 7509126400000.0, 2.945179e-33) })
+cc 915c6c94e05239432e2197ac987f2379371b870075552f91a809a0564d5cd194 # shrinks to (parent_transform, child_local_transform) = (Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(2.0166773e-8, 1.0, 1.717716e-11, 1.1467024e-20), scale: Vec3(0.1, 0.1, 0.1) }, Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(inf, inf, inf, inf), scale: Vec3(0.1, 0.1, 0.1) })
+cc 36dd8a511344cdd64578847d84a2859c6605a3ce275fabd82589a5e52703a45c # shrinks to (parent_transform, child_local_transform) = (Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(0.0, 0.21887495, -0.97575295, 0.0), scale: Vec3(0.1, 0.1, 7.0873995) }, Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(0.0, 0.18326958, 0.83711255, -0.51541704), scale: Vec3(0.1, 0.1, 0.1) })
+cc 42a68b4296466aa8ef7b68c7392b1c37e88f853b8632903ed9176826a4f625cd # shrinks to (parent_transform, child_local_transform) = (Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(0.0, 0.84529287, 0.5299, -0.068454355), scale: Vec3(6.0501223, 9.633981, 2.6317582) }, Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(0.33665457, 0.37259898, -0.37840158, -0.7775898), scale: Vec3(0.1, 0.1, 0.1) })

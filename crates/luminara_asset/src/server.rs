@@ -1,4 +1,4 @@
-use crate::{Asset, AssetId, AssetLoadError, AssetLoader, Handle};
+use crate::{Asset, AssetId, AssetLoadError, AssetLoader, Handle, HandleAllocator};
 use luminara_core::shared_types::Resource;
 use std::any::Any;
 use std::collections::HashMap;
@@ -15,6 +15,7 @@ pub enum LoadState {
 
 pub struct AssetServer {
     asset_dir: PathBuf,
+    handle_allocator: HandleAllocator,
     loaders: RwLock<HashMap<String, Arc<dyn ErasedAssetLoader>>>,
     load_states: RwLock<HashMap<AssetId, LoadState>>,
     assets: RwLock<HashMap<AssetId, Arc<dyn Any + Send + Sync>>>,
@@ -24,6 +25,7 @@ impl AssetServer {
     pub fn new(asset_dir: impl Into<PathBuf>) -> Self {
         Self {
             asset_dir: asset_dir.into(),
+            handle_allocator: HandleAllocator::new(),
             loaders: RwLock::new(HashMap::new()),
             load_states: RwLock::new(HashMap::new()),
             assets: RwLock::new(HashMap::new()),
@@ -34,15 +36,20 @@ impl AssetServer {
         &self.asset_dir
     }
 
+    /// Get a reference to the handle allocator
+    pub fn handle_allocator(&self) -> &HandleAllocator {
+        &self.handle_allocator
+    }
+
     pub fn load<T: Asset>(&self, path: &str) -> Handle<T> {
         // Path validation to prevent path traversal
         let path_obj = Path::new(path);
         if path.contains("..") || path_obj.is_absolute() {
             log::error!("Invalid asset path: {}", path);
-            return Handle::new(AssetId::from_path(path)); // Returns handle that will fail to get
+            return Handle::new(self.handle_allocator.id_for_path(path));
         }
 
-        let id = AssetId::from_path(path);
+        let id = self.handle_allocator.id_for_path(path);
 
         {
             let states = self.load_states.read().unwrap();
@@ -103,7 +110,7 @@ impl AssetServer {
         // we need to find its relative path to asset_dir to get the same AssetId.
         if let Ok(rel_path) = path.strip_prefix(&self.asset_dir) {
             if let Some(rel_path_str) = rel_path.to_str() {
-                let id = AssetId::from_path(rel_path_str);
+                let id = self.handle_allocator.id_for_path(rel_path_str);
 
                 match self.load_internal_erased(path) {
                     Ok(asset_arc) => {

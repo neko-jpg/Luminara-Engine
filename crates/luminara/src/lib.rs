@@ -19,6 +19,12 @@ pub use luminara_render as render;
 #[cfg(feature = "scene")]
 pub use luminara_scene as scene;
 
+#[cfg(feature = "physics")]
+pub use luminara_physics as physics;
+
+#[cfg(feature = "audio")]
+pub use luminara_audio as audio;
+
 #[cfg(feature = "platform")]
 pub use luminara_platform as platform;
 
@@ -36,9 +42,11 @@ pub use luminara_diagnostic as diagnostic;
 /// 2. **DiagnosticPlugin** — logging initialisation and `FrameStats`
 /// 3. **WindowPlugin** — opens a window and sets the `winit_runner`
 /// 4. **InputPlugin** — keyboard / mouse / gamepad
-/// 5. **AssetPlugin** — asset loading and hot-reload
-/// 6. **RenderPlugin** — wgpu GPU context, pipeline cache, render systems
-/// 7. **ScenePlugin** — transform hierarchy propagation
+/// 5. **ScenePlugin** — transform hierarchy propagation (required by rendering and physics)
+/// 6. **AssetPlugin** — asset loading and hot-reload (required by rendering and audio)
+/// 7. **RenderPlugin** — wgpu GPU context, pipeline cache, render systems
+/// 8. **PhysicsPlugin** — 3D physics simulation with Rapier
+/// 9. **AudioPlugin** — audio playback with kira
 #[cfg(all(
     feature = "core",
     feature = "platform",
@@ -48,6 +56,8 @@ pub use luminara_diagnostic as diagnostic;
     feature = "asset",
     feature = "render",
     feature = "scene",
+    feature = "physics",
+    feature = "audio",
 ))]
 pub struct DefaultPlugins;
 
@@ -60,6 +70,8 @@ pub struct DefaultPlugins;
     feature = "asset",
     feature = "render",
     feature = "scene",
+    feature = "physics",
+    feature = "audio",
 ))]
 impl luminara_core::Plugin for DefaultPlugins {
     fn name(&self) -> &str {
@@ -69,13 +81,16 @@ impl luminara_core::Plugin for DefaultPlugins {
     fn build(&self, app: &mut luminara_core::App) {
         use luminara_core::shared_types::AppInterface;
 
+        // Initialize plugins in dependency order
         app.add_plugins(luminara_platform::plugin::PlatformPlugin);
         app.add_plugins(luminara_diagnostic::plugin::DiagnosticPlugin);
         app.add_plugins(luminara_window::WindowPlugin::default());
         app.add_plugins(luminara_input::plugin::InputPlugin);
+        app.add_plugins(luminara_scene::ScenePlugin);
         app.add_plugins(luminara_asset::AssetPlugin::default());
         app.add_plugins(luminara_render::RenderPlugin);
-        app.add_plugins(luminara_scene::ScenePlugin);
+        app.add_plugins(luminara_physics::PhysicsPlugin);
+        app.add_plugins(luminara_audio::AudioPlugin);
     }
 }
 
@@ -98,6 +113,12 @@ pub mod prelude {
     #[cfg(feature = "scene")]
     pub use luminara_scene::{Name, Prefab, Scene, ScenePlugin, Tag};
 
+    #[cfg(feature = "physics")]
+    pub use luminara_physics::{Collider, ColliderShape, RigidBody, RigidBodyType};
+
+    #[cfg(feature = "audio")]
+    pub use luminara_audio::{AudioSource, AudioListener};
+
     #[cfg(all(
         feature = "core",
         feature = "platform",
@@ -107,6 +128,8 @@ pub mod prelude {
         feature = "asset",
         feature = "render",
         feature = "scene",
+        feature = "physics",
+        feature = "audio",
     ))]
     pub use crate::DefaultPlugins;
 }

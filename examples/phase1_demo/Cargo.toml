@@ -1,0 +1,21 @@
+[package]
+name = "phase1_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+luminara = { path = "../../crates/luminara", features = [
+    "core",
+    "math",
+    "window",
+    "input",
+    "asset",
+    "render",
+    "scene",
+    "physics",
+    "audio",
+    "platform",
+    "diagnostic",
+] }
+log = "0.4"
+serde_json = "1.0"

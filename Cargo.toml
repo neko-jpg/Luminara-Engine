@@ -20,6 +20,8 @@ luminara_input = { path = "crates/luminara_input" }
 luminara_asset = { path = "crates/luminara_asset" }
 luminara_render = { path = "crates/luminara_render" }
 luminara_scene = { path = "crates/luminara_scene" }
+luminara_physics = { path = "crates/luminara_physics" }
+luminara_audio = { path = "crates/luminara_audio" }
 luminara_platform = { path = "crates/luminara_platform" }
 luminara_diagnostic = { path = "crates/luminara_diagnostic" }
 glam = "0.28"

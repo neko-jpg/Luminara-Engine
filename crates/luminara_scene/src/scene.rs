@@ -2,6 +2,44 @@ use luminara_core::{Entity, World};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
+
+/// Component schema for AI understanding
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentSchema {
+    pub type_name: String,
+    pub description: String,
+    pub fields: Vec<FieldSchema>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldSchema {
+    pub name: String,
+    pub type_name: String,
+    pub description: String,
+}
+
+/// Global component schema registry
+static COMPONENT_SCHEMA_REGISTRY: once_cell::sync::Lazy<Arc<RwLock<HashMap<String, ComponentSchema>>>> =
+    once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(HashMap::new())));
+
+/// Register a component schema for AI introspection
+pub fn register_component_schema(schema: ComponentSchema) {
+    let mut registry = COMPONENT_SCHEMA_REGISTRY.write().unwrap();
+    registry.insert(schema.type_name.clone(), schema);
+}
+
+/// Get a component schema by type name
+pub fn get_component_schema(type_name: &str) -> Option<ComponentSchema> {
+    let registry = COMPONENT_SCHEMA_REGISTRY.read().unwrap();
+    registry.get(type_name).cloned()
+}
+
+/// Get all registered component schemas
+pub fn get_all_component_schemas() -> Vec<ComponentSchema> {
+    let registry = COMPONENT_SCHEMA_REGISTRY.read().unwrap();
+    registry.values().cloned().collect()
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SceneMeta {
@@ -204,4 +242,85 @@ pub fn find_entities_by_tag(world: &World, tag: &str) -> Vec<Entity> {
         }
     }
     results
+}
+
+/// Initialize default component schemas
+pub fn init_default_component_schemas() {
+    // Register Name component schema
+    register_component_schema(ComponentSchema {
+        type_name: "Name".to_string(),
+        description: "Entity name for identification".to_string(),
+        fields: vec![FieldSchema {
+            name: "name".to_string(),
+            type_name: "String".to_string(),
+            description: "The name of the entity".to_string(),
+        }],
+    });
+
+    // Register Tag component schema
+    register_component_schema(ComponentSchema {
+        type_name: "Tag".to_string(),
+        description: "Tags for entity categorization".to_string(),
+        fields: vec![FieldSchema {
+            name: "tags".to_string(),
+            type_name: "HashSet<String>".to_string(),
+            description: "Set of tags associated with the entity".to_string(),
+        }],
+    });
+
+    // Register Transform component schema
+    register_component_schema(ComponentSchema {
+        type_name: "Transform".to_string(),
+        description: "Local transform (position, rotation, scale)".to_string(),
+        fields: vec![
+            FieldSchema {
+                name: "translation".to_string(),
+                type_name: "Vec3".to_string(),
+                description: "Position in 3D space".to_string(),
+            },
+            FieldSchema {
+                name: "rotation".to_string(),
+                type_name: "Quat".to_string(),
+                description: "Rotation as a quaternion".to_string(),
+            },
+            FieldSchema {
+                name: "scale".to_string(),
+                type_name: "Vec3".to_string(),
+                description: "Scale factors for each axis".to_string(),
+            },
+        ],
+    });
+
+    // Register Parent component schema
+    register_component_schema(ComponentSchema {
+        type_name: "Parent".to_string(),
+        description: "Parent entity reference for hierarchy".to_string(),
+        fields: vec![FieldSchema {
+            name: "parent".to_string(),
+            type_name: "Entity".to_string(),
+            description: "The parent entity ID".to_string(),
+        }],
+    });
+
+    // Register Children component schema
+    register_component_schema(ComponentSchema {
+        type_name: "Children".to_string(),
+        description: "Child entities for hierarchy".to_string(),
+        fields: vec![FieldSchema {
+            name: "children".to_string(),
+            type_name: "Vec<Entity>".to_string(),
+            description: "List of child entity IDs".to_string(),
+        }],
+    });
+
+    // Register GlobalTransform component schema
+    register_component_schema(ComponentSchema {
+        type_name: "GlobalTransform".to_string(),
+        description: "World-space transform (computed from hierarchy)".to_string(),
+        fields: vec![FieldSchema {
+            name: "transform".to_string(),
+            type_name: "Transform".to_string(),
+            description: "The computed world-space transform".to_string(),
+        }],
+    });
 }

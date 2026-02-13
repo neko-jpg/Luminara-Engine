@@ -1,8 +1,9 @@
 use crate::Asset;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AssetId(Uuid);
 
 impl Default for AssetId {
@@ -65,5 +66,24 @@ impl<T: Asset> Eq for Handle<T> {}
 impl<T: Asset> std::hash::Hash for Handle<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+impl<T: Asset> Serialize for Handle<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.id.serialize(serializer)
+    }
+}
+
+impl<'de, T: Asset> Deserialize<'de> for Handle<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let id = AssetId::deserialize(deserializer)?;
+        Ok(Handle::new(id))
     }
 }

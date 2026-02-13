@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9aa4fd686a951a63d59ad45b6eb9198816936e253e525266b5c254101338a1d6 # shrinks to source = AudioSource { clip: AudioClipHandle("aaaaa.wav"), volume: 0.0, pitch: 0.5, looping: false, spatial: false, max_distance: 10.0 }

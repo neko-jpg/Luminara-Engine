@@ -1,0 +1,21 @@
+[package]
+name = "luminara_audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+luminara_core = { path = "../luminara_core" }
+luminara_math = { path = "../luminara_math" }
+luminara_scene = { path = "../luminara_scene" }
+luminara_asset = { path = "../luminara_asset" }
+kira = { version = "0.9", default-features = false, features = ["cpal"] }
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+[dev-dependencies]
+proptest = "1.0"
+env_logger = "0.11"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# On Linux, we need ALSA development libraries
+# Users should install: sudo apt-get install libasound2-dev

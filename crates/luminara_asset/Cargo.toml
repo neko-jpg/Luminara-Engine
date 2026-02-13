@@ -5,9 +5,13 @@ edition.workspace = true
 
 [dependencies]
 luminara_core = { workspace = true }
-uuid = { version = "1.0", features = ["v4", "v5"] }
+uuid = { version = "1.0", features = ["v4", "v5", "serde"] }
 notify = "6.1"
 crossbeam-channel = "0.5"
 serde = { workspace = true }
 log = "0.4"
 thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.5"
+uuid = { version = "1.0", features = ["v4"] }

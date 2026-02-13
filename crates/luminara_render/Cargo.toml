@@ -12,3 +12,10 @@ luminara_core = { workspace = true }
 luminara_math = { workspace = true }
 luminara_window = { workspace = true }
 thiserror = { workspace = true }
+gltf = { version = "1.4", features = ["import"] }
+luminara_asset = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "hdr"] }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.5"

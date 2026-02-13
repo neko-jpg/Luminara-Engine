@@ -21,6 +21,10 @@ impl Plugin for RenderPlugin {
         // Initialize resources
         app.insert_resource(PipelineCache::new());
         app.insert_resource(RenderGraph::new());
+        app.insert_resource(crate::ForwardPlusRenderer::new());
+        app.insert_resource(crate::ShadowMapResources::default());
+        app.insert_resource(crate::ShadowCascades::default());
+        app.insert_resource(crate::PostProcessResources::default());
 
         // Register startup system to initialize GPU context once Window is available
         app.add_system::<ExclusiveMarker>(CoreStage::Startup, setup_gpu_context);
@@ -33,12 +37,53 @@ impl Plugin for RenderPlugin {
             Res<'static, luminara_window::Window>,
         )>(CoreStage::PreUpdate, crate::window_resize_system);
 
+        // Register camera resize system to update aspect ratio on window resize
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, &mut Camera>,
+            luminara_core::event::EventReader<'static, luminara_window::WindowEvent>,
+            Res<'static, luminara_window::Window>,
+        )>(CoreStage::PreUpdate, crate::camera_resize_system);
+
+        // Register camera projection system to update projection matrices
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, &Camera>,
+            Res<'static, luminara_window::Window>,
+        )>(CoreStage::PreRender, crate::camera_projection_system);
+
         // Register mesh upload system
         app.add_system::<(
             FunctionMarker,
             ResMut<'static, GpuContext>,
             Query<'static, &mut Mesh>,
         )>(CoreStage::PreRender, crate::mesh_upload_system);
+
+        // Register Forward+ light update system
+        app.add_system::<(
+            FunctionMarker,
+            ResMut<'static, crate::ForwardPlusRenderer>,
+            Res<'static, GpuContext>,
+            Query<'static, (&crate::DirectionalLight, &Transform)>,
+            Query<'static, (&crate::PointLight, &Transform)>,
+        )>(CoreStage::PreRender, crate::update_lights_system);
+
+        // Register shadow cascade update system
+        app.add_system::<(
+            FunctionMarker,
+            Res<'static, GpuContext>,
+            Res<'static, crate::ShadowCascades>,
+            ResMut<'static, crate::ShadowMapResources>,
+            Query<'static, (&Camera, &Transform)>,
+            Query<'static, (&crate::DirectionalLight, &Transform)>,
+        )>(CoreStage::PreRender, crate::update_shadow_cascades_system);
+
+        // Register post-process initialization system
+        app.add_system::<(
+            FunctionMarker,
+            ResMut<'static, crate::PostProcessResources>,
+            Res<'static, GpuContext>,
+        )>(CoreStage::PreRender, crate::init_post_process_system);
 
         // Register render_system to Render stage
         app.add_system::<(
@@ -47,7 +92,7 @@ impl Plugin for RenderPlugin {
             ResMut<'static, PipelineCache>,
             ResMut<'static, CameraUniformBuffer>,
             Query<'static, (&Camera, &Transform)>,
-            Query<'static, (&Mesh, &Transform)>,
+            Query<'static, (&Mesh, &Transform, &crate::PbrMaterial)>,
             Res<'static, luminara_window::Window>,
         )>(CoreStage::Render, crate::render_system);
     }
@@ -102,6 +147,12 @@ pub fn setup_gpu_context(world: &mut World) {
         buffer: camera_buffer,
         bind_group: camera_bind_group,
     });
+
+    // Initialize Forward+ renderer
+    let forward_plus = world
+        .get_resource_mut::<crate::ForwardPlusRenderer>()
+        .expect("ForwardPlusRenderer not found");
+    forward_plus.initialize(&gpu.device, gpu.surface_config.format);
 
     world.insert_resource(gpu);
 }

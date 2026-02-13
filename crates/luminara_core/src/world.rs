@@ -305,6 +305,11 @@ impl World {
         }
     }
 
+    pub fn is_component_registered<T: Component>(&self) -> bool {
+        let type_id = TypeId::of::<T>();
+        self.component_info.contains_key(&type_id)
+    }
+
     pub fn register_component<T: Component>(&mut self) {
         let type_id = TypeId::of::<T>();
         self.component_info

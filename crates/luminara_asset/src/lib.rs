@@ -1,3 +1,4 @@
+pub mod allocator;
 pub mod handle;
 pub mod hot_reload;
 pub mod loader;
@@ -7,6 +8,7 @@ pub mod processor;
 pub mod server;
 pub mod storage;
 
+pub use allocator::*;
 pub use handle::*;
 pub use hot_reload::*;
 pub use loader::*;
