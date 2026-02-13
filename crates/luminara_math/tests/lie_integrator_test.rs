@@ -12,12 +12,12 @@ prop_compose! {
         tx in -10.0f32..10.0,
         ty in -10.0f32..10.0,
         tz in -10.0f32..10.0,
-    ) -> Motor {
+    ) -> Motor<f32> {
         let axis = Vec3::new(axis_x, axis_y, axis_z);
         let axis = if axis.length_squared() < 1e-6 { Vec3::Z } else { axis.normalize() };
         let rot = Quat::from_axis_angle(axis, angle);
         let trans = Vec3::new(tx, ty, tz);
-        Motor::from_rotation_translation(rot, trans)
+        Motor::from_rotation_translation_glam(rot, trans)
     }
 }
 
@@ -30,7 +30,7 @@ prop_compose! {
         e01 in -1.0f32..1.0,
         e02 in -1.0f32..1.0,
         e03 in -1.0f32..1.0,
-    ) -> Bivector {
+    ) -> Bivector<f32> {
         Bivector::new(e12, e13, e23, e01, e02, e03)
     }
 }
@@ -101,7 +101,7 @@ fn test_simple_harmonic_oscillator() {
     // v_{n+1} = v_n + h * (-k * theta_n) * e12
 
     let theta_0 = 1.0f32; // initial angle
-    let mut y = Motor::from_axis_angle(Vec3::Z, theta_0);
+    let mut y = Motor::from_axis_angle(Vec3::Z.into(), theta_0);
     let mut omega = 0.0f32;
 
     let dt = 0.01;
@@ -111,7 +111,7 @@ fn test_simple_harmonic_oscillator() {
     for _ in 0..steps {
         // Symplectic Euler-ish
         // 1. Update velocity (using current position)
-        let (rot, _) = y.to_rotation_translation();
+        let (rot, _) = y.to_rotation_translation_glam();
         let (axis, angle) = rot.to_axis_angle();
         // angle is in [0, pi]. We need signed angle.
         // Check axis direction relative to Z
@@ -129,7 +129,7 @@ fn test_simple_harmonic_oscillator() {
     // After t = 1.0 (100 * 0.01), theta should be theta_0 * cos(sqrt(k)*t)
     // = 1.0 * cos(1.0) approx 0.54
 
-    let (rot, _) = y.to_rotation_translation();
+    let (rot, _) = y.to_rotation_translation_glam();
     let (axis, angle) = rot.to_axis_angle();
     let sign = if axis.dot(Vec3::Z) > 0.0 { 1.0 } else { -1.0 };
     let final_angle = angle * sign;
@@ -189,6 +189,6 @@ fn test_free_rigid_body() {
     assert!((final_energy - initial_energy).abs() < 1e-4);
 
     // Check that y moved (is not identity)
-    let (rot, _) = y.to_rotation_translation();
+    let (rot, _) = y.to_rotation_translation_glam();
     assert!(rot.to_axis_angle().1 > 0.1);
 }

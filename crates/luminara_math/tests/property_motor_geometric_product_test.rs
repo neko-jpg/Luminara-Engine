@@ -9,7 +9,7 @@ use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
-fn motor_strategy() -> impl Strategy<Value = Motor> {
+fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
         -10.0f32..10.0,  // translation x
         -10.0f32..10.0,  // translation y
@@ -24,18 +24,18 @@ fn motor_strategy() -> impl Strategy<Value = Motor> {
         
         // Handle zero axis case
         if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans)
+            Motor::from_translation(trans.into())
         } else {
             let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized, angle);
-            let trans_motor = Motor::from_translation(trans);
+            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+            let trans_motor = Motor::from_translation(trans.into());
             trans_motor.geometric_product(&rot)
         }
     })
 }
 
 /// Helper function to check if two motors are approximately equal.
-fn assert_motors_approx_equal(a: &Motor, b: &Motor, epsilon: f32) {
+fn assert_motors_approx_equal(a: &Motor<f32>, b: &Motor<f32>, epsilon: f32) {
     let diff_s = (a.s - b.s).abs();
     let diff_e12 = (a.e12 - b.e12).abs();
     let diff_e13 = (a.e13 - b.e13).abs();

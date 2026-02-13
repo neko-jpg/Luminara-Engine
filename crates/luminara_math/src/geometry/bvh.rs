@@ -270,8 +270,17 @@ impl<T: Primitive> Bvh<T> {
 
         let (left_indices, right_indices) = indices.split_at_mut(split_idx);
 
-        let left = Box::new(Self::build_recursive(primitives, left_indices));
-        let right = Box::new(Self::build_recursive(primitives, right_indices));
+        let (left, right) = if count > 1024 {
+            rayon::join(
+                || Box::new(Self::build_recursive(primitives, left_indices)),
+                || Box::new(Self::build_recursive(primitives, right_indices)),
+            )
+        } else {
+            (
+                Box::new(Self::build_recursive(primitives, left_indices)),
+                Box::new(Self::build_recursive(primitives, right_indices)),
+            )
+        };
 
         BvhNode::Internal {
             aabb,

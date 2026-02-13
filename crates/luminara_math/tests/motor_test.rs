@@ -17,12 +17,12 @@ prop_compose! {
         tx in -10.0f32..10.0,
         ty in -10.0f32..10.0,
         tz in -10.0f32..10.0,
-    ) -> Motor {
+    ) -> Motor<f32> {
         let axis = Vec3::new(axis_x, axis_y, axis_z);
         let axis = if axis.length_squared() < 1e-6 { Vec3::Z } else { axis.normalize() };
         let rot = Quat::from_axis_angle(axis, angle);
         let trans = Vec3::new(tx, ty, tz);
-        Motor::from_rotation_translation(rot, trans)
+        Motor::from_rotation_translation_glam(rot, trans)
     }
 }
 
@@ -35,7 +35,7 @@ prop_compose! {
         e01 in -5.0f32..5.0,
         e02 in -5.0f32..5.0,
         e03 in -5.0f32..5.0,
-    ) -> Bivector {
+    ) -> Bivector<f32> {
         Bivector::new(e12, e13, e23, e01, e02, e03)
     }
 }
@@ -117,55 +117,55 @@ proptest! {
 fn test_motor_identity() {
     let m = Motor::IDENTITY;
     let p = Vec3::new(1.0, 2.0, 3.0);
-    let p_prime = m.transform_point(p);
-    assert_vec3_eq(p, p_prime, 1e-6);
+    let p_prime = m.transform_point(p.into());
+    assert_vec3_eq(p, p_prime.into(), 1e-6);
 }
 
 #[test]
 fn test_motor_translation() {
     let t = Vec3::new(10.0, -5.0, 0.5);
-    let m = Motor::from_translation(t);
+    let m = Motor::from_translation(t.into());
     let p = Vec3::new(1.0, 2.0, 3.0);
-    let p_prime = m.transform_point(p);
+    let p_prime = m.transform_point(p.into());
 
-    assert_vec3_eq(p_prime, p + t, 1e-5);
+    assert_vec3_eq(p_prime.into(), p + t, 1e-5);
 }
 
 #[test]
 fn test_motor_rotation_z() {
-    let m = Motor::from_axis_angle(Vec3::Z, std::f32::consts::PI / 2.0);
+    let m = Motor::from_axis_angle(Vec3::Z.into(), std::f32::consts::PI / 2.0);
     let p = Vec3::new(1.0, 0.0, 0.0);
-    let p_prime = m.transform_point(p);
+    let p_prime = m.transform_point(p.into());
 
     // Rotated 90 deg around Z: (1,0,0) -> (0,1,0)
-    assert_vec3_eq(p_prime, Vec3::new(0.0, 1.0, 0.0), 1e-5);
+    assert_vec3_eq(p_prime.into(), Vec3::new(0.0, 1.0, 0.0), 1e-5);
 }
 
 #[test]
 fn test_motor_composition() {
-    let m1 = Motor::from_translation(Vec3::new(1.0, 0.0, 0.0));
-    let m2 = Motor::from_translation(Vec3::new(0.0, 1.0, 0.0));
+    let m1 = Motor::from_translation(Vec3::new(1.0, 0.0, 0.0).into());
+    let m2 = Motor::from_translation(Vec3::new(0.0, 1.0, 0.0).into());
 
     // m1 then m2
     let composed = m1.geometric_product(&m2);
     let p = Vec3::ZERO;
-    let p_prime = composed.transform_point(p);
+    let p_prime = composed.transform_point(p.into());
 
     // Should be at (1, 1, 0)
-    assert_vec3_eq(p_prime, Vec3::new(1.0, 1.0, 0.0), 1e-5);
+    assert_vec3_eq(p_prime.into(), Vec3::new(1.0, 1.0, 0.0), 1e-5);
 }
 
 #[test]
 fn test_edge_cases() {
     // Zero rotation, zero translation
-    let m = Motor::from_rotation_translation(Quat::IDENTITY, Vec3::ZERO);
+    let m = Motor::from_rotation_translation_glam(Quat::IDENTITY, Vec3::ZERO);
     assert!((m.s - 1.0).abs() < 1e-6);
     assert!(m.e01.abs() < 1e-6);
 
     // Large translation
     let large_t = Vec3::new(1e5, 1e5, 1e5);
-    let m_large = Motor::from_translation(large_t);
+    let m_large = Motor::from_translation(large_t.into());
     let p = Vec3::ZERO;
-    let p_prime = m_large.transform_point(p);
-    assert_vec3_eq(p_prime, large_t, 1e-1); // loss of precision expected
+    let p_prime = m_large.transform_point(p.into());
+    assert_vec3_eq(p_prime.into(), large_t, 1e-1); // loss of precision expected
 }

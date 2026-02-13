@@ -9,7 +9,7 @@ use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
-fn motor_strategy() -> impl Strategy<Value = Motor> {
+fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
         -10.0f32..10.0,  // translation x
         -10.0f32..10.0,  // translation y
@@ -24,11 +24,11 @@ fn motor_strategy() -> impl Strategy<Value = Motor> {
         
         // Handle zero axis case
         if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans)
+            Motor::from_translation(trans.into())
         } else {
             let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized, angle);
-            let trans_motor = Motor::from_translation(trans);
+            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+            let trans_motor = Motor::from_translation(trans.into());
             trans_motor.geometric_product(&rot)
         }
     })
@@ -63,8 +63,8 @@ proptest! {
         let original_distance = p1.distance(p2);
         
         // Transform both points
-        let p1_transformed = motor.transform_point(p1);
-        let p2_transformed = motor.transform_point(p2);
+        let p1_transformed = motor.transform_point(p1.into());
+        let p2_transformed = motor.transform_point(p2.into());
         
         // Compute transformed distance
         let transformed_distance = p1_transformed.distance(p2_transformed);
@@ -97,11 +97,11 @@ proptest! {
         p1 in point_strategy(),
         p2 in point_strategy(),
     ) {
-        let motor = Motor::from_translation(Vec3::new(tx, ty, tz));
+        let motor = Motor::from_translation(Vec3::new(tx, ty, tz).into());
         
         let original_distance = p1.distance(p2);
-        let p1_transformed = motor.transform_point(p1);
-        let p2_transformed = motor.transform_point(p2);
+        let p1_transformed = motor.transform_point(p1.into());
+        let p2_transformed = motor.transform_point(p2.into());
         let transformed_distance = p1_transformed.distance(p2_transformed);
         
         let relative_error = if original_distance > 1e-6 {
@@ -134,11 +134,11 @@ proptest! {
         // Skip if axis is too small
         prop_assume!(axis.length_squared() > 1e-6);
         
-        let motor = Motor::from_axis_angle(axis.normalize(), angle);
+        let motor = Motor::from_axis_angle(axis.normalize().into(), angle);
         
         let original_distance = p1.distance(p2);
-        let p1_transformed = motor.transform_point(p1);
-        let p2_transformed = motor.transform_point(p2);
+        let p1_transformed = motor.transform_point(p1.into());
+        let p2_transformed = motor.transform_point(p2.into());
         let transformed_distance = p1_transformed.distance(p2_transformed);
         
         let relative_error = if original_distance > 1e-6 {

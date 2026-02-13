@@ -1739,6 +1739,7 @@ dependencies = [
  "luminara_core",
  "nalgebra 0.32.6",
  "proptest",
+ "rayon",
  "rustc-hash 1.1.0",
  "serde",
  "smallvec",

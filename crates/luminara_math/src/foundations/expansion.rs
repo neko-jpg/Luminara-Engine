@@ -445,7 +445,7 @@ use smallvec::SmallVec;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Expansion {
-    terms: SmallVec<[f64; 8]>,
+    terms: SmallVec<[f64; 32]>,
 }
 
 impl Expansion {

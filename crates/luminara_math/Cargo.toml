@@ -21,7 +21,14 @@ rustc-hash = "1.1"
 # For SIMD optimization
 wide = "0.7"
 
+# For parallel processing
+rayon = "1.8"
+
 [dev-dependencies]
 proptest = "1.4"
 criterion = "0.5"
 approx = "0.5"
+
+[[bench]]
+name = "math_benchmarks"
+harness = false

@@ -7,8 +7,18 @@ pub mod bivector;
 pub mod dual_quat;
 pub mod lie_integrator;
 pub mod motor;
+pub mod rotor;
+pub mod point;
+pub mod plane;
+pub mod vector;
+pub mod traits;
 
 pub use bivector::*;
 pub use dual_quat::*;
 pub use lie_integrator::*;
 pub use motor::*;
+pub use rotor::*;
+pub use point::*;
+pub use plane::*;
+pub use vector::*;
+pub use traits::*;

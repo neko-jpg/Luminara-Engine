@@ -4,7 +4,7 @@ use luminara_math::algebra::Motor;
 #[test]
 fn debug_associativity_failure() {
     // From the failing counter-example:
-    let m1 = Motor {
+    let m1: Motor<f64> = Motor {
         s: 0.745154,
         e12: 0.6668924,
         e13: 0.0,
