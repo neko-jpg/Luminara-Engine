@@ -172,6 +172,32 @@ impl Motor {
         rot_motor.geometric_product(&trans_motor)
     }
 
+    /// Extract rotation and translation from the motor.
+    pub fn to_rotation_translation(&self) -> (Quat, Vec3) {
+        // Extract rotation quaternion (normalized)
+        let rot = Quat::from_xyzw(self.e23, self.e13, self.e12, self.s).normalize();
+
+        // Extract translation
+        // M = R * (1 + t/2)  =>  1 + t/2 = R_rev * M
+        // We compute the translational part of R_rev * M
+        // R_rev has s=s, e12=-e12, etc.
+
+        let s = self.s;
+        let e12 = self.e12;
+        let e13 = self.e13;
+        let e23 = self.e23;
+
+        // Components of R_rev * M (translational part only)
+        // t.x/2 = e01_res
+        let half_tx = s * self.e01 - e12 * self.e02 - e13 * self.e03 + e23 * self.e0123;
+        let half_ty = s * self.e02 + e12 * self.e01 - e23 * self.e03 - e13 * self.e0123;
+        let half_tz = s * self.e03 + e13 * self.e01 + e23 * self.e02 + e12 * self.e0123;
+
+        let trans = Vec3::new(half_tx * 2.0, half_ty * 2.0, half_tz * 2.0);
+
+        (rot, trans)
+    }
+
     /// Compute the geometric product of two motors.
     ///
     /// This composes two rigid transformations. The result represents applying
@@ -515,10 +541,11 @@ impl Motor {
         }
     }
 
-    /// Interpolate between two motors using geodesic interpolation.
+    /// Interpolate between two motors.
     ///
-    /// This uses the exponential and logarithm maps to perform smooth
-    /// interpolation on the manifold.
+    /// This performs decoupled interpolation of rotation (Slerp) and translation (Lerp).
+    /// This ensures smoothness and correct endpoint behavior even for large screw motions
+    /// where the approximate log/exp map might fail.
     ///
     /// # Arguments
     /// * `other` - The target motor
@@ -537,21 +564,13 @@ impl Motor {
     /// ```
     #[inline]
     pub fn interpolate(&self, other: &Motor, t: f32) -> Motor {
-        // Compute the relative motor: M_rel = M2 * M1^-1
-        let self_inv = self.reverse();
-        let relative = other.geometric_product(&self_inv);
+        let (r1, t1) = self.to_rotation_translation();
+        let (r2, t2) = other.to_rotation_translation();
         
-        // Take the logarithm to get the bivector
-        let log_relative = relative.log();
+        let r_interp = r1.slerp(r2, t);
+        let t_interp = t1.lerp(t2, t);
         
-        // Scale by t
-        let scaled = log_relative.scale(t);
-        
-        // Exponentiate back to a motor
-        let interpolated_relative = Motor::exp(&scaled);
-        
-        // Compose with self: M_interp = M_rel^t * M1
-        interpolated_relative.geometric_product(self)
+        Motor::from_rotation_translation(r_interp, t_interp)
     }
 
     /// Normalize the motor to counteract numerical drift.
