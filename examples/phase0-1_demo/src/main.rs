@@ -20,7 +20,7 @@ use luminara::prelude::*;
 use luminara_core::{CoreStage, ExclusiveMarker};
 use luminara_input::keyboard::Key;
 use luminara_render::{DirectionalLight, PbrMaterial, PointLight};
-use log::info;
+use log::{error, info};
 use std::time::Instant;
 
 // ============================================================================
@@ -196,48 +196,64 @@ fn print_command_menu() {
 fn setup_scene(world: &mut World) {
     info!("🎨 Setting up demo scene…");
 
-    // ── Camera ──────────────────────────────────────────────────────────
-    let camera = world.spawn();
-    world.add_component(
-        camera,
-        Camera {
-            projection: Projection::Perspective {
-                fov: 60.0,
-                near: 0.1,
-                far: 1000.0,
-            },
-            clear_color: Color::rgba(0.05, 0.08, 0.12, 1.0),
-            is_active: true,
-        },
-    );
-    world.add_component(camera, Camera3d);
-    world.add_component(
-        camera,
-        Transform::from_xyz(0.0, 12.0, 25.0).looking_at(Vec3::ZERO, Vec3::Y),
-    );
-    world.add_component(camera, Name::new("MainCamera"));
-    world.add_component(camera, AudioListener::default());
+    // Load base scene from RON (Camera, Sun, Ground)
+    let scene_path = std::path::Path::new("assets/scenes/ultimate.scene.ron");
+    match luminara_scene::Scene::load_from_file(scene_path) {
+        Ok(scene) => {
+             info!("✅ Loaded base scene from RON");
+             scene.spawn_into(world);
+        }
+        Err(e) => {
+             // Fallback if loading fails
+             error!("❌ Failed to load scene: {}. Using fallback setup.", e);
 
-    // ── Directional light (sun) ─────────────────────────────────────────
-    let sun = world.spawn();
-    world.add_component(sun, Name::new("Sun"));
-    world.add_component(
-        sun,
-        Transform {
-            translation: Vec3::new(0.0, 30.0, 0.0),
-            rotation: Quat::from_rotation_x(-0.8) * Quat::from_rotation_y(0.4),
-            scale: Vec3::ONE,
-        },
-    );
-    world.add_component(
-        sun,
-        DirectionalLight {
-            color: Color::rgb(1.0, 0.95, 0.85),
-            intensity: 1.2,
-            cast_shadows: true,
-            shadow_cascade_count: 4,
-        },
-    );
+             // ── Camera ──────────────────────────────────────────────────────────
+            let camera = world.spawn();
+            world.add_component(
+                camera,
+                Camera {
+                    projection: Projection::Perspective {
+                        fov: 60.0,
+                        near: 0.1,
+                        far: 1000.0,
+                    },
+                    clear_color: Color::rgba(0.05, 0.08, 0.12, 1.0),
+                    is_active: true,
+                },
+            );
+            world.add_component(camera, Camera3d);
+            world.add_component(
+                camera,
+                Transform::from_xyz(0.0, 12.0, 25.0).looking_at(Vec3::ZERO, Vec3::Y),
+            );
+            world.add_component(camera, Name::new("MainCamera"));
+            world.add_component(camera, AudioListener::default());
+
+            // ── Directional light (sun) ─────────────────────────────────────────
+            let sun = world.spawn();
+            world.add_component(sun, Name::new("Sun"));
+            world.add_component(
+                sun,
+                Transform {
+                    translation: Vec3::new(0.0, 30.0, 0.0),
+                    rotation: Quat::from_rotation_x(-0.8) * Quat::from_rotation_y(0.4),
+                    scale: Vec3::ONE,
+                },
+            );
+            world.add_component(
+                sun,
+                DirectionalLight {
+                    color: Color::rgb(1.0, 0.95, 0.85),
+                    intensity: 1.2,
+                    cast_shadows: true,
+                    shadow_cascade_count: 4,
+                },
+            );
+
+            // ── Ground ──────────────────────────────────────────────────────────
+            create_ground(world);
+        }
+    }
 
     // ── Fill light (point) ─────────────────────────────────────────────
     let fill = world.spawn();
@@ -252,9 +268,6 @@ fn setup_scene(world: &mut World) {
             cast_shadows: false,
         },
     );
-
-    // ── Ground ──────────────────────────────────────────────────────────
-    create_ground(world);
 
     // ── Walls ───────────────────────────────────────────────────────────
     create_walls(world);
@@ -530,6 +543,13 @@ fn create_hud_markers(world: &mut World) {
 // Spawn Helpers
 // ============================================================================
 
+fn add_spawned_entity(world: &mut World, entity: Entity) {
+    if let Some(state) = world.get_resource_mut::<DemoState>() {
+        state.spawned_entities.push(entity);
+        state.spawn_counter += 1;
+    }
+}
+
 fn spawn_sphere_at(world: &mut World, pos: Vec3, radius: f32, color: Color) -> Entity {
     let e = world.spawn();
     world.add_component(e, Name::new("Sphere"));
@@ -676,7 +696,9 @@ fn spawn_emissive_orb(world: &mut World, pos: Vec3, radius: f32, glow: Color) ->
 
 fn input_system(world: &mut World) {
     // Read input first, then get mutable demo state
+    let mut new_physics_paused = None;
     let mut movement = Vec3::ZERO;
+    let mut mouse_delta = Vec2::ZERO;
     let mut sprinting = false;
     let mut wants_spawn_random = false;
     let mut wants_spawn_sphere = false;
@@ -692,7 +714,13 @@ fn input_system(world: &mut World) {
     let mut wants_exit = false;
 
     // Read input resource
-    if let Some(input) = world.get_resource::<Input>() {
+    if let Some(input) = world.get_resource_mut::<Input>() {
+        // Cursor locking logic
+        if input.mouse_just_pressed(luminara_input::mouse::MouseButton::Left) {
+            input.set_cursor_grabbed(true);
+            input.set_cursor_visible(false);
+        }
+
         // Camera movement
         if input.pressed(Key::W) || input.pressed(Key::Up) {
             movement.z -= 1.0;
@@ -714,6 +742,11 @@ fn input_system(world: &mut World) {
         }
         sprinting = input.pressed(Key::LShift) || input.pressed(Key::RShift);
 
+        // Mouse Look
+        if input.is_cursor_grabbed() {
+            mouse_delta = input.mouse_delta();
+        }
+
         // Actions (just_pressed = single fire)
         wants_spawn_random = input.just_pressed(Key::T);
         wants_spawn_sphere = input.just_pressed(Key::Num1);
@@ -726,7 +759,15 @@ fn input_system(world: &mut World) {
         wants_toggle_gizmos = input.just_pressed(Key::G);
         wants_toggle_physics = input.just_pressed(Key::P);
         wants_toggle_menu = input.just_pressed(Key::H);
-        wants_exit = input.just_pressed(Key::Escape);
+
+        if input.just_pressed(Key::Escape) {
+            if input.is_cursor_grabbed() {
+                input.set_cursor_grabbed(false);
+                input.set_cursor_visible(true);
+            } else {
+                wants_exit = true;
+            }
+        }
     }
 
     // Get delta time
@@ -745,6 +786,12 @@ fn input_system(world: &mut World) {
         if state.toggle_cooldown > 0 {
             state.toggle_cooldown -= 1;
         }
+
+        // Update Camera Rotation (Mouse Look)
+        let sensitivity = 0.002;
+        state.camera_yaw -= mouse_delta.x * sensitivity;
+        state.camera_pitch -= mouse_delta.y * sensitivity;
+        state.camera_pitch = state.camera_pitch.clamp(-1.5, 1.5);
 
         // Camera movement — transform movement vector by yaw
         let speed = state.move_speed * if sprinting { state.sprint_mult } else { 1.0 };
@@ -766,13 +813,14 @@ fn input_system(world: &mut World) {
             state.gizmos_on = !state.gizmos_on;
             state.toggle_cooldown = 10;
             info!(
-                "🔧 Gizmos: {}",
+                "🔧 Gizmos: {} (Not implemented in renderer yet)",
                 if state.gizmos_on { "ON" } else { "OFF" }
             );
         }
         if wants_toggle_physics && state.toggle_cooldown == 0 {
             state.physics_paused = !state.physics_paused;
             state.toggle_cooldown = 10;
+            new_physics_paused = Some(state.physics_paused);
             info!(
                 "⚙️ Physics: {}",
                 if state.physics_paused {
@@ -794,6 +842,12 @@ fn input_system(world: &mut World) {
         if wants_exit {
             info!("👋 Exit requested");
             std::process::exit(0);
+        }
+    }
+
+    if let Some(paused) = new_physics_paused {
+        if let Some(time) = world.get_resource_mut::<Time>() {
+            time.time_scale = if paused { 0.0 } else { 1.0 };
         }
     }
 
@@ -837,34 +891,22 @@ fn input_system(world: &mut World) {
                 spawn_emissive_orb(world, spawn_pos, 0.6, Color::rgb(3.0, 0.5, 1.0))
             }
         };
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.spawned_entities.push(ent);
-            state.spawn_counter += 1;
-        }
+        add_spawned_entity(world, ent);
     }
     if wants_spawn_sphere {
         let ent = spawn_sphere_at(world, spawn_pos, 0.8, Color::rgb(0.95, 0.2, 0.2));
         info!("🔴 Spawned sphere [1]");
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.spawned_entities.push(ent);
-            state.spawn_counter += 1;
-        }
+        add_spawned_entity(world, ent);
     }
     if wants_spawn_cube {
         let ent = spawn_cube_at(world, spawn_pos, 1.5, Color::rgb(0.2, 0.6, 0.95));
         info!("🟦 Spawned cube [2]");
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.spawned_entities.push(ent);
-            state.spawn_counter += 1;
-        }
+        add_spawned_entity(world, ent);
     }
     if wants_spawn_glow {
         let ent = spawn_emissive_orb(world, spawn_pos, 0.6, Color::rgb(0.0, 3.0, 2.0));
         info!("✨ Spawned glow orb [3]");
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.spawned_entities.push(ent);
-            state.spawn_counter += 1;
-        }
+        add_spawned_entity(world, ent);
     }
     if wants_spawn_stack {
         info!("📦 Spawning stack of 5 cubes [4]");
@@ -877,10 +919,7 @@ fn input_system(world: &mut World) {
                 ((hue + 0.66) * 6.28).sin() * 0.5 + 0.5,
             );
             let ent = spawn_cube_at(world, p, 1.5, color);
-            if let Some(state) = world.get_resource_mut::<DemoState>() {
-                state.spawned_entities.push(ent);
-                state.spawn_counter += 1;
-            }
+            add_spawned_entity(world, ent);
         }
     }
     if wants_spawn_rain {
@@ -897,10 +936,7 @@ fn input_system(world: &mut World) {
                 0.8,
             );
             let ent = spawn_sphere_at(world, spawn_pos + offset, 0.5, color);
-            if let Some(state) = world.get_resource_mut::<DemoState>() {
-                state.spawned_entities.push(ent);
-                state.spawn_counter += 1;
-            }
+            add_spawned_entity(world, ent);
         }
     }
     if wants_clear {
@@ -943,19 +979,12 @@ fn camera_update_system(world: &mut World) {
         return;
     };
 
-    // Find the camera entity and update its Transform
-    let entities = world.entities();
-    for entity in entities {
-        if let Some(name) = world.get_component::<Name>(entity) {
-            if name.0 == "MainCamera" {
-                if let Some(transform) = world.get_component_mut::<Transform>(entity) {
-                    transform.translation = pos;
-                    transform.rotation =
-                        Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch);
-                }
-                break;
-            }
-        }
+    // Query for Camera component and update its Transform
+    // This is much more efficient than iterating all entities
+    let mut query = Query::<(&mut Transform, &Camera)>::new(world);
+    for (transform, _) in query.iter_mut() {
+        transform.translation = pos;
+        transform.rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch);
     }
 }
 

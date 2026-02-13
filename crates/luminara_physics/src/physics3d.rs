@@ -92,6 +92,7 @@ impl Plugin for PhysicsPlugin {
         app.add_system::<(
             luminara_core::system::FunctionMarker,
             ResMut<'static, PhysicsWorld3D>,
+            Res<'static, luminara_core::Time>,
         )>(CoreStage::Update, physics_step_system);
 
         // Register physics sync system (sync rapier state back to ECS transforms)
@@ -366,7 +367,14 @@ pub fn physics_collider_creation_system(
 }
 
 /// System to step the physics simulation
-pub fn physics_step_system(mut physics_world: ResMut<PhysicsWorld3D>) {
+pub fn physics_step_system(
+    mut physics_world: ResMut<PhysicsWorld3D>,
+    time: Res<luminara_core::Time>,
+) {
+    if time.time_scale == 0.0 {
+        return;
+    }
+
     let PhysicsWorld3D {
         ref gravity,
         ref integration_parameters,

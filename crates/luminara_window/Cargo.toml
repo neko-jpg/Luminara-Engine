@@ -9,6 +9,7 @@ luminara_math = { workspace = true }
 winit = { workspace = true }
 raw-window-handle = "0.6"
 serde = { workspace = true }
+luminara_input = { workspace = true }
 
 [dev-dependencies]
 serde_json = "1.0"
