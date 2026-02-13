@@ -9,7 +9,7 @@ use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
-fn motor_strategy() -> impl Strategy<Value = Motor> {
+fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
         -10.0f32..10.0,  // translation x
         -10.0f32..10.0,  // translation y
@@ -24,11 +24,11 @@ fn motor_strategy() -> impl Strategy<Value = Motor> {
         
         // Handle zero axis case
         if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans)
+            Motor::from_translation(trans.into())
         } else {
             let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized, angle);
-            let trans_motor = Motor::from_translation(trans);
+            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+            let trans_motor = Motor::from_translation(trans.into());
             let mut motor = trans_motor.geometric_product(&rot);
             // Normalize to ensure it's a valid motor
             motor.normalize();
@@ -38,7 +38,7 @@ fn motor_strategy() -> impl Strategy<Value = Motor> {
 }
 
 /// Helper function to check if two motors are approximately equal.
-fn assert_motors_approx_equal(a: &Motor, b: &Motor, epsilon: f32) {
+fn assert_motors_approx_equal(a: &Motor<f32>, b: &Motor<f32>, epsilon: f32) {
     let diff_s = (a.s - b.s).abs();
     let diff_e12 = (a.e12 - b.e12).abs();
     let diff_e13 = (a.e13 - b.e13).abs();
@@ -107,7 +107,7 @@ proptest! {
         ty in -10.0f32..10.0,
         tz in -10.0f32..10.0,
     ) {
-        let motor = Motor::from_translation(Vec3::new(tx, ty, tz));
+        let motor = Motor::from_translation(Vec3::new(tx, ty, tz).into());
         let motor_inverse = motor.reverse();
         
         let result = motor.geometric_product(&motor_inverse);
@@ -128,7 +128,7 @@ proptest! {
         // Skip if axis is too small
         prop_assume!(axis.length_squared() > 1e-6);
         
-        let motor = Motor::from_axis_angle(axis.normalize(), angle);
+        let motor = Motor::from_axis_angle(axis.normalize().into(), angle);
         let motor_inverse = motor.reverse();
         
         let result = motor.geometric_product(&motor_inverse);
@@ -154,10 +154,10 @@ proptest! {
         let identity_motor = motor_inverse.geometric_product(&motor);
         
         // Apply the composed motor to the point
-        let result = identity_motor.transform_point(point);
+        let result = identity_motor.transform_point(point.into());
         
         // Should get back the original point (since identity_motor ≈ I)
-        let diff = (result - point).length();
+        let diff = (Vec3::from(result) - point).length();
         assert!(
             diff < 1e-3,
             "Point not restored: original={:?}, result={:?}, diff={}, identity_motor={:?}",

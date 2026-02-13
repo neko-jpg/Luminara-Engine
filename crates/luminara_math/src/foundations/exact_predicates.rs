@@ -12,6 +12,7 @@
 
 use super::error_bounds::*;
 use super::expansion::{two_product, two_sum, Expansion};
+use wide::f64x4;
 
 /// 2D orientation test (orient2d).
 ///
@@ -210,9 +211,11 @@ pub fn incircle(pa: [f64; 2], pb: [f64; 2], pc: [f64; 2], pd: [f64; 2]) -> f64 {
     let det = alift * (bdxcdy - cdxbdy) + blift * (cdxady - adxcdy) + clift * (adxbdy - bdxady);
 
     // Compute error bound for Stage A
-    let permanent = (bdxcdy.abs() + cdxbdy.abs()) * alift
-        + (cdxady.abs() + adxcdy.abs()) * blift
-        + (adxbdy.abs() + bdxady.abs()) * clift;
+    let v1 = f64x4::from([bdxcdy, cdxady, adxbdy, 0.0]);
+    let v2 = f64x4::from([cdxbdy, adxcdy, bdxady, 0.0]);
+    let v_lifts = f64x4::from([alift, blift, clift, 0.0]);
+
+    let permanent = ((v1.abs() + v2.abs()) * v_lifts).reduce_add();
     let errbound = INCIRCLE_ERRBOUND_A * permanent;
 
     if det > errbound || -det > errbound {
@@ -408,9 +411,11 @@ pub fn orient3d(pa: [f64; 3], pb: [f64; 3], pc: [f64; 3], pd: [f64; 3]) -> f64 {
     let det = adz * (bdxcdy - cdxbdy) + bdz * (cdxady - adxcdy) + cdz * (adxbdy - bdxady);
 
     // Compute error bound for Stage A
-    let permanent = (bdxcdy.abs() + cdxbdy.abs()) * adz.abs()
-        + (cdxady.abs() + adxcdy.abs()) * bdz.abs()
-        + (adxbdy.abs() + bdxady.abs()) * cdz.abs();
+    let v1 = f64x4::from([bdxcdy, cdxady, adxbdy, 0.0]);
+    let v2 = f64x4::from([cdxbdy, adxcdy, bdxady, 0.0]);
+    let v_factors = f64x4::from([adz, bdz, cdz, 0.0]);
+
+    let permanent = ((v1.abs() + v2.abs()) * v_factors.abs()).reduce_add();
     let errbound = ORIENT3D_ERRBOUND_A * permanent;
 
     if det > errbound || -det > errbound {
@@ -534,36 +539,40 @@ pub fn insphere(pa: [f64; 3], pb: [f64; 3], pc: [f64; 3], pd: [f64; 3], pe: [f64
     let bezplus = bez.abs();
     let cezplus = cez.abs();
     let dezplus = dez.abs();
-    let aexbeyplus = (aex * bey).abs();
-    let bexaeyplus = (bex * aey).abs();
-    let bexceyplus = (bex * cey).abs();
-    let cexbeyplus = (cex * bey).abs();
-    let cexdeyplus = (cex * dey).abs();
-    let dexceyplus = (dex * cey).abs();
-    let dexaeyplus = (dex * aey).abs();
-    let aexdeyplus = (aex * dey).abs();
-    let aexceyplus = (aex * cey).abs();
-    let cexaeyplus = (cex * aey).abs();
-    let bexdeyplus = (bex * dey).abs();
-    let dexbeyplus = (dex * bey).abs();
 
-    let permanent = ((cexdeyplus + dexceyplus) * bezplus
-        + (dexbeyplus + bexdeyplus) * cezplus
-        + (bexceyplus + cexbeyplus) * dezplus)
-        * alift
-        + ((dexaeyplus + aexdeyplus) * cezplus
-            + (aexceyplus + cexaeyplus) * dezplus
-            + (cexdeyplus + dexceyplus) * aezplus)
-            * blift
-        + ((aexbeyplus + bexaeyplus) * dezplus
-            + (bexdeyplus + dexbeyplus) * aezplus
-            + (dexaeyplus + aexdeyplus) * bezplus)
-            * clift
-        + ((bexceyplus + cexbeyplus) * aezplus
-            + (cexaeyplus + aexceyplus) * bezplus
-            + (aexbeyplus + bexaeyplus) * cezplus)
-            * dlift;
+    // Helper to compute 3x3 permanent using SIMD
+    let perm3 = |a1: f64, a2: f64, a3: f64, b1: f64, b2: f64, b3: f64, f1: f64, f2: f64, f3: f64| {
+        let v1 = f64x4::from([a1, a2, a3, 0.0]);
+        let v2 = f64x4::from([b1, b2, b3, 0.0]);
+        let vf = f64x4::from([f1, f2, f3, 0.0]);
+        ((v1.abs() + v2.abs()) * vf).reduce_add()
+    };
 
+    let p1 = perm3(
+        cex * dey, dex * bey, bex * cey,
+        dex * cey, bex * dey, cex * bey,
+        bezplus, cezplus, dezplus
+    );
+
+    let p2 = perm3(
+        dex * aey, aex * cey, cex * dey,
+        aex * dey, cex * aey, dex * cey,
+        cezplus, dezplus, aezplus
+    );
+
+    let p3 = perm3(
+        aex * bey, bex * dey, dex * aey,
+        bex * aey, dex * bey, aex * dey,
+        dezplus, aezplus, bezplus
+    );
+
+    let p4 = perm3(
+        bex * cey, cex * aey, aex * bey,
+        cex * bey, aex * cey, bex * aey,
+        aezplus, bezplus, cezplus
+    );
+
+    let permanent = p1 * alift + p2 * blift + p3 * clift + p4 * dlift;
     let errbound = INSPHERE_ERRBOUND_A * permanent;
 
     if det > errbound || -det > errbound {
