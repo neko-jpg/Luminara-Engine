@@ -62,14 +62,14 @@ impl App {
 impl AppInterface for App {
     fn add_plugins(&mut self, plugin: impl Plugin) -> &mut Self {
         let plugin_name = plugin.name().to_string();
-        
+
         // Only build the plugin if it hasn't been registered yet
         if !self.registered_plugins.contains(&plugin_name) {
             self.registered_plugins.insert(plugin_name.clone());
             self.plugin_order.push(plugin_name);
             plugin.build(self);
         }
-        
+
         self
     }
 

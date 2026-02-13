@@ -5,8 +5,7 @@
 ///
 /// For any invalid asset path or corrupted asset file, the asset server
 /// should not crash, should log an error, and should provide a fallback asset.
-
-use luminara_asset::{Asset, AssetLoader, AssetLoadError, AssetServer, LoadState};
+use luminara_asset::{Asset, AssetLoadError, AssetLoader, AssetServer, LoadState};
 use proptest::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -35,14 +34,14 @@ impl AssetLoader for TestAssetLoader {
 
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
         // Attempt to parse as UTF-8
-        let data = String::from_utf8(bytes.to_vec())
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
-        
+        let data =
+            String::from_utf8(bytes.to_vec()).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+
         // Additional validation: reject empty data
         if data.trim().is_empty() {
             return Err(AssetLoadError::Parse("Empty asset data".to_string()));
         }
-        
+
         Ok(TestAsset { data })
     }
 }
@@ -61,7 +60,8 @@ fn invalid_path_strategy() -> impl Strategy<Value = String> {
 
 /// Strategy to generate non-existent file names
 fn nonexistent_file_strategy() -> impl Strategy<Value = String> {
-    prop::string::string_regex("[a-z0-9_]{10,20}").unwrap()
+    prop::string::string_regex("[a-z0-9_]{10,20}")
+        .unwrap()
         .prop_map(|s| format!("{}_nonexistent.txt", s))
 }
 
@@ -110,7 +110,7 @@ proptest! {
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
-        
+
         // The asset should either be NotLoaded or Failed, but not Loaded
         prop_assert!(
             matches!(state, LoadState::NotLoaded | LoadState::Failed(_)),
@@ -142,7 +142,7 @@ proptest! {
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
-        
+
         prop_assert!(
             matches!(state, LoadState::Failed(_)),
             "Non-existent file should result in Failed state, got: {:?}",
@@ -181,7 +181,7 @@ proptest! {
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
-        
+
         prop_assert!(
             matches!(state, LoadState::Failed(_)),
             "Corrupted file should result in Failed state, got: {:?}",
@@ -220,7 +220,7 @@ proptest! {
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
-        
+
         prop_assert!(
             matches!(state, LoadState::Failed(_)),
             "Empty file should result in Failed state, got: {:?}",
@@ -263,7 +263,7 @@ proptest! {
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
-        
+
         prop_assert!(
             matches!(state, LoadState::Failed(_)),
             "Unsupported extension should result in Failed state, got: {:?}",
@@ -304,7 +304,7 @@ proptest! {
         // Then try invalid path - should not crash or affect valid asset
         let handle2: luminara_asset::Handle<TestAsset> = server.load(&invalid_path);
         prop_assert!(server.get(&handle2).is_none(), "Invalid path should fail");
-        
+
         // Verify valid asset is still accessible
         prop_assert!(server.get(&handle1).is_some(), "Valid asset should remain accessible after error");
 

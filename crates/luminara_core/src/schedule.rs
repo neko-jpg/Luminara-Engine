@@ -154,7 +154,10 @@ impl Schedule {
 
     /// Get the number of systems in a specific stage
     pub fn system_count(&self, stage: CoreStage) -> usize {
-        self.stages.get(&stage).map(|systems| systems.len()).unwrap_or(0)
+        self.stages
+            .get(&stage)
+            .map(|systems| systems.len())
+            .unwrap_or(0)
     }
 
     /// Check if a stage has any systems

@@ -5,7 +5,6 @@
 /// **Property 15: Sprite Sorting**
 /// For any set of sprites with z-order and texture values, the batch renderer
 /// should sort them first by z-order (depth) and then by texture to minimize state changes.
-
 use luminara_asset::{AssetId, Handle};
 use luminara_math::Mat4;
 use luminara_render::{Sprite, SpriteBatcher, Texture, ZOrder};
@@ -97,13 +96,13 @@ proptest! {
             let texture_id = batch.texture.id();
             // All instances in this batch should come from sprites with the same texture
             prop_assert!(!batch.instances.is_empty());
-            
+
             // Count how many sprites in the original list have this texture
             let expected_count = sprites
                 .iter()
                 .filter(|s| s.texture.id() == texture_id)
                 .count();
-            
+
             prop_assert_eq!(batch.instances.len(), expected_count);
         }
     }

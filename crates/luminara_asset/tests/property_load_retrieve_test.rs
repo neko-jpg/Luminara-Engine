@@ -6,8 +6,7 @@
 /// For any valid asset path, requesting the asset should return a handle,
 /// and using that handle should eventually provide access to the loaded
 /// asset data once loading completes.
-
-use luminara_asset::{Asset, AssetLoader, AssetLoadError, AssetServer, LoadState};
+use luminara_asset::{Asset, AssetLoadError, AssetLoader, AssetServer, LoadState};
 use proptest::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -35,8 +34,8 @@ impl AssetLoader for TestAssetLoader {
     }
 
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
-        let data = String::from_utf8(bytes.to_vec())
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+        let data =
+            String::from_utf8(bytes.to_vec()).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
         Ok(TestAsset { data })
     }
 }

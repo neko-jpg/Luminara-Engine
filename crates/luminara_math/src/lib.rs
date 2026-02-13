@@ -180,8 +180,12 @@ impl Transform {
         }
         let right = up.cross(forward).normalize();
         let corrected_up = forward.cross(right);
-        self.rotation =
-            Quat::from_mat4(&Mat4::from_cols(right.extend(0.0), corrected_up.extend(0.0), forward.extend(0.0), Vec4::W));
+        self.rotation = Quat::from_mat4(&Mat4::from_cols(
+            right.extend(0.0),
+            corrected_up.extend(0.0),
+            forward.extend(0.0),
+            Vec4::W,
+        ));
         self
     }
 

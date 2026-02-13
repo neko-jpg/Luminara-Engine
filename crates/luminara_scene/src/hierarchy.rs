@@ -71,10 +71,10 @@ pub fn remove_parent(world: &mut World, child: Entity) {
 }
 
 /// Transform propagation system using breadth-first traversal.
-/// 
+///
 /// This system traverses the entity hierarchy in breadth-first order to update
 /// GlobalTransform components based on parent-child relationships.
-/// 
+///
 /// Requirements: 5.1, 5.2
 pub fn transform_propagate_system(world: &mut World) {
     use std::collections::VecDeque;
@@ -96,7 +96,7 @@ pub fn transform_propagate_system(world: &mut World) {
 
         // Queue for breadth-first traversal: (entity, parent_global_matrix)
         let mut queue = VecDeque::new();
-        
+
         // Add root's children to the queue
         if let Some(children) = world.get_component::<Children>(root) {
             let root_matrix = root_transform.to_matrix();
@@ -111,7 +111,7 @@ pub fn transform_propagate_system(world: &mut World) {
                 // Compute global transform: parent_world * child_local
                 let local_matrix = local_transform.to_matrix();
                 let global_matrix = parent_matrix * local_matrix;
-                
+
                 // Decompose matrix back to Transform for GlobalTransform
                 let (scale, rotation, translation) = global_matrix.to_scale_rotation_translation();
                 let global_transform = Transform {
@@ -119,7 +119,7 @@ pub fn transform_propagate_system(world: &mut World) {
                     rotation,
                     scale,
                 };
-                
+
                 world.add_component(entity, GlobalTransform(global_transform));
 
                 // Add this entity's children to the queue

@@ -4,7 +4,9 @@ use crate::mesh::Mesh;
 use crate::pipeline::PipelineCache;
 use crate::render_graph::RenderGraph;
 use crate::CameraUniformBuffer;
-use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, Query, Res, ResMut, World};
+use luminara_core::shared_types::{
+    App, AppInterface, CoreStage, Plugin, Query, Res, ResMut, World,
+};
 use luminara_core::system::{ExclusiveMarker, FunctionMarker};
 use luminara_math::Transform;
 use luminara_window::Window;

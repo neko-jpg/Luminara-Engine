@@ -2,10 +2,10 @@ use proptest::prelude::*;
 
 /// **Property 19: Audio File Loading**
 /// **Validates: Requirements 8.1**
-/// 
-/// For any valid audio file in a supported format, the audio system should 
+///
+/// For any valid audio file in a supported format, the audio system should
 /// successfully decode it into a playable AudioClip.
-/// 
+///
 /// Note: This is a placeholder test since actual audio loading requires
 /// integration with the asset system and real audio files. In a full implementation,
 /// this would:
@@ -32,10 +32,10 @@ mod tests {
             // 2. Use the AudioClipLoader to load it
             // 3. Verify it loads successfully
             // 4. Verify the resulting AudioClip has valid data
-            
+
             // For now, we just verify the test framework works
             assert!(true, "Audio loading test framework is operational");
-            
+
             // TODO: Implement actual audio file loading tests when asset integration is complete
             // This requires:
             // - Test audio files in assets/test_audio/

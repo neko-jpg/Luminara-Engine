@@ -114,12 +114,18 @@ impl GpuContext {
                 None
             }
             Err(wgpu::SurfaceError::Outdated) => {
-                log::info!("Surface outdated, reconfiguring... ({}x{})", self.surface_config.width, self.surface_config.height);
+                log::info!(
+                    "Surface outdated, reconfiguring... ({}x{})",
+                    self.surface_config.width,
+                    self.surface_config.height
+                );
                 self.surface.configure(&self.device, &self.surface_config);
                 // Retry immediately instead of skipping the frame
                 match self.surface.get_current_texture() {
                     Ok(frame) => {
-                        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+                        let view = frame
+                            .texture
+                            .create_view(&wgpu::TextureViewDescriptor::default());
                         Some((frame, view))
                     }
                     Err(e) => {
@@ -134,7 +140,9 @@ impl GpuContext {
                 // Retry immediately instead of skipping the frame
                 match self.surface.get_current_texture() {
                     Ok(frame) => {
-                        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+                        let view = frame
+                            .texture
+                            .create_view(&wgpu::TextureViewDescriptor::default());
                         Some((frame, view))
                     }
                     Err(e) => {

@@ -13,14 +13,14 @@ use proptest::prelude::*;
 #[test]
 fn test_transform_creation_and_modification() {
     let mut transform = Transform::from_xyz(1.0, 2.0, 3.0);
-    
+
     assert_eq!(transform.translation.x, 1.0);
     assert_eq!(transform.translation.y, 2.0);
     assert_eq!(transform.translation.z, 3.0);
-    
+
     // Modify transform
     transform.translation = Vec3::new(4.0, 5.0, 6.0);
-    
+
     assert_eq!(transform.translation.x, 4.0);
     assert_eq!(transform.translation.y, 5.0);
     assert_eq!(transform.translation.z, 6.0);
@@ -36,7 +36,7 @@ fn test_rigid_body_with_transform() {
         gravity_scale: 1.0,
         ..Default::default()
     };
-    
+
     // Verify both components have correct values
     assert_eq!(transform.translation.y, 5.0);
     assert_eq!(rigid_body.body_type, RigidBodyType::Dynamic);
@@ -54,7 +54,7 @@ proptest! {
         z in -100.0f32..100.0f32,
     ) {
         let transform = Transform::from_xyz(x, y, z);
-        
+
         prop_assert_eq!(transform.translation.x, x);
         prop_assert_eq!(transform.translation.y, y);
         prop_assert_eq!(transform.translation.z, z);
@@ -74,13 +74,13 @@ proptest! {
             rotation,
             scale: Vec3::ONE,
         };
-        
+
         // Quaternion should be normalized (length = 1)
         let length_squared = transform.rotation.x * transform.rotation.x
             + transform.rotation.y * transform.rotation.y
             + transform.rotation.z * transform.rotation.z
             + transform.rotation.w * transform.rotation.w;
-        
+
         prop_assert!(
             (length_squared - 1.0).abs() < 0.001,
             "Quaternion should be normalized, length_squared = {}",
@@ -98,7 +98,7 @@ proptest! {
             mass,
             ..Default::default()
         };
-        
+
         prop_assert!(rigid_body.mass > 0.0, "Mass should be positive");
         prop_assert_eq!(rigid_body.mass, mass);
     }
@@ -115,7 +115,7 @@ proptest! {
             rotation: Quat::IDENTITY,
             scale: Vec3::new(sx, sy, sz),
         };
-        
+
         prop_assert_eq!(transform.scale.x, sx);
         prop_assert_eq!(transform.scale.y, sy);
         prop_assert_eq!(transform.scale.z, sz);
@@ -131,7 +131,7 @@ proptest! {
             mass,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, RigidBodyType::Dynamic);
         prop_assert!(rigid_body.mass > 0.0);
     }
@@ -146,7 +146,7 @@ proptest! {
             mass,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.body_type, RigidBodyType::Static);
         // Static bodies don't move regardless of mass
     }
@@ -162,7 +162,7 @@ proptest! {
             gravity_scale,
             ..Default::default()
         };
-        
+
         prop_assert_eq!(rigid_body.gravity_scale, gravity_scale);
     }
 
@@ -179,7 +179,7 @@ proptest! {
             angular_damping,
             ..Default::default()
         };
-        
+
         prop_assert!(rigid_body.linear_damping >= 0.0);
         prop_assert!(rigid_body.angular_damping >= 0.0);
         prop_assert_eq!(rigid_body.linear_damping, linear_damping);
@@ -196,7 +196,7 @@ proptest! {
         let transform = Transform::from_xyz(x, y, z);
         let matrix1 = transform.to_matrix();
         let matrix2 = transform.to_matrix();
-        
+
         // Matrix computation should be deterministic
         prop_assert_eq!(matrix1, matrix2);
     }

@@ -1,7 +1,7 @@
 use luminara_core::app::App;
 use luminara_core::impl_component;
 use luminara_core::shared_types::{AppInterface, CoreStage};
-use luminara_core::system::{IntoSystem, SystemAccess, FunctionMarker};
+use luminara_core::system::{FunctionMarker, IntoSystem, SystemAccess};
 use luminara_core::world::World;
 use std::any::TypeId;
 
@@ -56,11 +56,13 @@ fn stress_test_game_simulation() {
 
     app.add_system(
         CoreStage::Update,
-        IntoSystem::<(FunctionMarker, World)>::into_system(movement_system as fn(&World)).with_access(move_access),
+        IntoSystem::<(FunctionMarker, World)>::into_system(movement_system as fn(&World))
+            .with_access(move_access),
     );
     app.add_system(
         CoreStage::Update,
-        IntoSystem::<(FunctionMarker, World)>::into_system(health_system as fn(&World)).with_access(health_access),
+        IntoSystem::<(FunctionMarker, World)>::into_system(health_system as fn(&World))
+            .with_access(health_access),
     );
 
     // Spawn 10,000 entities with bundles

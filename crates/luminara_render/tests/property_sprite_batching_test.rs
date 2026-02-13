@@ -6,7 +6,6 @@
 /// For any set of sprites that share the same texture handle, the batch renderer
 /// should group them into a single batch (or multiple batches if exceeding max batch size),
 /// minimizing the number of draw calls.
-
 use luminara_asset::{AssetId, Handle};
 use luminara_math::{Color, Mat4};
 use luminara_render::{Anchor, Rect, Sprite, SpriteBatcher, Texture, ZOrder};

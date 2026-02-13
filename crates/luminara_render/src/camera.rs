@@ -20,18 +20,30 @@ impl Camera {
         match self.projection {
             Projection::Perspective { fov, near, far } => {
                 // Use RH projection: camera looks along -Z, wgpu clip Z ∈ [0, 1]
-                Mat4::perspective_rh(fov.to_radians(), aspect_ratio, near, far)
+                let mut mat = Mat4::perspective_rh(fov.to_radians(), aspect_ratio, near, far);
+                // Convert [-1, 1] to [0, 1]: Z' = 0.5 * Z + 0.5 * W
+                mat.x_axis.z = 0.5 * mat.x_axis.z + 0.5 * mat.x_axis.w;
+                mat.y_axis.z = 0.5 * mat.y_axis.z + 0.5 * mat.y_axis.w;
+                mat.z_axis.z = 0.5 * mat.z_axis.z + 0.5 * mat.z_axis.w;
+                mat.w_axis.z = 0.5 * mat.w_axis.z + 0.5 * mat.w_axis.w;
+                mat
             }
             Projection::Orthographic { size, near, far } => {
                 let half_size = size / 2.0;
-                Mat4::orthographic_rh(
+                let mut mat = Mat4::orthographic_rh(
                     -half_size * aspect_ratio,
                     half_size * aspect_ratio,
                     -half_size,
                     half_size,
                     near,
                     far,
-                )
+                );
+                // Convert [-1, 1] to [0, 1]: Z' = 0.5 * Z + 0.5 * W
+                mat.x_axis.z = 0.5 * mat.x_axis.z + 0.5 * mat.x_axis.w;
+                mat.y_axis.z = 0.5 * mat.y_axis.z + 0.5 * mat.y_axis.w;
+                mat.z_axis.z = 0.5 * mat.z_axis.z + 0.5 * mat.z_axis.w;
+                mat.w_axis.z = 0.5 * mat.w_axis.z + 0.5 * mat.w_axis.w;
+                mat
             }
         }
     }
@@ -92,16 +104,16 @@ mod tests {
     #[test]
     fn test_camera_view_matrix() {
         let camera = Camera::default();
-        
+
         // Create a transform matrix (camera at position (0, 5, 10))
         let transform = Mat4::from_translation(Vec3::new(0.0, 5.0, 10.0));
-        
+
         // Get the view matrix
         let view = camera.view_matrix(&transform);
-        
+
         // View matrix should be the inverse of the transform
         let expected = transform.inverse();
-        
+
         // Compare matrices element by element with tolerance
         for i in 0..4 {
             for j in 0..4 {
@@ -122,7 +134,7 @@ mod tests {
             clear_color: Color::BLACK,
             is_active: true,
         };
-        
+
         let mat = camera.projection_matrix(16.0 / 9.0);
         assert_ne!(mat, Mat4::IDENTITY);
     }
@@ -138,7 +150,7 @@ mod tests {
             clear_color: Color::BLACK,
             is_active: true,
         };
-        
+
         let mat = camera.projection_matrix(16.0 / 9.0);
         assert_ne!(mat, Mat4::IDENTITY);
     }
@@ -147,7 +159,7 @@ mod tests {
     fn test_camera_is_active() {
         let camera = Camera::default();
         assert!(camera.is_active);
-        
+
         let inactive_camera = Camera {
             is_active: false,
             ..Default::default()
@@ -161,7 +173,7 @@ mod tests {
             clear_color: Color::rgba(0.1, 0.2, 0.3, 1.0),
             ..Default::default()
         };
-        
+
         assert_eq!(camera.clear_color.r, 0.1);
         assert_eq!(camera.clear_color.g, 0.2);
         assert_eq!(camera.clear_color.b, 0.3);

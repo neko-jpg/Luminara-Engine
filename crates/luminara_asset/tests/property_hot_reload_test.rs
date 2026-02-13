@@ -1,13 +1,12 @@
 /// Property-based test for asset hot-reload detection (Task 4.5)
-/// 
+///
 /// **Property 3: Asset Hot-Reload Detection**
 /// **Validates: Requirements 4.1, 4.2**
-/// 
+///
 /// For any asset file (including scene files) that is modified on disk,
 /// the file watcher should detect the change within a reasonable time window
 /// and trigger a reload of that asset.
-
-use luminara_asset::{Asset, AssetLoader, AssetLoadError, AssetServer, HotReloadWatcher};
+use luminara_asset::{Asset, AssetLoadError, AssetLoader, AssetServer, HotReloadWatcher};
 use proptest::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -37,8 +36,8 @@ impl AssetLoader for TestAssetLoader {
     }
 
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
-        let data = String::from_utf8(bytes.to_vec())
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+        let data =
+            String::from_utf8(bytes.to_vec()).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
         Ok(TestAsset { data })
     }
 }
@@ -254,7 +253,7 @@ proptest! {
 
         // Load the asset
         let handle: luminara_asset::Handle<TestAsset> = server.load(&format!("{}.txt", file_name));
-        
+
         // Verify initial content
         let asset = server.get(&handle).unwrap();
         prop_assert_eq!(&asset.data, &initial_content);

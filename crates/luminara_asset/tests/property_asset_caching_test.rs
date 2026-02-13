@@ -5,8 +5,7 @@
 ///
 /// For any asset that is loaded multiple times, the asset server should
 /// process it only once and return cached data for subsequent requests.
-
-use luminara_asset::{Asset, AssetLoader, AssetLoadError, AssetServer};
+use luminara_asset::{Asset, AssetLoadError, AssetLoader, AssetServer};
 use proptest::prelude::*;
 use std::fs;
 use std::path::Path;
@@ -46,9 +45,9 @@ impl AssetLoader for CountingAssetLoader {
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
         // Increment load count to track processing
         self.load_count.fetch_add(1, Ordering::SeqCst);
-        
-        let data = String::from_utf8(bytes.to_vec())
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+
+        let data =
+            String::from_utf8(bytes.to_vec()).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
         Ok(TestAsset { data })
     }
 }
@@ -164,7 +163,7 @@ proptest! {
         // Load both assets multiple times
         let asset_path1 = format!("{}.{}", file_name1, extension);
         let asset_path2 = format!("{}.{}", file_name2, extension);
-        
+
         for _ in 0..num_loads {
             let _: luminara_asset::Handle<TestAsset> = server.load(&asset_path1);
             let _: luminara_asset::Handle<TestAsset> = server.load(&asset_path2);

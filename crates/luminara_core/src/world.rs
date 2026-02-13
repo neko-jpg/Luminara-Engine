@@ -280,6 +280,10 @@ impl World {
         self.resources.get_mut::<R>()
     }
 
+    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
+        self.resources.remove::<R>()
+    }
+
     pub fn add_event<E: Event>(&self, event: E) {
         self.get_events_mut::<E>().send(event);
     }
