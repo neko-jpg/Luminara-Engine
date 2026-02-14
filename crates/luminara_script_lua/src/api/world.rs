@@ -1,6 +1,8 @@
 use mlua::prelude::*;
 use luminara_core::world::World;
 use luminara_core::entity::Entity;
+use luminara_math::Transform;
+use crate::api::transform::LuaTransform;
 
 fn pack_entity(entity: Entity) -> u64 {
     ((entity.generation() as u64) << 32) | (entity.id() as u64)
@@ -27,6 +29,8 @@ impl LuaUserData for LuaWorld {
         methods.add_method("spawn", |_, this, ()| {
             let world = unsafe { &mut *this.0 };
             let entity = world.spawn();
+            // Add default Transform to spawned entities so they can be moved
+            world.add_component(entity, Transform::default());
             Ok(pack_entity(entity))
         });
 
@@ -39,7 +43,24 @@ impl LuaUserData for LuaWorld {
 
         methods.add_method("get_entity", |_, this, packed_entity: u64| {
             let _world = unsafe { &mut *this.0 };
-            Ok(packed_entity)
+            Ok(packed_entity) // Just verify it exists? Or return wrapper? For now just pass through.
+        });
+
+        methods.add_method("get_transform", |_, this, packed_entity: u64| {
+            let world = unsafe { &mut *this.0 };
+            let entity = unpack_entity(packed_entity);
+            if let Some(t) = world.get_component::<Transform>(entity) {
+                Ok(Some(LuaTransform(*t)))
+            } else {
+                Ok(None)
+            }
+        });
+
+        methods.add_method("set_transform", |_, this, (packed_entity, transform): (u64, LuaTransform)| {
+            let world = unsafe { &mut *this.0 };
+            let entity = unpack_entity(packed_entity);
+            world.add_component(entity, transform.0);
+            Ok(())
         });
     }
 }
