@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 0e1bf1b162727999e89974f4d85346029b1dff482b591c0c902708d92b9bd8df # shrinks to file_name = "__a0_", corrupted_content = [255, 254, 253, 252]
+cc df2108096583ff779c5dfacb5f780b95edc388ea6ede9a5b2d8bad62e3abc3e9 # shrinks to file_name = "aa_a0", empty_content = ""
+cc f98cb7ecc3b25a62e405c18db640c874cf19d50bfcc5329612394c7af57dd773 # shrinks to valid_file = "___a0", invalid_path = "../../../etc/passwd", nonexistent_file = "00aaa0_00a_nonexistent.txt"

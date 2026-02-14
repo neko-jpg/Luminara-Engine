@@ -1,4 +1,5 @@
 use luminara_core::shared_types::Resource;
+use crate::smoothing::MouseSmoothing;
 use luminara_math::Vec2;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -16,6 +17,7 @@ pub struct MouseInput {
     /// Whether we have received at least one CursorMoved event.
     /// Used to avoid a huge initial delta from the default (0,0) position.
     position_initialized: bool,
+    pub smoothing: MouseSmoothing,
 }
 
 impl Default for MouseInput {
@@ -30,6 +32,7 @@ impl Default for MouseInput {
             cursor_visible: true,
             cursor_grabbed: false,
             position_initialized: false,
+            smoothing: MouseSmoothing::default(),
         }
     }
 }
@@ -52,6 +55,10 @@ impl MouseInput {
     }
 
     pub fn delta(&self) -> Vec2 {
+        self.smoothing.smoothed_delta
+    }
+
+    pub fn raw_delta(&self) -> Vec2 {
         self.delta
     }
 
@@ -62,8 +69,17 @@ impl MouseInput {
     pub fn clear_just_states(&mut self) {
         self.just_pressed.clear();
         self.just_released.clear();
+        // Update smoothing with 0 delta if no input?
+        // No, smoothing should persist across frames if there is residual velocity?
+        // Or EMA is input filter. If input is 0, smooth towards 0.
+        // But we want to call smoothing.update() every frame somewhere.
+        // For now, let's keep delta clearing here, but we might need a separate update system.
         self.delta = Vec2::ZERO;
         self.scroll = 0.0;
+    }
+
+    pub fn update_smoothing(&mut self) {
+        self.smoothing.update(self.delta);
     }
 
     pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {

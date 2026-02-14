@@ -15,8 +15,6 @@
 // The trace shows `luminara_render` exists.
 // Checking Cargo.toml of luminara_math.
 
-use glam::Vec2;
-
 pub struct FftPlan {
     pub width: usize,
     pub height: usize,

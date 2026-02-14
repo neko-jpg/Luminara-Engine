@@ -1,18 +1,22 @@
+pub mod action;
 pub mod axis;
 pub mod gamepad;
 pub mod input_map;
 pub mod keyboard;
 pub mod mouse;
 pub mod plugin;
+pub mod smoothing;
 pub mod touch;
 
+pub use action::{ActionMap, InputAction, InputExt};
+pub use smoothing::MouseSmoothing;
 use axis::{GamepadAxisType, MouseAxisType};
 use gamepad::GamepadInput;
 use input_map::{InputMap, InputSource};
 use keyboard::{Key, KeyboardInput};
 use luminara_core::shared_types::Resource;
 use luminara_math::Vec2;
-use mouse::{MouseButton, MouseInput};
+pub use mouse::{MouseButton, MouseInput};
 use std::collections::HashMap;
 use touch::TouchInput;
 
@@ -174,7 +178,7 @@ impl Input {
         }
     }
 
-    fn source_pressed_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
+    pub(crate) fn source_pressed_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
         match source {
             InputSource::Key(k) => self.keyboard.pressed(k),
             InputSource::MouseButton(b) => self.mouse.pressed(b),
@@ -186,7 +190,7 @@ impl Input {
         }
     }
 
-    fn source_just_pressed_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
+    pub(crate) fn source_just_pressed_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
         match source {
             InputSource::Key(k) => self.keyboard.just_pressed(k),
             InputSource::MouseButton(b) => self.mouse.just_pressed(b),
@@ -198,7 +202,7 @@ impl Input {
         }
     }
 
-    fn source_just_released_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
+    pub(crate) fn source_just_released_internal(&self, source: InputSource, gamepad_id: u32) -> bool {
         match source {
             InputSource::Key(k) => self.keyboard.just_released(k),
             InputSource::MouseButton(b) => self.mouse.just_released(b),

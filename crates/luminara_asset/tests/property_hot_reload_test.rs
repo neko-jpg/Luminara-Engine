@@ -254,6 +254,17 @@ proptest! {
         // Load the asset
         let handle: luminara_asset::Handle<TestAsset> = server.load(&format!("{}.txt", file_name));
 
+        // Wait for load
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == luminara_asset::LoadState::Loading {
+            server.update();
+            if start.elapsed() > Duration::from_secs(1) {
+                // Cannot panic in prop_test, but unwrap later will fail or we can break
+                break;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+
         // Verify initial content
         let asset = server.get(&handle).unwrap();
         prop_assert_eq!(&asset.data, &initial_content);
@@ -279,9 +290,21 @@ proptest! {
             }
         }
 
+        // Wait for reload
+        let start = std::time::Instant::now();
+        let mut reloaded = false;
+        while start.elapsed() < Duration::from_secs(1) {
+            server.update();
+            let asset = server.get(&handle).unwrap();
+            if asset.data == modified_content {
+                reloaded = true;
+                break;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+
         // Verify the asset was reloaded
-        let reloaded_asset = server.get(&handle).unwrap();
-        prop_assert_eq!(&reloaded_asset.data, &modified_content, "Asset should be reloaded with new content");
+        prop_assert!(reloaded, "Asset should be reloaded with new content");
 
         // Cleanup
         fs::remove_dir_all(&temp_dir).unwrap();

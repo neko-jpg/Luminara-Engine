@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn test_sprite_batcher_single_texture() {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         let sprite1 = Sprite::new(texture.clone());
         let sprite2 = Sprite::new(texture.clone());
@@ -315,8 +315,8 @@ mod tests {
     #[test]
     fn test_sprite_batcher_multiple_textures() {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture1 = Handle::<Texture>::new(AssetId::new());
-        let texture2 = Handle::<Texture>::new(AssetId::new());
+        let texture1 = Handle::<Texture>::new(AssetId::new(), 0);
+        let texture2 = Handle::<Texture>::new(AssetId::new(), 0);
 
         let sprite1 = Sprite::new(texture1.clone());
         let sprite2 = Sprite::new(texture2.clone());
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn test_sprite_batcher_z_order_sorting() {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         let z1 = ZOrder::new(1.0);
         let z2 = ZOrder::new(2.0);
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn test_sprite_batcher_max_batch_size() {
         let mut batcher = SpriteBatcher::new(2);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         let sprite1 = Sprite::new(texture.clone());
         let sprite2 = Sprite::new(texture.clone());
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_sprite_instance_uv_rect() {
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let rect = Rect::from_coords(0.25, 0.25, 0.5, 0.5);
         let sprite = Sprite::new(texture).with_rect(rect);
 
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_sprite_flip_x() {
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture);
         sprite.flip_x = true;
 
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_sprite_flip_y() {
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture);
         sprite.flip_y = true;
 
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_sprite_color_tint() {
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let color = Color::rgba(0.5, 0.6, 0.7, 0.8);
         let sprite = Sprite::new(texture).with_color(color);
 

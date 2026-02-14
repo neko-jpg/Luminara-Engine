@@ -75,6 +75,16 @@ impl OverlayRenderer {
     /// Queue a text string at the given pixel position.
     /// `scale` multiplies the base 8×8 character size (1.0 = 8 px, 2.0 = 16 px, …).
     pub fn draw_text(&mut self, x: f32, y: f32, text: &str, color: [f32; 4], scale: f32) {
+        // Shadow offset (1px at scale 1.0)
+        let shadow_offset = 1.0 * scale;
+        self.commands.push(OverlayCommand::Text {
+            x: x + shadow_offset,
+            y: y + shadow_offset,
+            text: text.to_string(),
+            color: [0.0, 0.0, 0.0, color[3]], // Shadow alpha matches text alpha
+            scale,
+        });
+
         self.commands.push(OverlayCommand::Text {
             x,
             y,
@@ -137,6 +147,8 @@ impl OverlayRenderer {
             pass.set_pipeline(self.pipeline.as_ref().unwrap());
             pass.set_bind_group(0, self.font_bind_group.as_ref().unwrap(), &[]);
             pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            // Disable backface culling implicitly by topology or ensure winding is correct.
+            // Vertices are generated as CCW (TL->BL->TR, TR->BL->BR) which is standard.
             pass.draw(0..vertices.len() as u32, 0..1);
         }
 
@@ -158,6 +170,12 @@ impl OverlayRenderer {
         }
 
         // ── Font texture (128 × 48  R8Unorm) ──────────────────────────
+    // Use sRGB format if surface is sRGB, but for font mask R8Unorm is fine as alpha.
+    // However, if we blend, we need to be careful about color space.
+    // The shader uses `color` uniform which is linear or sRGB?
+    // Ideally UI colors are sRGB and we should convert to Linear in shader if framebuffer is sRGB-aware.
+    // Assuming standard wgpu handling where shader output is written to sRGB view.
+
         let font_pixels = build_font_texture_data();
         let font_texture = device.create_texture_with_data(
             queue,

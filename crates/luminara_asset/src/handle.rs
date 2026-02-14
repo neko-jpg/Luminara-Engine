@@ -1,4 +1,5 @@
 use crate::Asset;
+use luminara_core::shared_types::Component;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use uuid::Uuid;
@@ -24,13 +25,15 @@ impl AssetId {
 
 pub struct Handle<T: Asset> {
     id: AssetId,
+    generation: u32,
     _marker: PhantomData<T>,
 }
 
 impl<T: Asset> Handle<T> {
-    pub fn new(id: AssetId) -> Self {
+    pub fn new(id: AssetId, generation: u32) -> Self {
         Self {
             id,
+            generation,
             _marker: PhantomData,
         }
     }
@@ -38,12 +41,17 @@ impl<T: Asset> Handle<T> {
     pub fn id(&self) -> AssetId {
         self.id
     }
+
+    pub fn generation(&self) -> u32 {
+        self.generation
+    }
 }
 
 impl<T: Asset> Clone for Handle<T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
+            generation: self.generation,
             _marker: PhantomData,
         }
     }
@@ -84,6 +92,13 @@ impl<'de, T: Asset> Deserialize<'de> for Handle<T> {
         D: serde::Deserializer<'de>,
     {
         let id = AssetId::deserialize(deserializer)?;
-        Ok(Handle::new(id))
+        Ok(Handle::new(id, 0)) // Default generation 0 for deserialized handles
+    }
+}
+
+impl<T: Asset> Component for Handle<T> {
+    fn type_name() -> &'static str {
+        // This relies on T::type_name() being stable
+        std::any::type_name::<Handle<T>>()
     }
 }

@@ -108,6 +108,17 @@ proptest! {
         // Attempt to load with invalid path - should not crash
         let handle: luminara_asset::Handle<TestAsset> = server.load(&invalid_path);
 
+        // Wait for async load if it started
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) {
+                // If it takes too long, it might be stuck or failed silently, break loop
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
 
@@ -139,6 +150,16 @@ proptest! {
 
         // Attempt to load non-existent file - should not crash
         let handle: luminara_asset::Handle<TestAsset> = server.load(&file_name);
+
+        // Wait for async load
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
@@ -179,6 +200,16 @@ proptest! {
         let asset_path = format!("{}.txt", file_name);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
 
+        // Wait for async load
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
 
@@ -217,6 +248,16 @@ proptest! {
         // Attempt to load empty file - should not crash
         let asset_path = format!("{}.txt", file_name);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+
+        // Wait for async load
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
 
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
@@ -261,6 +302,16 @@ proptest! {
         let asset_path = format!("{}.{}", file_name, extension);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
 
+        // Wait for async load (though unsupported extensions usually fail immediately)
+        let start = std::time::Instant::now();
+        while server.load_state(handle.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         // Verify the load failed gracefully
         let state = server.load_state(handle.id());
 
@@ -299,10 +350,27 @@ proptest! {
 
         // Load valid file first
         let handle1: luminara_asset::Handle<TestAsset> = server.load(&format!("{}.txt", valid_file));
+
+        let start = std::time::Instant::now();
+        while server.load_state(handle1.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         prop_assert!(server.get(&handle1).is_some(), "Valid file should load successfully");
 
         // Then try invalid path - should not crash or affect valid asset
         let handle2: luminara_asset::Handle<TestAsset> = server.load(&invalid_path);
+
+        // Wait for potential async load of invalid path
+        let start = std::time::Instant::now();
+        while server.load_state(handle2.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         prop_assert!(server.get(&handle2).is_none(), "Invalid path should fail");
 
         // Verify valid asset is still accessible
@@ -310,6 +378,14 @@ proptest! {
 
         // Then try non-existent file - should not crash
         let handle3: luminara_asset::Handle<TestAsset> = server.load(&nonexistent_file);
+
+        let start = std::time::Instant::now();
+        while server.load_state(handle3.id()) == LoadState::Loading {
+            server.update();
+            if start.elapsed() > std::time::Duration::from_secs(1) { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+
         prop_assert!(server.get(&handle3).is_none(), "Non-existent file should fail");
 
         // Verify valid asset is still accessible

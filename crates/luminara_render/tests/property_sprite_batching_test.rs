@@ -36,7 +36,7 @@ proptest! {
         max_batch_size in arb_max_batch_size(),
     ) {
         let mut batcher = SpriteBatcher::new(max_batch_size);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites with the same texture
         let sprites: Vec<_> = (0..sprite_count)
@@ -75,7 +75,7 @@ proptest! {
 
         // Create unique textures
         let textures: Vec<_> = (0..texture_count)
-            .map(|_| Handle::<Texture>::new(AssetId::new()))
+            .map(|_| Handle::<Texture>::new(AssetId::new(), 0))
             .collect();
 
         // Create sprites distributed across textures
@@ -113,7 +113,7 @@ proptest! {
         max_batch_size in 10usize..50,
     ) {
         let mut batcher = SpriteBatcher::new(max_batch_size);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites with the same texture
         let sprites: Vec<_> = (0..sprite_count)
@@ -143,7 +143,7 @@ proptest! {
     ) {
         let max_batch_size = 1000;
         let mut batcher = SpriteBatcher::new(max_batch_size);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites with the same texture
         let sprites: Vec<_> = (0..sprite_count)

@@ -1,8 +1,9 @@
 use bytemuck::{Pod, Zeroable};
-use luminara_asset::Asset;
-use luminara_core::shared_types::Component;
-use luminara_math::Vec3;
+use luminara_asset::{Asset, Handle};
+use luminara_math::{Mat4, Vec3};
 use wgpu;
+use crate::command::DrawCommand;
+use crate::PbrMaterial;
 
 /// Axis-Aligned Bounding Box for mesh culling
 #[derive(Debug, Clone, Copy)]
@@ -89,18 +90,14 @@ impl Vertex {
     }
 }
 
+use std::sync::RwLock;
+
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub aabb: AABB,
-    pub vertex_buffer: Option<wgpu::Buffer>,
-    pub index_buffer: Option<wgpu::Buffer>,
-}
-
-impl Component for Mesh {
-    fn type_name() -> &'static str {
-        "Mesh"
-    }
+    pub vertex_buffer: RwLock<Option<wgpu::Buffer>>,
+    pub index_buffer: RwLock<Option<wgpu::Buffer>>,
 }
 
 impl Mesh {
@@ -110,8 +107,8 @@ impl Mesh {
             vertices,
             indices,
             aabb,
-            vertex_buffer: None,
-            index_buffer: None,
+            vertex_buffer: RwLock::new(None),
+            index_buffer: RwLock::new(None),
         }
     }
 
@@ -368,27 +365,41 @@ impl Mesh {
         Self::new(vertices, indices)
     }
 
-    pub fn upload(&mut self, device: &wgpu::Device) {
+    pub fn upload(&self, device: &wgpu::Device) {
         use wgpu::util::DeviceExt;
 
         if !self.vertices.is_empty() {
-            self.vertex_buffer = Some(device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("Vertex Buffer"),
-                    contents: bytemuck::cast_slice(&self.vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                },
-            ));
+            let mut vb = self.vertex_buffer.write().unwrap();
+            if vb.is_none() {
+                *vb = Some(device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
+                        label: Some("Vertex Buffer"),
+                        contents: bytemuck::cast_slice(&self.vertices),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    },
+                ));
+            }
         }
 
         if !self.indices.is_empty() {
-            self.index_buffer = Some(device.create_buffer_init(
-                &wgpu::util::BufferInitDescriptor {
-                    label: Some("Index Buffer"),
-                    contents: bytemuck::cast_slice(&self.indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                },
-            ));
+            let mut ib = self.index_buffer.write().unwrap();
+            if ib.is_none() {
+                *ib = Some(device.create_buffer_init(
+                    &wgpu::util::BufferInitDescriptor {
+                        label: Some("Index Buffer"),
+                        contents: bytemuck::cast_slice(&self.indices),
+                        usage: wgpu::BufferUsages::INDEX,
+                    },
+                ));
+            }
+        }
+    }
+
+    pub fn draw(mesh: Handle<Mesh>, material: Handle<PbrMaterial>, transform: Mat4) -> DrawCommand {
+        DrawCommand::DrawMesh {
+            mesh,
+            material,
+            transform,
         }
     }
 }

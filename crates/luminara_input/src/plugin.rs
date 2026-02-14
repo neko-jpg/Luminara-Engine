@@ -42,6 +42,9 @@ pub fn update_input_system(
         gamepad.update();
     }
 
+    // Update mouse smoothing
+    input.mouse.update_smoothing();
+
     // Update axes based on the current input state and mapping
     let delta_time = time.delta_seconds();
     let map = (*input_map).clone();

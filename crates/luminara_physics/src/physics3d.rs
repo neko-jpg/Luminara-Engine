@@ -1,15 +1,18 @@
 use luminara_core::shared_types::{AppInterface, CoreStage};
 use luminara_core::system::ExclusiveMarker;
 use luminara_core::{Commands, Component, Entity, Plugin, Query, Res, ResMut, Resource, Without};
+use luminara_diagnostic::profile_scope;
 use luminara_math::{Quat, Transform, Vec3};
 use rapier3d::prelude::*;
 use std::collections::HashMap;
 
-use crate::components::{Collider, ColliderShape, CollisionEvent, RigidBody, RigidBodyType};
+use crate::components::{Collider, ColliderShape, CollisionEvent, RigidBody, RigidBodyType, PreviousTransform};
 
 /// Resource containing the Rapier 3D physics world
 pub struct PhysicsWorld3D {
     pub gravity: Vector<f32>,
+    pub accumulator: f32,
+    pub timestep: f32,
     pub integration_parameters: IntegrationParameters,
     pub physics_pipeline: PhysicsPipeline,
     pub island_manager: IslandManager,
@@ -33,6 +36,8 @@ impl Default for PhysicsWorld3D {
     fn default() -> Self {
         Self {
             gravity: vector![0.0, -9.81, 0.0],
+            accumulator: 0.0,
+            timestep: 1.0 / 120.0,
             integration_parameters: IntegrationParameters::default(),
             physics_pipeline: PhysicsPipeline::new(),
             island_manager: IslandManager::new(),
@@ -78,6 +83,9 @@ impl Plugin for PhysicsPlugin {
         // Register collision event
         app.world.insert_resource(CollisionEvents::default());
 
+        // Register debug config
+        app.world.insert_resource(crate::debug::PhysicsDebugConfig::default());
+
         // Register physics body/collider creation as exclusive systems (need world mutation)
         app.add_system::<ExclusiveMarker>(
             CoreStage::PreUpdate,
@@ -93,13 +101,14 @@ impl Plugin for PhysicsPlugin {
             luminara_core::system::FunctionMarker,
             ResMut<'static, PhysicsWorld3D>,
             Res<'static, luminara_core::Time>,
+            Query<'static, (Entity, &mut PreviousTransform)>,
         )>(CoreStage::Update, physics_step_system);
 
         // Register physics sync system (sync rapier state back to ECS transforms)
         app.add_system::<(
             luminara_core::system::FunctionMarker,
             Res<'static, PhysicsWorld3D>,
-            Query<'static, (Entity, &mut Transform, &RigidBody)>,
+            Query<'static, (Entity, &mut Transform, &RigidBody, &PreviousTransform)>,
         )>(CoreStage::PostUpdate, physics_sync_system);
 
         // Register collision detection system
@@ -108,6 +117,15 @@ impl Plugin for PhysicsPlugin {
             Res<'static, PhysicsWorld3D>,
             ResMut<'static, CollisionEvents>,
         )>(CoreStage::PostUpdate, collision_detection_system);
+
+        // Register debug render system
+        app.add_system::<(
+            luminara_core::system::FunctionMarker,
+            Res<'static, crate::debug::PhysicsDebugConfig>,
+            Res<'static, PhysicsWorld3D>,
+            ResMut<'static, luminara_render::command::CommandBuffer>,
+            Query<'static, (&Collider, &Transform)>,
+        )>(CoreStage::PostRender, crate::debug::physics_debug_render_system);
 
         log::info!("PhysicsPlugin (3D) initialized with systems");
     }
@@ -183,6 +201,7 @@ pub fn physics_body_creation_system_exclusive(world: &mut luminara_core::world::
 
         // Mark entity as having a physics body
         world.add_component(*entity, PhysicsBodyCreated);
+        world.add_component(*entity, PreviousTransform(transform.clone()));
 
         log::info!(
             "Created 3D physics body for entity {:?} at {:?}",
@@ -301,6 +320,7 @@ pub fn physics_body_creation_system(
 
         // Mark as created
         commands.entity(entity).insert(PhysicsBodyCreated);
+        commands.entity(entity).insert(PreviousTransform(*transform));
 
         log::debug!("Created 3D physics body for entity {:?}", entity);
     }
@@ -370,50 +390,84 @@ pub fn physics_collider_creation_system(
 pub fn physics_step_system(
     mut physics_world: ResMut<PhysicsWorld3D>,
     time: Res<luminara_core::Time>,
+    mut query: Query<(Entity, &mut PreviousTransform)>,
 ) {
     if time.time_scale == 0.0 {
         return;
     }
 
-    let PhysicsWorld3D {
-        ref gravity,
-        ref integration_parameters,
-        ref mut physics_pipeline,
-        ref mut island_manager,
-        ref mut broad_phase,
-        ref mut narrow_phase,
-        ref mut rigid_body_set,
-        ref mut collider_set,
-        ref mut impulse_joint_set,
-        ref mut multibody_joint_set,
-        ref mut ccd_solver,
-        ref mut query_pipeline,
-        ..
-    } = *physics_world;
+    profile_scope!("physics_step_system");
 
-    physics_pipeline.step(
-        gravity,
-        integration_parameters,
-        island_manager,
-        broad_phase,
-        narrow_phase,
-        rigid_body_set,
-        collider_set,
-        impulse_joint_set,
-        multibody_joint_set,
-        ccd_solver,
-        Some(query_pipeline),
-        &(),
-        &(),
-    );
+    physics_world.accumulator += time.delta_seconds();
+
+    // Prevent spiral of death
+    if physics_world.accumulator > 0.2 {
+        physics_world.accumulator = 0.2;
+    }
+
+    let timestep = physics_world.timestep;
+
+    while physics_world.accumulator >= timestep {
+        // Update PreviousTransform before stepping
+        for (entity, prev) in query.iter_mut() {
+             if let Some(body_handle) = physics_world.entity_to_body.get(&entity) {
+                 if let Some(body) = physics_world.rigid_body_set.get(*body_handle) {
+                     let pos = body.translation();
+                     let rot = body.rotation();
+                     prev.0.translation = Vec3::new(pos.x, pos.y, pos.z);
+                     prev.0.rotation = Quat::from_xyzw(rot.i, rot.j, rot.k, rot.w);
+                 }
+             }
+        }
+
+        physics_world.accumulator -= timestep;
+
+        // Update integration parameters for fixed step
+        physics_world.integration_parameters.dt = timestep;
+
+        // We need to borrow fields individually to call step
+        let PhysicsWorld3D {
+            ref gravity,
+            ref integration_parameters,
+            ref mut physics_pipeline,
+            ref mut island_manager,
+            ref mut broad_phase,
+            ref mut narrow_phase,
+            ref mut rigid_body_set,
+            ref mut collider_set,
+            ref mut impulse_joint_set,
+            ref mut multibody_joint_set,
+            ref mut ccd_solver,
+            ref mut query_pipeline,
+            ..
+        } = *physics_world;
+
+        physics_pipeline.step(
+            gravity,
+            integration_parameters,
+            island_manager,
+            broad_phase,
+            narrow_phase,
+            rigid_body_set,
+            collider_set,
+            impulse_joint_set,
+            multibody_joint_set,
+            ccd_solver,
+            Some(query_pipeline),
+            &(),
+            &(),
+        );
+    }
 }
 
 /// System to sync physics state back to ECS transforms
 pub fn physics_sync_system(
     physics_world: Res<PhysicsWorld3D>,
-    mut query: Query<(Entity, &mut Transform, &RigidBody)>,
+    mut query: Query<(Entity, &mut Transform, &RigidBody, &PreviousTransform)>,
 ) {
-    for (entity, transform, _) in query.iter_mut() {
+    let alpha = physics_world.accumulator / physics_world.timestep;
+
+    for (entity, transform, _, prev) in query.iter_mut() {
         if let Some(&body_handle) = physics_world.entity_to_body.get(&entity) {
             if let Some(body) = physics_world.rigid_body_set.get(body_handle) {
                 let position: &Vector<f32> = body.translation();
@@ -430,9 +484,12 @@ pub fn physics_sync_system(
                     continue;
                 }
 
-                transform.translation = Vec3::new(position.x, position.y, position.z);
-                transform.rotation =
-                    Quat::from_xyzw(rotation.i, rotation.j, rotation.k, rotation.w);
+                let curr_pos = Vec3::new(position.x, position.y, position.z);
+                let curr_rot = Quat::from_xyzw(rotation.i, rotation.j, rotation.k, rotation.w);
+
+                // Interpolate
+                transform.translation = prev.0.translation.lerp(curr_pos, alpha);
+                transform.rotation = prev.0.rotation.slerp(curr_rot, alpha);
             }
         }
     }

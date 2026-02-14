@@ -1,5 +1,7 @@
 pub mod camera;
+pub mod buffer_pool;
 pub mod camera_systems;
+pub mod command;
 pub mod components;
 pub mod error;
 pub mod forward_plus;
@@ -17,9 +19,16 @@ pub mod shadow;
 pub mod sprite;
 pub mod sprite_systems;
 pub mod texture;
+pub mod gizmo;
+pub mod particles;
+pub mod animation;
+pub mod animation_system;
+pub mod ik;
 
 pub use camera::{Camera, Camera2d, Camera3d, Projection};
 pub use camera_systems::{camera_projection_system, camera_resize_system};
+pub use command::{DrawCommand, CommandBuffer, GizmoType};
+pub use gizmo::Gizmos;
 pub use components::{DirectionalLight, MeshRenderer, PbrMaterial, PointLight};
 pub use error::RenderError;
 pub use forward_plus::{update_lights_system, ForwardPlusRenderer};
@@ -36,12 +45,17 @@ pub use shadow::{update_shadow_cascades_system, ShadowCascades, ShadowMapResourc
 pub use sprite::{Anchor, Rect, Sprite, SpriteBatcher, SpriteRenderResources, ZOrder};
 pub use sprite_systems::{init_sprite_system, prepare_sprite_batches, render_sprites};
 pub use texture::{Texture, TextureData, TextureFormat};
+pub use particles::{Particle, ParticleEmitter, ParticleSystem, ParticlePlugin};
+pub use animation::{AnimationClip, SkinnedMesh};
+pub use animation_system::{AnimationPlayer, AnimationPlugin};
+pub use ik::{TwoBoneIK, TwoBoneIKSolver};
 
 use luminara_math::Color;
 
 use luminara_core::shared_types::{Query, Res, ResMut, Resource};
 use luminara_math::Transform;
 use wgpu::util::DeviceExt;
+use luminara_asset::{AssetServer, Handle};
 
 pub struct CameraUniformBuffer {
     pub buffer: wgpu::Buffer,
@@ -51,17 +65,29 @@ pub struct CameraUniformBuffer {
 impl Resource for CameraUniformBuffer {}
 
 /// Phase 0: 頂点データのアップロード
-pub fn mesh_upload_system(gpu: ResMut<GpuContext>, meshes: Query<&mut Mesh>) {
+pub fn mesh_upload_system(
+    gpu: ResMut<GpuContext>,
+    asset_server: Res<AssetServer>,
+    meshes: Query<&Handle<Mesh>>,
+) {
     let mut count = 0;
-    for mesh in meshes.iter() {
-        count += 1;
-        if mesh.vertex_buffer.is_none() {
-            mesh.upload(&gpu.device);
-            log::info!(
-                "Uploaded mesh: {} vertices, {} indices",
-                mesh.vertices.len(),
-                mesh.indices.len()
-            );
+    for mesh_handle in meshes.iter() {
+        if let Some(mesh) = asset_server.get(mesh_handle) {
+            count += 1;
+            // Check if buffer exists without locking first? No, need to read.
+            let needs_upload = {
+                let vb = mesh.vertex_buffer.read().unwrap();
+                vb.is_none()
+            };
+
+            if needs_upload {
+                mesh.upload(&gpu.device);
+                log::info!(
+                    "Uploaded mesh: {} vertices, {} indices",
+                    mesh.vertices.len(),
+                    mesh.indices.len()
+                );
+            }
         }
     }
     if count == 0 {
@@ -178,8 +204,9 @@ pub fn render_system(
     gpu: ResMut<GpuContext>,
     mut cache: ResMut<PipelineCache>,
     _uniform_buffer: ResMut<CameraUniformBuffer>,
+    asset_server: Res<AssetServer>,
     cameras: Query<(&Camera, &Transform)>,
-    meshes: Query<(&Mesh, &Transform, &PbrMaterial)>,
+    meshes: Query<(&Handle<Mesh>, &Transform, &PbrMaterial)>,
     _window: Res<luminara_window::Window>,
     mut overlay: ResMut<OverlayRenderer>,
 ) {
@@ -467,63 +494,68 @@ pub fn render_system(
             render_pass.set_bind_group(0, &camera_bind_group, &[]);
 
             // Render each mesh with PBR material
-            for (mesh, mesh_transform, pbr_mat) in meshes.iter() {
-                if let (Some(vb), Some(ib)) = (&mesh.vertex_buffer, &mesh.index_buffer) {
-                    let model_matrix = mesh_transform.compute_matrix();
+            for (mesh_handle, mesh_transform, pbr_mat) in meshes.iter() {
+                if let Some(mesh) = asset_server.get(mesh_handle) {
+                    let vb_guard = mesh.vertex_buffer.read().unwrap();
+                    let ib_guard = mesh.index_buffer.read().unwrap();
 
-                    let model_buffer =
-                        gpu.device
-                            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                label: Some("Model Buffer"),
-                                contents: bytemuck::cast_slice(model_matrix.as_ref()),
-                                usage: wgpu::BufferUsages::UNIFORM,
+                    if let (Some(vb), Some(ib)) = (vb_guard.as_ref(), ib_guard.as_ref()) {
+                        let model_matrix = mesh_transform.compute_matrix();
+
+                        let model_buffer =
+                            gpu.device
+                                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: Some("Model Buffer"),
+                                    contents: bytemuck::cast_slice(model_matrix.as_ref()),
+                                    usage: wgpu::BufferUsages::UNIFORM,
+                                });
+
+                        let model_bind_group =
+                            gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                                label: Some("Model Bind Group"),
+                                layout: &pbr_pipeline.bind_group_layouts[1],
+                                entries: &[wgpu::BindGroupEntry {
+                                    binding: 0,
+                                    resource: model_buffer.as_entire_binding(),
+                                }],
                             });
 
-                    let model_bind_group =
-                        gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some("Model Bind Group"),
-                            layout: &pbr_pipeline.bind_group_layouts[1],
+                        let mat_data = MaterialUniformData {
+                            albedo: [
+                                pbr_mat.albedo.r,
+                                pbr_mat.albedo.g,
+                                pbr_mat.albedo.b,
+                                pbr_mat.albedo.a,
+                            ],
+                            metallic: pbr_mat.metallic,
+                            roughness: pbr_mat.roughness,
+                            emissive_r: pbr_mat.emissive.r,
+                            emissive_g: pbr_mat.emissive.g,
+                        };
+
+                        let mat_buffer =
+                            gpu.device
+                                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: Some("Material Buffer"),
+                                    contents: bytemuck::cast_slice(&[mat_data]),
+                                    usage: wgpu::BufferUsages::UNIFORM,
+                                });
+
+                        let mat_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                            label: Some("Material Bind Group"),
+                            layout: &pbr_pipeline.bind_group_layouts[2],
                             entries: &[wgpu::BindGroupEntry {
                                 binding: 0,
-                                resource: model_buffer.as_entire_binding(),
+                                resource: mat_buffer.as_entire_binding(),
                             }],
                         });
 
-                    let mat_data = MaterialUniformData {
-                        albedo: [
-                            pbr_mat.albedo.r,
-                            pbr_mat.albedo.g,
-                            pbr_mat.albedo.b,
-                            pbr_mat.albedo.a,
-                        ],
-                        metallic: pbr_mat.metallic,
-                        roughness: pbr_mat.roughness,
-                        emissive_r: pbr_mat.emissive.r,
-                        emissive_g: pbr_mat.emissive.g,
-                    };
-
-                    let mat_buffer =
-                        gpu.device
-                            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                label: Some("Material Buffer"),
-                                contents: bytemuck::cast_slice(&[mat_data]),
-                                usage: wgpu::BufferUsages::UNIFORM,
-                            });
-
-                    let mat_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("Material Bind Group"),
-                        layout: &pbr_pipeline.bind_group_layouts[2],
-                        entries: &[wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: mat_buffer.as_entire_binding(),
-                        }],
-                    });
-
-                    render_pass.set_bind_group(1, &model_bind_group, &[]);
-                    render_pass.set_bind_group(2, &mat_bind_group, &[]);
-                    render_pass.set_vertex_buffer(0, vb.slice(..));
-                    render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                        render_pass.set_bind_group(1, &model_bind_group, &[]);
+                        render_pass.set_bind_group(2, &mat_bind_group, &[]);
+                        render_pass.set_vertex_buffer(0, vb.slice(..));
+                        render_pass.set_index_buffer(ib.slice(..), wgpu::IndexFormat::Uint32);
+                        render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
+                    }
                 }
             }
         }

@@ -52,7 +52,7 @@ fn test_handle_type_safety() {
     let allocator = HandleAllocator::new();
     let id = allocator.allocate();
 
-    let handle: Handle<TestAsset> = Handle::new(id);
+    let handle: Handle<TestAsset> = Handle::new(id, 0);
 
     // Verify handle stores the correct ID
     assert_eq!(handle.id(), id);
@@ -142,6 +142,16 @@ fn test_asset_server_integration() {
     // Load asset
     let handle: Handle<TestAsset> = server.load("test.test");
 
+    // Wait for async load
+    let start = std::time::Instant::now();
+    while server.load_state(handle.id()) == luminara_asset::LoadState::Loading {
+        server.update();
+        if start.elapsed() > std::time::Duration::from_secs(2) {
+            panic!("Timeout waiting for asset load");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
     // Verify asset is loaded
     let asset = server.get(&handle).unwrap();
     assert_eq!(asset.data, "test content");
@@ -163,7 +173,7 @@ fn test_all_requirements_met() {
     let _server: AssetServer = AssetServer::new("assets");
     let _storage: AssetStorage<TestAsset> = AssetStorage::new();
     let _allocator: HandleAllocator = HandleAllocator::new();
-    let _handle: Handle<TestAsset> = Handle::new(AssetId::new());
+    let _handle: Handle<TestAsset> = Handle::new(AssetId::new(), 0);
 
     // Asset trait is implemented
     assert_eq!(TestAsset::type_name(), "TestAsset");

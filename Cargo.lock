@@ -1662,6 +1662,7 @@ name = "luminara_asset"
 version = "0.1.0"
 dependencies = [
  "crossbeam-channel",
+ "gltf",
  "log",
  "luminara_core",
  "notify",
@@ -1754,8 +1755,12 @@ dependencies = [
  "env_logger",
  "log",
  "luminara_core",
+ "luminara_diagnostic",
+ "luminara_input",
  "luminara_math",
+ "luminara_render",
  "luminara_scene",
+ "luminara_window",
  "proptest",
  "rapier2d",
  "rapier3d",
@@ -1782,6 +1787,7 @@ dependencies = [
  "log",
  "luminara_asset",
  "luminara_core",
+ "luminara_diagnostic",
  "luminara_math",
  "luminara_window",
  "pollster",

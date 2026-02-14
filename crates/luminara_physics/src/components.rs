@@ -1,6 +1,22 @@
 use luminara_core::{Component, Entity};
-use luminara_math::Vec3;
+use luminara_math::{Vec3, Transform};
 use serde::{Deserialize, Serialize};
+
+/// Component to store the previous frame's transform for interpolation
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct PreviousTransform(pub Transform);
+
+impl Default for PreviousTransform {
+    fn default() -> Self {
+        Self(Transform::IDENTITY)
+    }
+}
+
+impl Component for PreviousTransform {
+    fn type_name() -> &'static str {
+        "PreviousTransform"
+    }
+}
 
 /// Rigid body component for physics simulation
 #[derive(Debug, Clone, Serialize, Deserialize)]

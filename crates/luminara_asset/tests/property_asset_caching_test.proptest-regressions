@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc ba7f3a2f5ab20fa71163c9d82ce4d0e39cc98bd751475745d5b432217899d02c # shrinks to file_name = "a00", extension = "txt", content = " a0aAA 0aA", num_retrievals = 2
+cc f07b6a8fcf50fc1a8218080bdbefd0658014f932d54aacccbdf6dedd4bca128a # shrinks to file_name1 = "0__", file_name2 = "0ha", extension = "txt", content1 = "f Ps5 TAjdhS145A aoE d P 4 8e EJdK buFh5sA0e3ta 6BWvr   E DSvKSRYOp1L lxukBHy9 49 24Z ITsm 7J9 N 3GgM44bzvf TjdPit q8f402H0r2bffX a", content2 = "xG99U67n6S Sm  v ZO1A 9ZI W w St88g4 v3LiuqO30I0UyJG", num_loads = 7
+cc 5022cce6b8ab7c8370f6336969d8a0d59f16dd9857a2d7cf5a5c4a5dd22bf02a # shrinks to file_name = "a_0", extension = "txt", content = "a aA00AaA ", num_loads = 2
+cc 54aef95706d146e78138e66168a8998c9928f63cf8d233e8a00d8eea38f956f1 # shrinks to file_name = "_a0", extension = "txt", content = "0 0   00 a"
