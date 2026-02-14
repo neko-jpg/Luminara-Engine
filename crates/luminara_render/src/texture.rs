@@ -42,6 +42,20 @@ impl Asset for Texture {
     }
 }
 
+pub struct TextureLoader;
+
+impl luminara_asset::AssetLoader for TextureLoader {
+    type Asset = Texture;
+
+    fn extensions(&self) -> &[&str] {
+        &["png", "jpg", "jpeg", "hdr"]
+    }
+
+    fn load(&self, bytes: &[u8], _path: &std::path::Path) -> Result<Self::Asset, luminara_asset::AssetLoadError> {
+        Texture::from_bytes(bytes).map_err(|e| luminara_asset::AssetLoadError::Parse(e.to_string()))
+    }
+}
+
 impl Texture {
     /// Create a new texture from raw data
     pub fn new(data: TextureData) -> Self {
@@ -183,6 +197,28 @@ impl Texture {
         let texture_data = TextureData {
             width,
             height,
+            data,
+            format: TextureFormat::Rgba8,
+        };
+
+        Self::new(texture_data)
+    }
+
+    /// Create a checkerboard texture
+    pub fn checkerboard(size: u32, color1: [u8; 4], color2: [u8; 4]) -> Self {
+        let mut data = Vec::with_capacity((size * size * 4) as usize);
+
+        for y in 0..size {
+            for x in 0..size {
+                let is_black = (x / 8 + y / 8) % 2 == 0;
+                let color = if is_black { color1 } else { color2 };
+                data.extend_from_slice(&color);
+            }
+        }
+
+        let texture_data = TextureData {
+            width: size,
+            height: size,
             data,
             format: TextureFormat::Rgba8,
         };

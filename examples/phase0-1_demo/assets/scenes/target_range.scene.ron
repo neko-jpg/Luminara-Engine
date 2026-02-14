@@ -1,0 +1,109 @@
+// Target Range Scene - Optimized for shooting practice
+Scene(
+    name: "Target Range",
+    entities: [
+        // Camera
+        (
+            name: "MainCamera",
+            components: {
+                "Camera": (
+                    projection: Perspective(
+                        fov: 60.0,
+                        near: 0.1,
+                        far: 1000.0,
+                    ),
+                    clear_color: (r: 0.02, g: 0.04, b: 0.06, a: 1.0),
+                    is_active: true,
+                ),
+                "Transform": (
+                    translation: (x: 0.0, y: 8.0, z: 20.0),
+                    rotation: (x: -0.1, y: 0.0, z: 0.0, w: 1.0),
+                    scale: (x: 1.0, y: 1.0, z: 1.0),
+                ),
+            },
+        ),
+        // Directional Light
+        (
+            name: "Sun",
+            components: {
+                "DirectionalLight": (
+                    color: (r: 1.0, g: 0.98, b: 0.9, a: 1.0),
+                    intensity: 1.5,
+                    cast_shadows: true,
+                    shadow_cascade_count: 4,
+                ),
+                "Transform": (
+                    translation: (x: 0.0, y: 50.0, z: 0.0),
+                    rotation: (x: -0.7, y: 0.2, z: 0.0, w: 1.0),
+                    scale: (x: 1.0, y: 1.0, z: 1.0),
+                ),
+            },
+        ),
+        // Ground
+        (
+            name: "Ground",
+            components: {
+                "Transform": (
+                    translation: (x: 0.0, y: -0.5, z: 0.0),
+                    rotation: (x: 0.0, y: 0.0, z: 0.0, w: 1.0),
+                    scale: (x: 60.0, y: 1.0, z: 80.0),
+                ),
+                "PbrMaterial": (
+                    albedo: (r: 0.3, g: 0.35, b: 0.3, a: 1.0),
+                    metallic: 0.0,
+                    roughness: 0.95,
+                    emissive: (r: 0.0, g: 0.0, b: 0.0, a: 1.0),
+                ),
+            },
+        ),
+        // Golden accent lights for target illumination
+        (
+            name: "TargetLight1",
+            components: {
+                "PointLight": (
+                    color: (r: 1.0, g: 0.85, b: 0.3, a: 1.0),
+                    intensity: 1.0,
+                    range: 25.0,
+                    cast_shadows: false,
+                ),
+                "Transform": (
+                    translation: (x: -15.0, y: 10.0, z: -20.0),
+                    rotation: (x: 0.0, y: 0.0, z: 0.0, w: 1.0),
+                    scale: (x: 1.0, y: 1.0, z: 1.0),
+                ),
+            },
+        ),
+        (
+            name: "TargetLight2",
+            components: {
+                "PointLight": (
+                    color: (r: 1.0, g: 0.85, b: 0.3, a: 1.0),
+                    intensity: 1.0,
+                    range: 25.0,
+                    cast_shadows: false,
+                ),
+                "Transform": (
+                    translation: (x: 15.0, y: 10.0, z: -20.0),
+                    rotation: (x: 0.0, y: 0.0, z: 0.0, w: 1.0),
+                    scale: (x: 1.0, y: 1.0, z: 1.0),
+                ),
+            },
+        ),
+        (
+            name: "TargetLight3",
+            components: {
+                "PointLight": (
+                    color: (r: 1.0, g: 0.85, b: 0.3, a: 1.0),
+                    intensity: 1.2,
+                    range: 30.0,
+                    cast_shadows: false,
+                ),
+                "Transform": (
+                    translation: (x: 0.0, y: 15.0, z: -25.0),
+                    rotation: (x: 0.0, y: 0.0, z: 0.0, w: 1.0),
+                    scale: (x: 1.0, y: 1.0, z: 1.0),
+                ),
+            },
+        ),
+    ],
+)

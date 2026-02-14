@@ -137,11 +137,20 @@ impl ApplicationHandler for LuminaraWinitHandler {
                     }
 
                     window.set_cursor_visible(want_visible);
+
+                    // Handle cursor center-warp request (prevents cursor hitting screen edges)
+                    if input.mouse.center_warp_request {
+                        let size = window.inner_size();
+                        let cx = size.width as f64 / 2.0;
+                        let cy = size.height as f64 / 2.0;
+                        let _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(cx, cy));
+                    }
                 }
 
                 // Clear per-frame input states (delta, scroll, just_pressed/released)
                 // This prevents mouse delta accumulation that causes camera spinning
                 if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                    input.mouse.center_warp_request = false;
                     input.mouse.clear_just_states();
                     input.keyboard.clear_just_states();
                 }

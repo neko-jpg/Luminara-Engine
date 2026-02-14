@@ -22,6 +22,15 @@ pub enum OverlayCommand {
         h: f32,
         color: [f32; 4],
     },
+    /// Rectangle with vertical gradient (top_color -> bottom_color).
+    GradientRect {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        top_color: [f32; 4],
+        bottom_color: [f32; 4],
+    },
     /// Text string rendered with the built-in 8×8 font.
     Text {
         x: f32,
@@ -72,8 +81,29 @@ impl OverlayRenderer {
         });
     }
 
+    /// Queue a rectangle with a vertical gradient (top to bottom).
+    pub fn draw_gradient_rect(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        top_color: [f32; 4],
+        bottom_color: [f32; 4],
+    ) {
+        self.commands.push(OverlayCommand::GradientRect {
+            x,
+            y,
+            w,
+            h,
+            top_color,
+            bottom_color,
+        });
+    }
+
     /// Queue a text string at the given pixel position.
     /// `scale` multiplies the base 8×8 character size (1.0 = 8 px, 2.0 = 16 px, …).
+    /// Includes a 1-pixel drop shadow for readability.
     pub fn draw_text(&mut self, x: f32, y: f32, text: &str, color: [f32; 4], scale: f32) {
         // Shadow offset (1px at scale 1.0)
         let shadow_offset = 1.0 * scale;
@@ -85,6 +115,43 @@ impl OverlayRenderer {
             scale,
         });
 
+        self.commands.push(OverlayCommand::Text {
+            x,
+            y,
+            text: text.to_string(),
+            color,
+            scale,
+        });
+    }
+
+    /// Queue text with a full outline (shadow in 4 cardinal directions + diagonals).
+    /// This provides superior readability against any background.
+    pub fn draw_text_outlined(
+        &mut self,
+        x: f32,
+        y: f32,
+        text: &str,
+        color: [f32; 4],
+        outline_color: [f32; 4],
+        scale: f32,
+    ) {
+        let d = 1.0 * scale; // outline thickness
+        // 8-direction outline
+        let offsets: [(f32, f32); 8] = [
+            (-d, -d), (0.0, -d), (d, -d),
+            (-d, 0.0),           (d, 0.0),
+            (-d,  d), (0.0,  d), (d,  d),
+        ];
+        for (ox, oy) in &offsets {
+            self.commands.push(OverlayCommand::Text {
+                x: x + ox,
+                y: y + oy,
+                text: text.to_string(),
+                color: outline_color,
+                scale,
+            });
+        }
+        // Foreground text on top
         self.commands.push(OverlayCommand::Text {
             x,
             y,
@@ -275,6 +342,8 @@ impl OverlayRenderer {
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: None,
@@ -307,6 +376,19 @@ impl OverlayRenderer {
                     let (x1, y1) = px_to_ndc(*x + *w, *y + *h, sw, sh);
                     let (u0, v0, u1, v1) = solid_uv();
                     push_quad(&mut verts, x0, y0, x1, y1, u0, v0, u1, v1, *color);
+                }
+                OverlayCommand::GradientRect {
+                    x,
+                    y,
+                    w,
+                    h,
+                    top_color,
+                    bottom_color,
+                } => {
+                    let (x0, y0) = px_to_ndc(*x, *y, sw, sh);
+                    let (x1, y1) = px_to_ndc(*x + *w, *y + *h, sw, sh);
+                    let (u0, v0, u1, v1) = solid_uv();
+                    push_gradient_quad(&mut verts, x0, y0, x1, y1, u0, v0, u1, v1, *top_color, *bottom_color);
                 }
                 OverlayCommand::Text {
                     x,
@@ -399,12 +481,23 @@ fn push_quad(
     v1: f32,
     color: [f32; 4],
 ) {
-    // tri 1: TL, TR, BL
+    // tri 1: TL, BL, TR (CCW)
     verts.push(OverlayVertex {
         pos: [x0, y0],
         uv: [u0, v0],
         color,
     });
+    verts.push(OverlayVertex {
+        pos: [x0, y1],
+        uv: [u0, v1],
+        color,
+    });
+    verts.push(OverlayVertex {
+        pos: [x1, y0],
+        uv: [u1, v0],
+        color,
+    });
+    // tri 2: TR, BL, BR (CCW)
     verts.push(OverlayVertex {
         pos: [x1, y0],
         uv: [u1, v0],
@@ -413,12 +506,6 @@ fn push_quad(
     verts.push(OverlayVertex {
         pos: [x0, y1],
         uv: [u0, v1],
-        color,
-    });
-    // tri 2: TR, BR, BL
-    verts.push(OverlayVertex {
-        pos: [x1, y0],
-        uv: [u1, v0],
         color,
     });
     verts.push(OverlayVertex {
@@ -426,10 +513,54 @@ fn push_quad(
         uv: [u1, v1],
         color,
     });
+}
+
+/// Push two triangles forming a quad with vertical gradient (top_color -> bottom_color).
+fn push_gradient_quad(
+    verts: &mut Vec<OverlayVertex>,
+    x0: f32,
+    y0: f32,
+    x1: f32,
+    y1: f32,
+    u0: f32,
+    v0: f32,
+    u1: f32,
+    v1: f32,
+    top_color: [f32; 4],
+    bottom_color: [f32; 4],
+) {
+    // y0 is top (higher NDC), y1 is bottom (lower NDC)
+    // tri 1: TL, BL, TR (CCW)
+    verts.push(OverlayVertex {
+        pos: [x0, y0],
+        uv: [u0, v0],
+        color: top_color,
+    });
     verts.push(OverlayVertex {
         pos: [x0, y1],
         uv: [u0, v1],
-        color,
+        color: bottom_color,
+    });
+    verts.push(OverlayVertex {
+        pos: [x1, y0],
+        uv: [u1, v0],
+        color: top_color,
+    });
+    // tri 2: TR, BL, BR (CCW)
+    verts.push(OverlayVertex {
+        pos: [x1, y0],
+        uv: [u1, v0],
+        color: top_color,
+    });
+    verts.push(OverlayVertex {
+        pos: [x0, y1],
+        uv: [u0, v1],
+        color: bottom_color,
+    });
+    verts.push(OverlayVertex {
+        pos: [x1, y1],
+        uv: [u1, v1],
+        color: bottom_color,
     });
 }
 

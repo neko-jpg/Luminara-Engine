@@ -18,6 +18,9 @@ pub struct MouseInput {
     /// Used to avoid a huge initial delta from the default (0,0) position.
     position_initialized: bool,
     pub smoothing: MouseSmoothing,
+    /// When true, the window loop will warp the cursor to the window center.
+    /// Set by game code, consumed by the window loop each frame.
+    pub center_warp_request: bool,
 }
 
 impl Default for MouseInput {
@@ -33,6 +36,7 @@ impl Default for MouseInput {
             cursor_grabbed: false,
             position_initialized: false,
             smoothing: MouseSmoothing::default(),
+            center_warp_request: false,
         }
     }
 }

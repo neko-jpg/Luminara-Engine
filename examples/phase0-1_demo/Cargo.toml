@@ -17,5 +17,7 @@ luminara_core = { path = "../../crates/luminara_core" }
 luminara_scene = { path = "../../crates/luminara_scene" }
 luminara_window = { path = "../../crates/luminara_window" }
 luminara_audio = { path = "../../crates/luminara_audio" }
+luminara_diagnostic = { path = "../../crates/luminara_diagnostic" }
 log = "0.4"
 env_logger = "0.11"
+rapier3d = "0.22"

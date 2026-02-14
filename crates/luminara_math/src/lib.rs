@@ -59,6 +59,33 @@ impl Color {
     pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
+
+    /// Create a color from HSL (Hue, Saturation, Lightness) values.
+    /// - `h`: Hue in degrees (0-360)
+    /// - `s`: Saturation (0-1)
+    /// - `l`: Lightness (0-1)
+    pub fn hsl(h: f32, s: f32, l: f32) -> Self {
+        let h = h / 360.0;
+        let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+        let x = c * (1.0 - ((h * 6.0) % 2.0 - 1.0).abs());
+        let m = l - c / 2.0;
+
+        let (r, g, b) = if h < 1.0 / 6.0 {
+            (c, x, 0.0)
+        } else if h < 2.0 / 6.0 {
+            (x, c, 0.0)
+        } else if h < 3.0 / 6.0 {
+            (0.0, c, x)
+        } else if h < 4.0 / 6.0 {
+            (0.0, x, c)
+        } else if h < 5.0 / 6.0 {
+            (x, 0.0, c)
+        } else {
+            (c, 0.0, x)
+        };
+
+        Self::rgb(r + m, g + m, b + m)
+    }
 }
 
 impl From<Color> for [f32; 4] {

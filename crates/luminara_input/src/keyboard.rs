@@ -114,6 +114,13 @@ pub enum Key {
     F10,
     F11,
     F12,
+    Equal,
+    Minus,
+    Comma,
+    Period,
+    BracketLeft,
+    BracketRight,
+    Backquote,
 }
 
 impl Resource for KeyboardInput {}
@@ -185,6 +192,13 @@ impl Key {
             F10 => Some(Key::F10),
             F11 => Some(Key::F11),
             F12 => Some(Key::F12),
+            Equal => Some(Key::Equal),
+            Minus => Some(Key::Minus),
+            Comma => Some(Key::Comma),
+            Period => Some(Key::Period),
+            BracketLeft => Some(Key::BracketLeft),
+            BracketRight => Some(Key::BracketRight),
+            Backquote => Some(Key::Backquote),
             _ => None,
         }
     }

@@ -4,6 +4,8 @@ use crate::mesh::Mesh;
 use crate::pipeline::PipelineCache;
 use crate::command::CommandBuffer;
 use crate::render_graph::RenderGraph;
+use crate::forward_plus::{ForwardPlusRenderer, update_lights_system};
+use crate::texture::TextureLoader;
 use crate::CameraUniformBuffer;
 use luminara_asset::{AssetServer, Handle};
 use luminara_core::shared_types::{
@@ -26,7 +28,7 @@ impl Plugin for RenderPlugin {
         app.insert_resource(PipelineCache::new());
         app.insert_resource(RenderGraph::new());
         app.insert_resource(CommandBuffer::default());
-        app.insert_resource(crate::ForwardPlusRenderer::new());
+        app.insert_resource(ForwardPlusRenderer::new());
         app.insert_resource(crate::ShadowMapResources::default());
         app.insert_resource(crate::ShadowCascades::default());
         app.insert_resource(crate::PostProcessResources::default());
@@ -69,11 +71,11 @@ impl Plugin for RenderPlugin {
         // Register Forward+ light update system
         app.add_system::<(
             FunctionMarker,
-            ResMut<'static, crate::ForwardPlusRenderer>,
+            ResMut<'static, ForwardPlusRenderer>,
             Res<'static, GpuContext>,
             Query<'static, (&crate::DirectionalLight, &Transform)>,
             Query<'static, (&crate::PointLight, &Transform)>,
-        )>(CoreStage::PreRender, crate::update_lights_system);
+        )>(CoreStage::PreRender, update_lights_system);
 
         // Register shadow cascade update system
         app.add_system::<(
@@ -92,6 +94,13 @@ impl Plugin for RenderPlugin {
             Res<'static, GpuContext>,
         )>(CoreStage::PreRender, crate::init_post_process_system);
 
+        // Register LOD update system
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, (&mut crate::MeshRenderer, &crate::Lod, &Transform)>,
+            Query<'static, (&Camera, &Transform)>,
+        )>(CoreStage::PreRender, crate::lod_update_system);
+
         // Register render_system to Render stage
         app.add_system::<(
             FunctionMarker,
@@ -102,7 +111,7 @@ impl Plugin for RenderPlugin {
             Query<'static, (&Camera, &Transform)>,
             Query<'static, (&Handle<Mesh>, &Transform, &crate::PbrMaterial)>,
             Res<'static, luminara_window::Window>,
-            ResMut<'static, crate::overlay::OverlayRenderer>,
+            Res<'static, crate::PostProcessResources>,
         )>(CoreStage::Render, crate::render_system);
     }
 }
@@ -117,6 +126,11 @@ pub fn setup_gpu_context(world: &mut World) {
             return;
         }
     };
+
+    // Register texture loader
+    if let Some(mut asset_server) = world.get_resource_mut::<AssetServer>() {
+        asset_server.register_loader(TextureLoader);
+    }
 
     // Create camera uniform buffer
     let camera_buffer = gpu
@@ -159,7 +173,7 @@ pub fn setup_gpu_context(world: &mut World) {
 
     // Initialize Forward+ renderer
     let forward_plus = world
-        .get_resource_mut::<crate::ForwardPlusRenderer>()
+        .get_resource_mut::<ForwardPlusRenderer>()
         .expect("ForwardPlusRenderer not found");
     forward_plus.initialize(&gpu.device, gpu.surface_config.format);
 

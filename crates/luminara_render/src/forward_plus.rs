@@ -69,7 +69,7 @@ struct CameraUniform {
 /// Material uniform matching shader layout
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct MaterialUniform {
+pub struct MaterialUniform {
     albedo: [f32; 4],
     metallic: f32,
     roughness: f32,

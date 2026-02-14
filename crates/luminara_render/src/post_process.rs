@@ -7,6 +7,11 @@ pub struct PostProcessResources {
     pub pipeline: Option<wgpu::RenderPipeline>,
     pub bind_group_layout: Option<wgpu::BindGroupLayout>,
     pub sampler: Option<wgpu::Sampler>,
+    // Bloom resources
+    pub bloom_extract_pipeline: Option<wgpu::RenderPipeline>,
+    pub bloom_blur_pipeline: Option<wgpu::RenderPipeline>,
+    pub bloom_combine_pipeline: Option<wgpu::RenderPipeline>,
+    pub bloom_bind_group_layout: Option<wgpu::BindGroupLayout>,
 }
 
 impl Resource for PostProcessResources {}
@@ -17,6 +22,10 @@ impl Default for PostProcessResources {
             pipeline: None,
             bind_group_layout: None,
             sampler: None,
+            bloom_extract_pipeline: None,
+            bloom_blur_pipeline: None,
+            bloom_combine_pipeline: None,
+            bloom_bind_group_layout: None,
         }
     }
 }

@@ -19,3 +19,4 @@ luminara = { path = "../../crates/luminara", features = [
 ] }
 log = "0.4"
 serde_json = "1.0"
+rand = "0.8"

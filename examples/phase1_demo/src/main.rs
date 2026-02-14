@@ -18,6 +18,13 @@ use luminara::asset::AssetServer;
 mod camera_controller;
 use camera_controller::{CameraController, camera_controller_system, setup_camera_input, CameraAction};
 
+mod demo_systems;
+use demo_systems::{
+    DemoAction, DemoSettings, setup_demo_input, demo_interaction_system, demo_spawn_system,
+    RotatingObject, rotation_animation_system,
+    FloatingObject, floating_animation_system,
+};
+
 fn main() {
     // Initialize the engine with all default plugins
     let mut app = App::new();
@@ -25,6 +32,10 @@ fn main() {
 
     // Setup input actions
     app.add_startup_system::<ExclusiveMarker>(setup_camera_input);
+    app.add_startup_system::<ExclusiveMarker>(setup_demo_input);
+
+    // Initialize demo settings
+    app.insert_resource(DemoSettings::default());
 
     // Add camera controller system
     app.add_system::<(
@@ -34,6 +45,30 @@ fn main() {
         Res<'static, luminara::core::Time>,
         Query<'static, (&mut Transform, &mut CameraController)>,
     )>(CoreStage::Update, camera_controller_system);
+
+    // Add animation systems
+    app.add_system::<(
+        luminara::core::system::FunctionMarker,
+        Res<'static, luminara::core::Time>,
+        Query<'static, (&mut Transform, &RotatingObject)>,
+    )>(CoreStage::Update, rotation_animation_system);
+
+    app.add_system::<(
+        luminara::core::system::FunctionMarker,
+        Res<'static, luminara::core::Time>,
+        Query<'static, (&mut Transform, &FloatingObject)>,
+    )>(CoreStage::Update, floating_animation_system);
+
+    // Add demo interaction systems
+    app.add_system::<(
+        luminara::core::system::FunctionMarker,
+        Res<'static, Input>,
+        Res<'static, ActionMap<DemoAction>>,
+        ResMut<'static, DemoSettings>,
+        ResMut<'static, luminara::core::Time>,
+    )>(CoreStage::Update, demo_interaction_system);
+
+    app.add_system::<ExclusiveMarker>(CoreStage::Update, demo_spawn_system);
 
     // Register component types for scene deserialization
     // This allows the scene loader to automatically deserialize these components
@@ -61,8 +96,8 @@ fn main() {
 fn setup_demo(world: &mut World) {
     info!("Loading Phase 1 demo scene...");
 
-    // Load the demo scene from the asset pipeline
-    let scene_path = std::path::Path::new("assets/scenes/phase1_demo.scene.ron");
+    // Load the enhanced demo scene from the asset pipeline
+    let scene_path = std::path::Path::new("assets/scenes/phase1_demo_enhanced.scene.ron");
 
     match luminara::scene::Scene::load_from_file(scene_path) {
         Ok(scene) => {
@@ -118,19 +153,42 @@ fn attach_runtime_assets(world: &mut World, scene: &luminara::scene::Scene, asse
                 world.add_component(entity, CameraController::default());
             }
 
-            // Add meshes based on entity name (since we don't have a Mesh asset loader from JSON yet)
+            // Add meshes and animations based on entity name
             match entity_data.name.as_str() {
-                "Sphere" => {
+                "Sphere" | "RedSphere" | "GoldenSphere" => {
                     let mesh = Mesh::sphere(0.5, 32);
                     let handle = asset_server.add(mesh);
                     world.add_component(entity, handle);
                     info!("Added sphere mesh to {}", entity_data.name);
                 }
-                "Ground" => {
+                "Ground" | "GreenCube" | "Platform1" | "Platform2" => {
                     let mesh = Mesh::cube(1.0); // Will be scaled by transform
                     let handle = asset_server.add(mesh);
                     world.add_component(entity, handle);
                     info!("Added cube mesh to {}", entity_data.name);
+                }
+                "EnergyCore" => {
+                    let mesh = Mesh::sphere(0.5, 32);
+                    let handle = asset_server.add(mesh);
+                    world.add_component(entity, handle);
+                    
+                    // Add floating animation
+                    if let Some(transform) = world.get_component::<Transform>(entity) {
+                        world.add_component(entity, FloatingObject {
+                            amplitude: 0.5,
+                            frequency: 1.0,
+                            phase: 0.0,
+                            initial_y: transform.translation.y,
+                        });
+                    }
+                    
+                    // Add rotation animation
+                    world.add_component(entity, RotatingObject {
+                        axis: Vec3::new(0.0, 1.0, 0.3).normalize(),
+                        speed: 1.0,
+                    });
+                    
+                    info!("Added animated energy core");
                 }
                 _ => {}
             }

@@ -1,0 +1,401 @@
+Scene(
+    meta: SceneMeta(
+        name: "Phase 1 Enhanced Demo Scene",
+        description: "Enhanced demo scene with multiple objects, animations, and interactive elements",
+        version: "2.0.0",
+        tags: ["demo", "phase1", "physics", "enhanced"],
+    ),
+    entities: [
+        EntityData(
+            name: "Camera",
+            id: Some(1),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [0.0, 5.0, 15.0],
+                    "rotation": [-0.1305262, 0.0, 0.0, 0.9914449],
+                    "scale": [1.0, 1.0, 1.0]
+                },
+                "Camera": {
+                    "projection": {
+                        "Perspective": {
+                            "fov": 60.0,
+                            "near": 0.1,
+                            "far": 1000.0
+                        }
+                    },
+                    "clear_color": {
+                        "r": 0.05,
+                        "g": 0.05,
+                        "b": 0.1,
+                        "a": 1.0
+                    },
+                    "is_active": true
+                },
+                "AudioListener": {
+                    "enabled": true
+                }
+            },
+            children: [],
+            tags: ["camera"],
+        ),
+        EntityData(
+            name: "Sun",
+            id: Some(2),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [5.0, 15.0, 5.0],
+                    "rotation": [0.3826834, 0.0, 0.0, 0.9238795],
+                    "scale": [1.0, 1.0, 1.0]
+                },
+                "DirectionalLight": {
+                    "color": {
+                        "r": 1.0,
+                        "g": 0.95,
+                        "b": 0.85,
+                        "a": 1.0
+                    },
+                    "intensity": 4.0,
+                    "cast_shadows": true,
+                    "shadow_cascade_count": 4
+                }
+            },
+            children: [],
+            tags: ["light"],
+        ),
+        EntityData(
+            name: "Ground",
+            id: Some(3),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [0.0, 0.0, 0.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [20.0, 0.5, 20.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.3,
+                        "g": 0.35,
+                        "b": 0.4,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.1,
+                    "roughness": 0.9,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Box": {
+                            "half_extents": [10.0, 0.25, 10.0]
+                        }
+                    },
+                    "friction": 0.6,
+                    "restitution": 0.0,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Static",
+                    "mass": 0.0,
+                    "linear_damping": 0.0,
+                    "angular_damping": 0.0,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["ground", "static"],
+        ),
+        EntityData(
+            name: "EnergyCore",
+            id: Some(4),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [0.0, 3.0, 0.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [1.0, 1.0, 1.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.2,
+                        "g": 0.6,
+                        "b": 1.0,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.95,
+                    "roughness": 0.1,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.1,
+                        "g": 0.3,
+                        "b": 0.6,
+                        "a": 1.0
+                    }
+                }
+            },
+            children: [],
+            tags: ["animated", "floating"],
+        ),
+        EntityData(
+            name: "RedSphere",
+            id: Some(5),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [-3.0, 6.0, 0.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [1.0, 1.0, 1.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.9,
+                        "g": 0.1,
+                        "b": 0.1,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.8,
+                    "roughness": 0.2,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Sphere": {
+                            "radius": 0.5
+                        }
+                    },
+                    "friction": 0.3,
+                    "restitution": 0.8,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Dynamic",
+                    "mass": 1.0,
+                    "linear_damping": 0.1,
+                    "angular_damping": 0.1,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["physics", "dynamic"],
+        ),
+        EntityData(
+            name: "GreenCube",
+            id: Some(6),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [3.0, 6.0, 0.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [1.0, 1.0, 1.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.1,
+                        "g": 0.9,
+                        "b": 0.1,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.3,
+                    "roughness": 0.7,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Box": {
+                            "half_extents": [0.5, 0.5, 0.5]
+                        }
+                    },
+                    "friction": 0.5,
+                    "restitution": 0.5,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Dynamic",
+                    "mass": 1.0,
+                    "linear_damping": 0.1,
+                    "angular_damping": 0.1,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["physics", "dynamic"],
+        ),
+        EntityData(
+            name: "GoldenSphere",
+            id: Some(7),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [0.0, 8.0, -3.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [0.8, 0.8, 0.8]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 1.0,
+                        "g": 0.84,
+                        "b": 0.0,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 1.0,
+                    "roughness": 0.15,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Sphere": {
+                            "radius": 0.4
+                        }
+                    },
+                    "friction": 0.2,
+                    "restitution": 0.9,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Dynamic",
+                    "mass": 0.8,
+                    "linear_damping": 0.05,
+                    "angular_damping": 0.05,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["physics", "dynamic"],
+        ),
+        EntityData(
+            name: "Platform1",
+            id: Some(8),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [-5.0, 2.0, -5.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [2.0, 0.3, 2.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.6,
+                        "g": 0.4,
+                        "b": 0.2,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.0,
+                    "roughness": 0.8,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Box": {
+                            "half_extents": [1.0, 0.15, 1.0]
+                        }
+                    },
+                    "friction": 0.7,
+                    "restitution": 0.0,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Static",
+                    "mass": 0.0,
+                    "linear_damping": 0.0,
+                    "angular_damping": 0.0,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["platform", "static"],
+        ),
+        EntityData(
+            name: "Platform2",
+            id: Some(9),
+            parent: None,
+            components: {
+                "Transform": {
+                    "translation": [5.0, 2.0, 5.0],
+                    "rotation": [0.0, 0.0, 0.0, 1.0],
+                    "scale": [2.0, 0.3, 2.0]
+                },
+                "PbrMaterial": {
+                    "albedo": {
+                        "r": 0.6,
+                        "g": 0.4,
+                        "b": 0.2,
+                        "a": 1.0
+                    },
+                    "albedo_texture": null,
+                    "normal_texture": null,
+                    "metallic": 0.0,
+                    "roughness": 0.8,
+                    "metallic_roughness_texture": null,
+                    "emissive": {
+                        "r": 0.0,
+                        "g": 0.0,
+                        "b": 0.0,
+                        "a": 1.0
+                    }
+                },
+                "Collider": {
+                    "shape": {
+                        "Box": {
+                            "half_extents": [1.0, 0.15, 1.0]
+                        }
+                    },
+                    "friction": 0.7,
+                    "restitution": 0.0,
+                    "is_sensor": false
+                },
+                "RigidBody": {
+                    "body_type": "Static",
+                    "mass": 0.0,
+                    "linear_damping": 0.0,
+                    "angular_damping": 0.0,
+                    "gravity_scale": 1.0
+                }
+            },
+            children: [],
+            tags: ["platform", "static"],
+        ),
+    ],
+)
