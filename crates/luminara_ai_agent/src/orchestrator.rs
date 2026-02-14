@@ -69,19 +69,30 @@ impl AgentOrchestrator {
     pub fn decompose_task(&self, task_description: &str) -> Vec<(AgentRole, String)> {
         // Mock decomposition logic
         // Real implementation calls LLM.
-        if task_description.contains("level") {
-            vec![
-                (AgentRole::SceneArchitect, "Layout geometry".into()),
-                (AgentRole::ArtDirector, "Apply lighting".into())
-            ]
-        } else if task_description.contains("mechanic") {
-            vec![
-                (AgentRole::GameplayProgrammer, "Implement logic".into()),
-                (AgentRole::QAEngineer, "Verify logic".into())
-            ]
-        } else {
-            vec![(AgentRole::ProjectDirector, "Analyze request".into())]
+        let desc = task_description.to_lowercase();
+        let mut tasks = Vec::new();
+
+        if desc.contains("level") || desc.contains("terrain") || desc.contains("geometry") || desc.contains("spawn") {
+            tasks.push((AgentRole::SceneArchitect, "Layout scene geometry and entities".into()));
         }
+
+        if desc.contains("material") || desc.contains("texture") || desc.contains("lighting") || desc.contains("color") || desc.contains("art") {
+            tasks.push((AgentRole::ArtDirector, "Apply visual style and lighting".into()));
+        }
+
+        if desc.contains("mechanic") || desc.contains("logic") || desc.contains("script") || desc.contains("ai") || desc.contains("behavior") {
+            tasks.push((AgentRole::GameplayProgrammer, "Implement gameplay logic".into()));
+        }
+
+        if desc.contains("test") || desc.contains("verify") || desc.contains("check") || desc.contains("qa") {
+            tasks.push((AgentRole::QAEngineer, "Verify implementation".into()));
+        }
+
+        if tasks.is_empty() {
+             tasks.push((AgentRole::ProjectDirector, "Analyze request and refine requirements".into()));
+        }
+
+        tasks
     }
 
     pub fn plan_execution(&self, subtasks: Vec<(AgentRole, String)>) -> Vec<Vec<(AgentRole, String)>> {
@@ -107,15 +118,23 @@ impl AgentOrchestrator {
         messages
     }
 
-    pub fn detect_conflicts(&self, operations: &[(String, OperationId)]) -> Vec<String> {
-        // operations: AgentID -> OpID
-        // Check if operations touch same entities?
-        // Need to look up op details.
-        // For MVP mock: check if multiple agents submit ops.
-        if operations.len() > 1 {
-            vec!["Potential conflict: Multiple agents submitting operations.".into()]
-        } else {
-            vec![]
+    // Changed signature to accept affected entity IDs directly for conflict detection
+    pub fn detect_conflicts(&self, proposed_changes: &[(String, Vec<u64>)]) -> Vec<String> {
+        // proposed_changes: List of (AgentID, List of EntityIDs modified)
+        let mut conflicts = Vec::new();
+        let mut touched_entities = HashMap::new();
+
+        for (agent_id, entities) in proposed_changes {
+            for &entity_id in entities {
+                if let Some(other_agent) = touched_entities.get(&entity_id) {
+                    if *other_agent != agent_id {
+                        conflicts.push(format!("Conflict: Agent {} and Agent {} are both modifying entity {}", other_agent, agent_id, entity_id));
+                    }
+                } else {
+                    touched_entities.insert(entity_id, agent_id);
+                }
+            }
         }
+        conflicts
     }
 }
