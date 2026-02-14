@@ -1,0 +1,12 @@
+[package]
+name = "luminara_script"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+luminara_core = { workspace = true }
+luminara_asset = { workspace = true }
+notify = "6.1"
+thiserror = { workspace = true }

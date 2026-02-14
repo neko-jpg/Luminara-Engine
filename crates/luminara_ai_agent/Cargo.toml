@@ -1,0 +1,21 @@
+[package]
+name = "luminara_ai_agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+luminara_core = { workspace = true }
+luminara_math = { workspace = true }
+luminara_script = { path = "../luminara_script" }
+luminara_script_lua = { path = "../luminara_script_lua" }
+luminara_script_wasm = { path = "../luminara_script_wasm" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+mlua = { version = "0.9", features = ["lua54", "vendored", "async", "send"] }
+
+[dev-dependencies]
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
