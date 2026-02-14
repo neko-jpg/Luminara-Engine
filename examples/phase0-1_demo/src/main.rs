@@ -19,7 +19,7 @@
 use luminara::prelude::*;
 use luminara_core::{CoreStage, ExclusiveMarker};
 use luminara_input::keyboard::Key;
-use luminara_render::{DirectionalLight, PbrMaterial, PointLight};
+use luminara_render::{DirectionalLight, OverlayRenderer, PbrMaterial, PointLight};
 use log::{error, info};
 use std::time::Instant;
 
@@ -715,10 +715,14 @@ fn input_system(world: &mut World) {
 
     // Read input resource
     if let Some(input) = world.get_resource_mut::<Input>() {
-        // Cursor locking logic
+        // Cursor locking logic — grab on left click only when not already grabbed
         if input.mouse_just_pressed(luminara_input::mouse::MouseButton::Left) {
-            input.set_cursor_grabbed(true);
-            input.set_cursor_visible(false);
+            if !input.is_cursor_grabbed() {
+                input.set_cursor_grabbed(true);
+                input.set_cursor_visible(false);
+                // Clear any stale delta to prevent initial camera jerk
+                input.mouse.delta = Vec2::ZERO;
+            }
         }
 
         // Camera movement
@@ -788,9 +792,12 @@ fn input_system(world: &mut World) {
         }
 
         // Update Camera Rotation (Mouse Look)
-        let sensitivity = 0.002;
-        state.camera_yaw -= mouse_delta.x * sensitivity;
-        state.camera_pitch -= mouse_delta.y * sensitivity;
+        // Clamp per-frame delta to prevent wild spinning from large raw inputs
+        let sensitivity = 0.003;
+        let dx = mouse_delta.x.clamp(-150.0, 150.0);
+        let dy = mouse_delta.y.clamp(-150.0, 150.0);
+        state.camera_yaw -= dx * sensitivity;
+        state.camera_pitch -= dy * sensitivity;
         state.camera_pitch = state.camera_pitch.clamp(-1.5, 1.5);
 
         // Camera movement — transform movement vector by yaw
@@ -989,35 +996,118 @@ fn camera_update_system(world: &mut World) {
 }
 
 // ============================================================================
-// HUD System — periodic console output showing status
+// HUD System — renders in-game command palette overlay + periodic console log
 // ============================================================================
 
 fn hud_system(world: &mut World) {
-    if let Some(state) = world.get_resource::<DemoState>() {
-        let frame = state.frame_count;
-        let fps = state.current_fps;
-        let pos = state.camera_pos;
-        let spawned = state.spawned_entities.len();
-        let gizmos = state.gizmos_on;
-        let phys = state.physics_paused;
+    // Gather state info
+    let (frame, fps, pos, spawned, gizmos, phys, menu_visible, _grabbed) =
+        if let Some(state) = world.get_resource::<DemoState>() {
+            (
+                state.frame_count,
+                state.current_fps,
+                state.camera_pos,
+                state.spawned_entities.len(),
+                state.gizmos_on,
+                state.physics_paused,
+                state.menu_visible,
+                false, // placeholder — we read grabbed separately
+            )
+        } else {
+            return;
+        };
 
-        // Show status every ~3 seconds at 60fps
-        if frame % 180 == 0 && frame > 0 {
-            info!(
-                "📊 FPS: {:.0} | Cam: ({:.1}, {:.1}, {:.1}) | Spawned: {} | Gizmos: {} | Physics: {}",
-                fps,
-                pos.x,
-                pos.y,
-                pos.z,
-                spawned,
-                if gizmos { "ON" } else { "OFF" },
-                if phys { "PAUSED" } else { "OK" },
-            );
+    let grabbed = world
+        .get_resource::<Input>()
+        .map(|i| i.is_cursor_grabbed())
+        .unwrap_or(false);
+
+    // ── In-game overlay via OverlayRenderer ─────────────────────────
+    if let Some(overlay) = world.get_resource_mut::<OverlayRenderer>() {
+        overlay.clear();
+
+        let scale = 1.2; // Smaller, more stylish text
+        let cw = 8.0 * scale; // char width in pixels
+        let ch = 8.0 * scale; // char height in pixels
+        let line_h = ch + 8.0; // More line spacing for readability
+
+        // ── Always-visible status bar (top-left) ────────────────────
+        let status = format!(
+            "FPS:{:.0} | Obj:{} | {} | {}",
+            fps,
+            spawned,
+            if gizmos { "Gizmos:ON" } else { "Gizmos:OFF" },
+            if phys { "Phys:PAUSED" } else { "Phys:ACTIVE" },
+        );
+        // Darker background for better contrast
+        let bar_w = status.len() as f32 * cw + 24.0;
+        overlay.draw_rect(10.0, 10.0, bar_w, ch + 12.0, [0.0, 0.0, 0.0, 0.8]);
+        overlay.draw_text(20.0, 16.0, &status, [0.0, 1.0, 0.8, 1.0], scale);
+
+        // ── Mouse grab hint (top-right area) ────────────────────────
+        if !grabbed {
+            let hint = "Left Click to Look  |  [Esc] to Free Mouse";
+            let hint_w = hint.len() as f32 * cw + 24.0;
+            overlay.draw_rect(1280.0 - hint_w - 10.0, 10.0, hint_w, ch + 12.0, [0.8, 0.1, 0.1, 0.8]);
+            overlay.draw_text(1280.0 - hint_w + 2.0, 16.0, hint, [1.0, 1.0, 1.0, 1.0], scale);
         }
 
-        // Reminder about controls every ~15 seconds
-        if frame % 900 == 0 && frame > 0 && state.menu_visible {
-            info!("━━━ [T]Spawn [1-5]Specific [C]Clear [R]Reset [G]Gizmos [P]Pause [H]Menu [Esc]Exit ━━━");
+        // ── Command palette (toggled with H) ────────────────────────
+        if menu_visible {
+            let lines: &[(&str, [f32; 4])] = &[
+                ("=== CONTROLS ===",      [1.0, 0.8, 0.2, 1.0]),
+                ("",                       [0.0; 4]),
+                ("WASD / Arrows  Move",   [0.9, 0.9, 0.9, 1.0]),
+                ("Space / Ctrl   Up/Down",[0.9, 0.9, 0.9, 1.0]),
+                ("Shift          Sprint", [0.9, 0.9, 0.9, 1.0]),
+                ("Mouse          Look",   [0.9, 0.9, 0.9, 1.0]),
+                ("",                       [0.0; 4]),
+                ("T              Spawn",  [0.5, 1.0, 0.5, 1.0]),
+                ("1-5            Shapes", [0.5, 1.0, 0.5, 1.0]),
+                ("C              Clear",  [0.5, 1.0, 0.5, 1.0]),
+                ("R              Reset",  [0.5, 1.0, 0.5, 1.0]),
+                ("",                       [0.0; 4]),
+                ("G              Gizmos", [0.5, 0.8, 1.0, 1.0]),
+                ("P              Pause",  [0.5, 0.8, 1.0, 1.0]),
+                ("H              Hide",   [0.5, 0.8, 1.0, 1.0]),
+                ("Esc            Free",   [1.0, 0.5, 0.5, 1.0]),
+            ];
+
+            let panel_x = 10.0;
+            let panel_y = 50.0; // Below status bar
+            let max_line_len = lines.iter().map(|(s, _)| s.len()).max().unwrap_or(0);
+            let panel_w = max_line_len as f32 * cw + 40.0; // More padding
+            let panel_h = lines.len() as f32 * line_h + 20.0;
+
+            // Darker background for better visibility
+            overlay.draw_rect(panel_x, panel_y, panel_w, panel_h, [0.0, 0.0, 0.0, 0.85]);
+
+            for (i, (text, color)) in lines.iter().enumerate() {
+                if text.is_empty() {
+                    continue;
+                }
+                let lx = panel_x + 20.0;
+                let ly = panel_y + 10.0 + i as f32 * line_h;
+                overlay.draw_text(lx, ly, text, *color, scale);
+            }
         }
+    }
+
+    // ── Periodic console output ─────────────────────────────────────
+    if frame % 180 == 0 && frame > 0 {
+        info!(
+            "FPS: {:.0} | Cam: ({:.1}, {:.1}, {:.1}) | Spawned: {} | Gizmos: {} | Physics: {}",
+            fps,
+            pos.x,
+            pos.y,
+            pos.z,
+            spawned,
+            if gizmos { "ON" } else { "OFF" },
+            if phys { "PAUSED" } else { "OK" },
+        );
+    }
+
+    if frame % 900 == 0 && frame > 0 && menu_visible {
+        info!("[T]Spawn [1-5]Shapes [C]Clear [R]Reset [G]Gizmos [P]Pause [H]Menu [Esc]Free");
     }
 }

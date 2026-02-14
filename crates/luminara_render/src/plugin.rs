@@ -27,6 +27,7 @@ impl Plugin for RenderPlugin {
         app.insert_resource(crate::ShadowMapResources::default());
         app.insert_resource(crate::ShadowCascades::default());
         app.insert_resource(crate::PostProcessResources::default());
+        app.insert_resource(crate::overlay::OverlayRenderer::new());
 
         // Register startup system to initialize GPU context once Window is available
         app.add_system::<ExclusiveMarker>(CoreStage::Startup, setup_gpu_context);
@@ -96,6 +97,7 @@ impl Plugin for RenderPlugin {
             Query<'static, (&Camera, &Transform)>,
             Query<'static, (&Mesh, &Transform, &crate::PbrMaterial)>,
             Res<'static, luminara_window::Window>,
+            ResMut<'static, crate::overlay::OverlayRenderer>,
         )>(CoreStage::Render, crate::render_system);
     }
 }

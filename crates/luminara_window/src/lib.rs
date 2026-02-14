@@ -102,8 +102,49 @@ impl ApplicationHandler for LuminaraWinitHandler {
             winit::event::WindowEvent::CloseRequested => {
                 _event_loop.exit();
             }
+            winit::event::WindowEvent::Focused(focused) => {
+                // When window loses focus, release cursor grab for safety
+                // This prevents the cursor from being trapped when Alt+Tab or similar
+                if !focused {
+                    if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                        if input.is_cursor_grabbed() {
+                            input.set_cursor_grabbed(false);
+                            input.set_cursor_visible(true);
+                        }
+                    }
+                }
+            }
             winit::event::WindowEvent::RedrawRequested => {
                 self.app.update();
+
+                // Sync cursor grab / visibility from Input to the winit window
+                if let (Some(input), Some(window)) = (
+                    self.app.world.get_resource::<Input>(),
+                    self.window.as_ref(),
+                ) {
+                    let want_grabbed = input.is_cursor_grabbed();
+                    let want_visible = input.is_cursor_visible();
+
+                    // Apply cursor grab mode
+                    let mode = if want_grabbed {
+                        // Try Locked first (hides + locks), fall back to Confined
+                        winit::window::CursorGrabMode::Locked
+                    } else {
+                        winit::window::CursorGrabMode::None
+                    };
+                    if window.set_cursor_grab(mode).is_err() && want_grabbed {
+                        let _ = window.set_cursor_grab(winit::window::CursorGrabMode::Confined);
+                    }
+
+                    window.set_cursor_visible(want_visible);
+                }
+
+                // Clear per-frame input states (delta, scroll, just_pressed/released)
+                // This prevents mouse delta accumulation that causes camera spinning
+                if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                    input.mouse.clear_just_states();
+                    input.keyboard.clear_just_states();
+                }
             }
             _ => {}
         }
@@ -112,6 +153,26 @@ impl ApplicationHandler for LuminaraWinitHandler {
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if let Some(window) = &self.window {
             window.request_redraw();
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        // Raw mouse motion for FPS-style camera when cursor is grabbed.
+        // DeviceEvent::MouseMotion provides hardware-level deltas that work
+        // correctly even when the cursor is locked/confined.
+        if let winit::event::DeviceEvent::MouseMotion { delta } = event {
+            if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                if input.is_cursor_grabbed() {
+                    // Accumulate raw hardware deltas — more reliable than CursorMoved
+                    // when the cursor is locked/confined.
+                    input.mouse.delta += luminara_math::Vec2::new(delta.0 as f32, delta.1 as f32);
+                }
+            }
         }
     }
 }

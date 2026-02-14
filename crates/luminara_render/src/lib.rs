@@ -7,6 +7,7 @@ pub mod gpu;
 pub mod material;
 pub mod mesh;
 pub mod mesh_loader;
+pub mod overlay;
 pub mod pipeline;
 pub mod plugin;
 pub mod post_process;
@@ -26,6 +27,7 @@ pub use gpu::GpuContext;
 pub use material::Material;
 pub use mesh::{Mesh, Vertex, AABB};
 pub use mesh_loader::MeshLoader;
+pub use overlay::{OverlayCommand, OverlayRenderer};
 pub use pipeline::{CachedPipeline, PipelineCache, RenderPipelineDescriptor};
 pub use plugin::RenderPlugin;
 pub use post_process::{init_post_process_system, PostProcessResources};
@@ -179,6 +181,7 @@ pub fn render_system(
     cameras: Query<(&Camera, &Transform)>,
     meshes: Query<(&Mesh, &Transform, &PbrMaterial)>,
     _window: Res<luminara_window::Window>,
+    mut overlay: ResMut<OverlayRenderer>,
 ) {
     let mut frame_opt = None;
     for attempt in 0..2 {
@@ -525,6 +528,17 @@ pub fn render_system(
             }
         }
     }
+
+    // ── Overlay pass (text & rectangles on top of the 3D scene) ─────
+    overlay.render(
+        &gpu.device,
+        &gpu.queue,
+        &mut encoder,
+        &view,
+        gpu.surface_config.format,
+        render_width,
+        render_height,
+    );
 
     gpu.queue.submit(std::iter::once(encoder.finish()));
     gpu.end_frame(frame);
