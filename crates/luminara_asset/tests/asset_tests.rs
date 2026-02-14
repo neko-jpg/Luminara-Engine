@@ -29,9 +29,9 @@ impl AssetLoader for MyLoader {
 #[test]
 fn test_handle_type_safety() {
     let id = AssetId::new();
-    let _handle: Handle<MyAsset> = Handle::new(id);
+    let _handle: Handle<MyAsset> = Handle::new(id, 0);
     // This would fail to compile if types didn't match:
-    // let _other: Handle<u32> = Handle::new(id);
+    // let _other: Handle<u32> = Handle::new(id, 0);
 }
 
 #[test]
@@ -76,6 +76,17 @@ fn test_asset_server_loading() {
     server.register_loader(MyLoader);
 
     let handle: Handle<MyAsset> = server.load("test.txt");
+
+    // Wait for async load (simulated)
+    let start = std::time::Instant::now();
+    while server.load_state(handle.id()) == LoadState::Loading {
+        server.update();
+        if start.elapsed() > std::time::Duration::from_secs(2) {
+            panic!("Timeout waiting for asset load");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
     assert_eq!(server.load_state(handle.id()), LoadState::Loaded);
 
     // Verify asset retrieval

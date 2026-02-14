@@ -11,6 +11,7 @@ pub mod commands;
 pub mod component;
 pub mod entity;
 pub mod event;
+pub mod console;
 pub mod plugin;
 pub mod query;
 pub mod resource;

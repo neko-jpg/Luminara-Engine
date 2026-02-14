@@ -2,8 +2,10 @@ use crate::camera::Camera;
 use crate::gpu::GpuContext;
 use crate::mesh::Mesh;
 use crate::pipeline::PipelineCache;
+use crate::command::CommandBuffer;
 use crate::render_graph::RenderGraph;
 use crate::CameraUniformBuffer;
+use luminara_asset::{AssetServer, Handle};
 use luminara_core::shared_types::{
     App, AppInterface, CoreStage, Plugin, Query, Res, ResMut, World,
 };
@@ -23,6 +25,7 @@ impl Plugin for RenderPlugin {
         // Initialize resources
         app.insert_resource(PipelineCache::new());
         app.insert_resource(RenderGraph::new());
+        app.insert_resource(CommandBuffer::default());
         app.insert_resource(crate::ForwardPlusRenderer::new());
         app.insert_resource(crate::ShadowMapResources::default());
         app.insert_resource(crate::ShadowCascades::default());
@@ -59,7 +62,8 @@ impl Plugin for RenderPlugin {
         app.add_system::<(
             FunctionMarker,
             ResMut<'static, GpuContext>,
-            Query<'static, &mut Mesh>,
+            Res<'static, AssetServer>,
+            Query<'static, &Handle<Mesh>>,
         )>(CoreStage::PreRender, crate::mesh_upload_system);
 
         // Register Forward+ light update system
@@ -94,8 +98,9 @@ impl Plugin for RenderPlugin {
             ResMut<'static, GpuContext>,
             ResMut<'static, PipelineCache>,
             ResMut<'static, CameraUniformBuffer>,
+            Res<'static, AssetServer>,
             Query<'static, (&Camera, &Transform)>,
-            Query<'static, (&Mesh, &Transform, &crate::PbrMaterial)>,
+            Query<'static, (&Handle<Mesh>, &Transform, &crate::PbrMaterial)>,
             Res<'static, luminara_window::Window>,
             ResMut<'static, crate::overlay::OverlayRenderer>,
         )>(CoreStage::Render, crate::render_system);

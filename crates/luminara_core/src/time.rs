@@ -56,6 +56,20 @@ impl Time {
         self.fixed_accumulator += delta_clamped;
     }
 
+    /// Update time with a manual delta time (for testing or non-realtime simulation)
+    pub fn update_manual(&mut self, dt_seconds: f32) {
+        self.delta_seconds = dt_seconds * self.time_scale;
+        self.delta = Duration::from_secs_f32(self.delta_seconds);
+
+        self.elapsed += self.delta; // This approximates elapsed
+        self.elapsed_seconds += self.delta_seconds;
+
+        self.frame_count += 1;
+
+        let delta_clamped = self.delta_seconds.min(0.25);
+        self.fixed_accumulator += delta_clamped;
+    }
+
     pub fn delta(&self) -> Duration {
         self.delta
     }

@@ -52,7 +52,7 @@ proptest! {
     #[test]
     fn prop_sprite_instance_color(color in arb_color()) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let sprite = Sprite::new(texture).with_color(color);
 
         batcher.prepare(vec![(&sprite, &Mat4::IDENTITY, None::<&ZOrder>)]);
@@ -71,7 +71,7 @@ proptest! {
     #[test]
     fn prop_sprite_instance_transform(transform in arb_transform()) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let sprite = Sprite::new(texture);
 
         batcher.prepare(vec![(&sprite, &transform, None::<&ZOrder>)]);
@@ -93,7 +93,7 @@ proptest! {
     #[test]
     fn prop_sprite_instance_uv_rect(uv_rect in arb_uv_rect()) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture);
         sprite.rect = uv_rect;
 
@@ -118,7 +118,7 @@ proptest! {
     #[test]
     fn prop_sprite_instance_flip_x(flip_x in prop::bool::ANY) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture);
         sprite.flip_x = flip_x;
 
@@ -141,7 +141,7 @@ proptest! {
     #[test]
     fn prop_sprite_instance_flip_y(flip_y in prop::bool::ANY) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture);
         sprite.flip_y = flip_y;
 
@@ -168,7 +168,7 @@ proptest! {
         uv_rect in arb_uv_rect(),
     ) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let mut sprite = Sprite::new(texture).with_color(color);
         sprite.rect = uv_rect;
 

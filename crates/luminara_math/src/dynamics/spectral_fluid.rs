@@ -2,7 +2,6 @@
 //!
 //! GPU-based FFT solver with IMEX time integration.
 
-use glam::Vec2;
 use super::fft::{FftPlan, GpuTexture};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -27,7 +26,7 @@ pub struct SpectralFluidSolver2D {
     // Sticking to primitive variables u, v for simplicity in description.
 
     // FFT Plans
-    fft_plan: FftPlan,
+    _fft_plan: FftPlan,
 }
 
 impl SpectralFluidSolver2D {
@@ -38,7 +37,7 @@ impl SpectralFluidSolver2D {
             viscosity,
             boundary_method: BoundaryMethod::Periodic,
             velocity: GpuTexture::new(width, height, "Rg32Float"),
-            fft_plan: FftPlan::new(width, height),
+            _fft_plan: FftPlan::new(width, height),
         }
     }
 

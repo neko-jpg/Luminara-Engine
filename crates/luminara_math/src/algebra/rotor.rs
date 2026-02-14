@@ -4,7 +4,7 @@
 //! Isomorphic to a quaternion.
 
 
-use glam::{Quat, Vec3};
+use glam::Quat;
 use std::ops::{Add, Sub, Mul};
 
 /// A rotor representing a rotation.

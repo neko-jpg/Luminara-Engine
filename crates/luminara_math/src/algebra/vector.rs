@@ -2,7 +2,7 @@
 //!
 //! Provides a generic Vector3 struct to support scalar types other than f32 (e.g., f64, Dual numbers).
 
-use std::ops::{Add, Sub, Mul, Div, Neg, AddAssign, SubAssign, MulAssign, DivAssign};
+use std::ops::{Add, Sub, Mul, Div, Neg};
 use super::traits::Scalar;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

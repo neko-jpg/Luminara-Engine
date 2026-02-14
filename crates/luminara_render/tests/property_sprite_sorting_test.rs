@@ -19,7 +19,7 @@ fn arb_z_order() -> impl Strategy<Value = f32> {
 fn arb_sprite_with_z() -> impl Strategy<Value = (Sprite, ZOrder)> {
     (any::<u64>(), arb_z_order()).prop_map(|(texture_seed, z)| {
         // Use seed to create deterministic texture IDs
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
         let sprite = Sprite::new(texture);
         let z_order = ZOrder::new(z);
         (sprite, z_order)
@@ -35,7 +35,7 @@ proptest! {
         z_orders in prop::collection::vec(arb_z_order(), 2..20),
     ) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites with different z-orders but same texture
         let sprites: Vec<_> = z_orders
@@ -71,7 +71,7 @@ proptest! {
 
         // Create unique textures
         let textures: Vec<_> = (0..texture_count)
-            .map(|_| Handle::<Texture>::new(AssetId::new()))
+            .map(|_| Handle::<Texture>::new(AssetId::new(), 0))
             .collect();
 
         // Create sprites with same z-order but different textures
@@ -115,8 +115,8 @@ proptest! {
         let mut batcher = SpriteBatcher::new(1000);
 
         // Create two textures
-        let texture1 = Handle::<Texture>::new(AssetId::new());
-        let texture2 = Handle::<Texture>::new(AssetId::new());
+        let texture1 = Handle::<Texture>::new(AssetId::new(), 0);
+        let texture2 = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites with different z-orders and textures
         // Interleave textures to test sorting
@@ -148,7 +148,7 @@ proptest! {
 
         // Create sprites with random z-orders and textures
         let textures: Vec<_> = (0..5)
-            .map(|_| Handle::<Texture>::new(AssetId::new()))
+            .map(|_| Handle::<Texture>::new(AssetId::new(), 0))
             .collect();
 
         let sprites: Vec<_> = (0..sprite_count)
@@ -180,7 +180,7 @@ proptest! {
         sprite_count in 1usize..50,
     ) {
         let mut batcher = SpriteBatcher::new(1000);
-        let texture = Handle::<Texture>::new(AssetId::new());
+        let texture = Handle::<Texture>::new(AssetId::new(), 0);
 
         // Create sprites without z-order (should default to 0.0)
         let sprites: Vec<_> = (0..sprite_count)

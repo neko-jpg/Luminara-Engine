@@ -364,3 +364,102 @@ impl<A: WorldQuery, B: WorldQuery, C: WorldQuery> WorldQuery for (A, B, C) {
         C::add_access(access);
     }
 }
+
+impl<A: WorldQuery, B: WorldQuery, C: WorldQuery, D: WorldQuery> WorldQuery for (A, B, C, D) {
+    type Item<'w> = (A::Item<'w>, B::Item<'w>, C::Item<'w>, D::Item<'w>);
+    type Fetch<'w> = (A::Fetch<'w>, B::Fetch<'w>, C::Fetch<'w>, D::Fetch<'w>);
+    fn matches_archetype(archetype: &Archetype) -> bool {
+        A::matches_archetype(archetype)
+            && B::matches_archetype(archetype)
+            && C::matches_archetype(archetype)
+            && D::matches_archetype(archetype)
+    }
+    unsafe fn get_fetch<'w>(archetype: &'w Archetype) -> Self::Fetch<'w> {
+        (
+            A::get_fetch(archetype),
+            B::get_fetch(archetype),
+            C::get_fetch(archetype),
+            D::get_fetch(archetype),
+        )
+    }
+    unsafe fn fetch<'w>(fetch: &mut Self::Fetch<'w>, index: usize) -> Self::Item<'w> {
+        (
+            A::fetch(&mut fetch.0, index),
+            B::fetch(&mut fetch.1, index),
+            C::fetch(&mut fetch.2, index),
+            D::fetch(&mut fetch.3, index),
+        )
+    }
+    fn component_ids() -> Vec<TypeId> {
+        let mut ids = A::component_ids();
+        ids.extend(B::component_ids());
+        ids.extend(C::component_ids());
+        ids.extend(D::component_ids());
+        ids
+    }
+    fn add_access(access: &mut SystemAccess) {
+        A::add_access(access);
+        B::add_access(access);
+        C::add_access(access);
+        D::add_access(access);
+    }
+}
+
+impl<A: WorldQuery, B: WorldQuery, C: WorldQuery, D: WorldQuery, E: WorldQuery> WorldQuery
+    for (A, B, C, D, E)
+{
+    type Item<'w> = (
+        A::Item<'w>,
+        B::Item<'w>,
+        C::Item<'w>,
+        D::Item<'w>,
+        E::Item<'w>,
+    );
+    type Fetch<'w> = (
+        A::Fetch<'w>,
+        B::Fetch<'w>,
+        C::Fetch<'w>,
+        D::Fetch<'w>,
+        E::Fetch<'w>,
+    );
+    fn matches_archetype(archetype: &Archetype) -> bool {
+        A::matches_archetype(archetype)
+            && B::matches_archetype(archetype)
+            && C::matches_archetype(archetype)
+            && D::matches_archetype(archetype)
+            && E::matches_archetype(archetype)
+    }
+    unsafe fn get_fetch<'w>(archetype: &'w Archetype) -> Self::Fetch<'w> {
+        (
+            A::get_fetch(archetype),
+            B::get_fetch(archetype),
+            C::get_fetch(archetype),
+            D::get_fetch(archetype),
+            E::get_fetch(archetype),
+        )
+    }
+    unsafe fn fetch<'w>(fetch: &mut Self::Fetch<'w>, index: usize) -> Self::Item<'w> {
+        (
+            A::fetch(&mut fetch.0, index),
+            B::fetch(&mut fetch.1, index),
+            C::fetch(&mut fetch.2, index),
+            D::fetch(&mut fetch.3, index),
+            E::fetch(&mut fetch.4, index),
+        )
+    }
+    fn component_ids() -> Vec<TypeId> {
+        let mut ids = A::component_ids();
+        ids.extend(B::component_ids());
+        ids.extend(C::component_ids());
+        ids.extend(D::component_ids());
+        ids.extend(E::component_ids());
+        ids
+    }
+    fn add_access(access: &mut SystemAccess) {
+        A::add_access(access);
+        B::add_access(access);
+        C::add_access(access);
+        D::add_access(access);
+        E::add_access(access);
+    }
+}

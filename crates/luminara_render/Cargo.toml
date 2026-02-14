@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+luminara_diagnostic = { path = "../luminara_diagnostic" }
 wgpu = "22"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3"

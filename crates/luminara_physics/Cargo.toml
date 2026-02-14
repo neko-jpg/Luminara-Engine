@@ -4,9 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+luminara_diagnostic = { path = "../luminara_diagnostic" }
 luminara_core = { path = "../luminara_core" }
 luminara_math = { path = "../luminara_math" }
 luminara_scene = { path = "../luminara_scene" }
+luminara_render = { path = "../luminara_render" }
+luminara_input = { path = "../luminara_input" }
+luminara_window = { path = "../luminara_window" }
 
 rapier3d = { version = "0.22", features = ["serde-serialize"] }
 rapier2d = { version = "0.22", features = ["serde-serialize"] }

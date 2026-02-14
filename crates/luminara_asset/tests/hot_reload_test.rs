@@ -116,6 +116,17 @@ fn test_asset_hot_reload_system_integration() {
 
     // Load the asset
     let handle: luminara_asset::Handle<TestAsset> = server.load("test.txt");
+
+    // Wait for async load
+    let start = std::time::Instant::now();
+    while server.load_state(handle.id()) == LoadState::Loading {
+        server.update();
+        if start.elapsed() > Duration::from_secs(2) {
+            panic!("Timeout waiting for asset load");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
     assert_eq!(server.load_state(handle.id()), LoadState::Loaded);
 
     // Verify initial content
@@ -144,9 +155,21 @@ fn test_asset_hot_reload_system_integration() {
         }
     }
 
+    // Wait for async reload
+    let start = std::time::Instant::now();
+    let mut reloaded = false;
+    while start.elapsed() < Duration::from_secs(2) {
+        server.update();
+        let asset = server.get(&handle).unwrap();
+        if asset.data == "modified content" {
+            reloaded = true;
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
     // Verify the asset was reloaded
-    let reloaded_asset = server.get(&handle).unwrap();
-    assert_eq!(reloaded_asset.data, "modified content");
+    assert!(reloaded, "Asset should be reloaded");
 
     // Cleanup
     fs::remove_dir_all(&temp_dir).unwrap();

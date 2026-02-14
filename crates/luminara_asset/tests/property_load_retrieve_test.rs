@@ -40,6 +40,17 @@ impl AssetLoader for TestAssetLoader {
     }
 }
 
+fn wait_for_load(server: &AssetServer, handle: &luminara_asset::Handle<TestAsset>) {
+    let start = std::time::Instant::now();
+    while server.load_state(handle.id()) == luminara_asset::LoadState::Loading {
+        server.update();
+        if start.elapsed() > std::time::Duration::from_secs(1) {
+            panic!("Timeout waiting for asset load");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
 /// Strategy to generate valid file names (no path traversal)
 fn valid_file_name_strategy() -> impl Strategy<Value = String> {
     prop::string::string_regex("[a-z0-9_]{3,15}").unwrap()
@@ -118,6 +129,8 @@ proptest! {
         let asset_path = format!("{}.{}", file_name, extension);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
 
+        wait_for_load(&server, &handle);
+
         // Verify asset is accessible via handle
         let loaded_asset = server.get(&handle);
         prop_assert!(loaded_asset.is_some(), "Asset should be accessible via handle");
@@ -162,6 +175,8 @@ proptest! {
             format!("{}/{}.{}", subdirs, file_name, extension)
         };
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+
+        wait_for_load(&server, &handle);
 
         // Verify asset is accessible
         let loaded_asset = server.get(&handle);
@@ -230,6 +245,8 @@ proptest! {
         let asset_path = format!("{}.{}", file_name, extension);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
 
+        wait_for_load(&server, &handle);
+
         // Check load state - should be Loaded after synchronous load
         let state = server.load_state(handle.id());
         prop_assert_eq!(state, LoadState::Loaded, "Asset should be in Loaded state after load completes");
@@ -272,6 +289,9 @@ proptest! {
         let asset_path2 = format!("{}.{}", file_name2, extension);
         let handle1: luminara_asset::Handle<TestAsset> = server.load(&asset_path1);
         let handle2: luminara_asset::Handle<TestAsset> = server.load(&asset_path2);
+
+        wait_for_load(&server, &handle1);
+        wait_for_load(&server, &handle2);
 
         // Verify handles are different
         prop_assert_ne!(handle1.id(), handle2.id(), "Different assets should have different handles");

@@ -13,11 +13,27 @@
 use log::info;
 use luminara::prelude::*;
 use luminara::scene::TypeRegistry;
+use luminara::asset::AssetServer;
+
+mod camera_controller;
+use camera_controller::{CameraController, camera_controller_system, setup_camera_input, CameraAction};
 
 fn main() {
     // Initialize the engine with all default plugins
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
+
+    // Setup input actions
+    app.add_startup_system::<ExclusiveMarker>(setup_camera_input);
+
+    // Add camera controller system
+    app.add_system::<(
+        luminara::core::system::FunctionMarker,
+        ResMut<'static, Input>,
+        Res<'static, luminara::input::ActionMap<CameraAction>>,
+        Res<'static, luminara::core::Time>,
+        Query<'static, (&mut Transform, &mut CameraController)>,
+    )>(CoreStage::Update, camera_controller_system);
 
     // Register component types for scene deserialization
     // This allows the scene loader to automatically deserialize these components
@@ -62,7 +78,9 @@ fn setup_demo(world: &mut World) {
 
             // Post-process: Attach resources that cannot be easily serialized in JSON/RON (like Meshes)
             // or require marker components not in the scene file.
-            attach_runtime_assets(world, &scene);
+            world.resource_scope::<AssetServer, _, _>(|world, asset_server| {
+                attach_runtime_assets(world, &scene, &asset_server);
+            });
 
             // Add background audio if available
             add_background_audio(world);
@@ -80,33 +98,38 @@ fn setup_demo(world: &mut World) {
             log::error!("Make sure assets/scenes/phase1_demo.scene.ron exists");
 
             // Fallback: Create a minimal scene manually
-            create_fallback_scene(world);
+            world.resource_scope::<AssetServer, _, _>(|world, asset_server| {
+                create_fallback_scene(world, &asset_server);
+            });
         }
     }
 }
 
 /// Attach runtime assets (Meshes) and markers that are not serialized
-fn attach_runtime_assets(world: &mut World, scene: &luminara::scene::Scene) {
+fn attach_runtime_assets(world: &mut World, scene: &luminara::scene::Scene, asset_server: &AssetServer) {
     use luminara::render::Mesh;
     use luminara::scene::find_entity_by_name;
 
     for entity_data in &scene.entities {
         if let Some(entity) = find_entity_by_name(world, &entity_data.name) {
-            // Add Camera3d marker if it has a Camera
+            // Add Camera3d marker and CameraController if it has a Camera
             if entity_data.components.contains_key("Camera") {
                 world.add_component(entity, Camera3d);
+                world.add_component(entity, CameraController::default());
             }
 
             // Add meshes based on entity name (since we don't have a Mesh asset loader from JSON yet)
             match entity_data.name.as_str() {
                 "Sphere" => {
                     let mesh = Mesh::sphere(0.5, 32);
-                    world.add_component(entity, mesh);
+                    let handle = asset_server.add(mesh);
+                    world.add_component(entity, handle);
                     info!("Added sphere mesh to {}", entity_data.name);
                 }
                 "Ground" => {
                     let mesh = Mesh::cube(1.0); // Will be scaled by transform
-                    world.add_component(entity, mesh);
+                    let handle = asset_server.add(mesh);
+                    world.add_component(entity, handle);
                     info!("Added cube mesh to {}", entity_data.name);
                 }
                 _ => {}
@@ -145,7 +168,7 @@ fn add_background_audio(world: &mut World) {
 }
 
 /// Fallback scene creation if the scene file cannot be loaded
-fn create_fallback_scene(world: &mut World) {
+fn create_fallback_scene(world: &mut World, asset_server: &AssetServer) {
     use luminara::render::Mesh;
 
     info!("Creating fallback scene...");
@@ -174,6 +197,7 @@ fn create_fallback_scene(world: &mut World) {
         },
     );
     world.add_component(camera, Camera3d);
+    world.add_component(camera, CameraController::default());
     world.add_component(camera, AudioListener::default());
 
     // Create a simple sphere to show something is working
@@ -187,7 +211,11 @@ fn create_fallback_scene(world: &mut World) {
             scale: Vec3::ONE,
         },
     );
-    world.add_component(sphere, Mesh::sphere(1.0, 32));
+
+    let mesh = Mesh::sphere(1.0, 32);
+    let handle = asset_server.add(mesh);
+    world.add_component(sphere, handle);
+
     world.add_component(
         sphere,
         luminara::render::PbrMaterial {

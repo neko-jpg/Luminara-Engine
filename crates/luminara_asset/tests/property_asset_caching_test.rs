@@ -52,6 +52,17 @@ impl AssetLoader for CountingAssetLoader {
     }
 }
 
+fn wait_for_load(server: &AssetServer, handle: &luminara_asset::Handle<TestAsset>) {
+    let start = std::time::Instant::now();
+    while server.load_state(handle.id()) == luminara_asset::LoadState::Loading {
+        server.update();
+        if start.elapsed() > std::time::Duration::from_secs(2) {
+            panic!("Timeout waiting for asset load");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
 /// Strategy to generate valid file names
 fn valid_file_name_strategy() -> impl Strategy<Value = String> {
     prop::string::string_regex("[a-z0-9_]{3,15}").unwrap()
@@ -105,6 +116,9 @@ proptest! {
             let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
             handles.push(handle);
         }
+
+        // Wait for load to complete (using first handle)
+        wait_for_load(&server, &handles[0]);
 
         // Verify the asset was processed only once
         let actual_load_count = load_count.load(Ordering::SeqCst);
@@ -164,10 +178,18 @@ proptest! {
         let asset_path1 = format!("{}.{}", file_name1, extension);
         let asset_path2 = format!("{}.{}", file_name2, extension);
 
+        let mut handle1 = None;
+        let mut handle2 = None;
+
         for _ in 0..num_loads {
-            let _: luminara_asset::Handle<TestAsset> = server.load(&asset_path1);
-            let _: luminara_asset::Handle<TestAsset> = server.load(&asset_path2);
+            let h1: luminara_asset::Handle<TestAsset> = server.load(&asset_path1);
+            let h2: luminara_asset::Handle<TestAsset> = server.load(&asset_path2);
+            if handle1.is_none() { handle1 = Some(h1); }
+            if handle2.is_none() { handle2 = Some(h2); }
         }
+
+        wait_for_load(&server, &handle1.unwrap());
+        wait_for_load(&server, &handle2.unwrap());
 
         // Verify both assets were processed exactly once each (total 2 times)
         let actual_load_count = load_count.load(Ordering::SeqCst);
@@ -207,6 +229,8 @@ proptest! {
         // Load the asset once
         let asset_path = format!("{}.{}", file_name, extension);
         let handle: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+
+        wait_for_load(&server, &handle);
 
         // Retrieve the asset multiple times
         let mut retrieved_data = Vec::new();
@@ -262,9 +286,13 @@ proptest! {
 
         // Load the asset multiple times with subdirectory path
         let asset_path = format!("{}/{}.{}", subdir, file_name, extension);
+        let mut handle = None;
         for _ in 0..num_loads {
-            let _: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+            let h: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+            if handle.is_none() { handle = Some(h); }
         }
+
+        wait_for_load(&server, &handle.unwrap());
 
         // Verify the asset was processed only once
         let actual_load_count = load_count.load(Ordering::SeqCst);
@@ -304,14 +332,17 @@ proptest! {
 
         // Load pattern: load, retrieve, load, retrieve, load
         let handle1: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+        wait_for_load(&server, &handle1);
         let asset1 = server.get(&handle1);
         prop_assert!(asset1.is_some());
 
         let handle2: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+        wait_for_load(&server, &handle2); // Should be instant
         let asset2 = server.get(&handle2);
         prop_assert!(asset2.is_some());
 
         let handle3: luminara_asset::Handle<TestAsset> = server.load(&asset_path);
+        wait_for_load(&server, &handle3); // Should be instant
         let asset3 = server.get(&handle3);
         prop_assert!(asset3.is_some());
 

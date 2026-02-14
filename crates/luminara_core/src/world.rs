@@ -284,6 +284,16 @@ impl World {
         self.resources.remove::<R>()
     }
 
+    pub fn resource_scope<R: Resource, F, U>(&mut self, f: F) -> U
+    where
+        F: FnOnce(&mut World, &mut R) -> U,
+    {
+        let mut resource = self.remove_resource::<R>().expect("Resource not found");
+        let result = f(self, &mut resource);
+        self.insert_resource(resource);
+        result
+    }
+
     pub fn add_event<E: Event>(&self, event: E) {
         self.get_events_mut::<E>().send(event);
     }
