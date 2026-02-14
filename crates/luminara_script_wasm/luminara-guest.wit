@@ -1,0 +1,17 @@
+default world luminara-guest {
+    import host: interface {
+        // Transform
+        get-position: func(entity: u64) -> tuple<float32, float32, float32>;
+        set-position: func(entity: u64, x: float32, y: float32, z: float32);
+
+        // Input
+        is-key-pressed: func(key: string) -> bool;
+
+        // World
+        spawn: func() -> u64;
+        despawn: func(entity: u64);
+
+        // Logging
+        log: func(msg: string);
+    }
+}

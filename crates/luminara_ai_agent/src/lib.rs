@@ -1,0 +1,25 @@
+pub mod context_engine;
+pub mod intent_resolver;
+pub mod sandbox;
+pub mod semantic_index;
+pub mod schema;
+pub mod static_analyzer;
+pub mod code_verifier;
+pub mod dry_run;
+pub mod timeline;
+pub mod performance;
+pub mod visual_feedback;
+pub mod orchestrator;
+
+pub use sandbox::{ScriptSandbox, SandboxConfig};
+pub use context_engine::AiContextEngine;
+pub use intent_resolver::IntentResolver;
+pub use semantic_index::SemanticIndex;
+pub use schema::SchemaDiscoveryService;
+pub use static_analyzer::{StaticAnalyzer, StaticIssue, IssueSeverity};
+pub use code_verifier::{CodeVerificationPipeline, VerificationResult};
+pub use dry_run::{DryRunner, RollbackManager, CodeApplicator, DiffPreview};
+pub use timeline::{OperationTimeline, Operation};
+pub use performance::{PerformanceAdvisor, PerformanceImpact, ImpactSeverity};
+pub use visual_feedback::{VisualFeedbackSystem, CaptureConfig, ImageFormat, AnnotationConfig};
+pub use orchestrator::{AgentOrchestrator, AgentRole, AgentMessage};

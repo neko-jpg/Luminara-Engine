@@ -2,20 +2,9 @@
 name = "luminara"
 version.workspace = true
 edition.workspace = true
-
-[features]
-default = ["core", "math", "window", "input", "asset", "render", "scene", "physics", "audio", "platform", "diagnostic"]
-core = ["dep:luminara_core"]
-math = ["dep:luminara_math"]
-window = ["dep:luminara_window"]
-input = ["dep:luminara_input"]
-asset = ["dep:luminara_asset"]
-render = ["dep:luminara_render"]
-scene = ["dep:luminara_scene"]
-physics = ["dep:luminara_physics"]
-audio = ["dep:luminara_audio"]
-platform = ["dep:luminara_platform"]
-diagnostic = ["dep:luminara_diagnostic"]
+authors.workspace = true
+license.workspace = true
+description = "Luminara Engine meta-crate"
 
 [dependencies]
 luminara_core = { workspace = true, optional = true }
@@ -29,4 +18,25 @@ luminara_physics = { workspace = true, optional = true }
 luminara_audio = { workspace = true, optional = true }
 luminara_platform = { workspace = true, optional = true }
 luminara_diagnostic = { workspace = true, optional = true }
+luminara_script = { workspace = true, optional = true }
+luminara_script_lua = { workspace = true, optional = true }
+luminara_script_wasm = { workspace = true, optional = true }
+luminara_ai_agent = { workspace = true, optional = true }
 
+[features]
+default = ["core", "math", "window", "input", "asset", "render", "scene", "physics", "audio", "platform", "diagnostic", "script", "script_lua", "script_wasm", "ai_agent"]
+core = ["dep:luminara_core"]
+math = ["dep:luminara_math"]
+window = ["dep:luminara_window"]
+input = ["dep:luminara_input"]
+asset = ["dep:luminara_asset"]
+render = ["dep:luminara_render"]
+scene = ["dep:luminara_scene"]
+physics = ["dep:luminara_physics"]
+audio = ["dep:luminara_audio"]
+platform = ["dep:luminara_platform"]
+diagnostic = ["dep:luminara_diagnostic"]
+script = ["dep:luminara_script"]
+script_lua = ["dep:luminara_script_lua"]
+script_wasm = ["dep:luminara_script_wasm"]
+ai_agent = ["dep:luminara_ai_agent"]

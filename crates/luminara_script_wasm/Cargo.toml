@@ -1,20 +1,21 @@
 [package]
-name = "luminara_cli"
+name = "luminara_script_wasm"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [dependencies]
+luminara_script = { path = "../luminara_script" }
 luminara_core = { workspace = true }
-luminara_ai_agent = { workspace = true }
-clap = { version = "4.4", features = ["derive"] }
-tokio = { version = "1.0", features = ["full"] }
+luminara_math = { workspace = true }
+luminara_input = { workspace = true }
+wasmtime = "18.0"
+thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-anyhow = "1.0"
 
 [dev-dependencies]
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
-tempfile = "3.10"
+wat = "1.0"

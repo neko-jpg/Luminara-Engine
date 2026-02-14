@@ -24,6 +24,11 @@ luminara_physics = { path = "crates/luminara_physics" }
 luminara_audio = { path = "crates/luminara_audio" }
 luminara_platform = { path = "crates/luminara_platform" }
 luminara_diagnostic = { path = "crates/luminara_diagnostic" }
+luminara_script = { path = "crates/luminara_script" }
+luminara_script_lua = { path = "crates/luminara_script_lua" }
+luminara_script_wasm = { path = "crates/luminara_script_wasm" }
+luminara_ai_agent = { path = "crates/luminara_ai_agent" }
+luminara_mcp_server = { path = "tools/luminara_mcp_server" }
 glam = "0.28"
 winit = "0.30"
 serde = { version = "1.0", features = ["derive"] }

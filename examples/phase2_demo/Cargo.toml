@@ -1,0 +1,8 @@
+[package]
+name = "phase2_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+luminara = { path = "../../crates/luminara", features = ["script_lua", "script_wasm", "ai_agent"] }
+luminara_core = { path = "../../crates/luminara_core" }
