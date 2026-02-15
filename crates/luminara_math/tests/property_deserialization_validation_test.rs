@@ -166,10 +166,8 @@ fn invalid_color() -> impl Strategy<Value = Color> {
         (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(|(r, g, a)| Color::rgba(r, g, 10.0, a)),
         (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(|(r, g, b)| Color::rgba(r, g, b, 5.0)),
         // Component < 0.0
-        (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0)
-            .prop_map(|(g, b, a)| Color::rgba(-0.5, g, b, a)),
-        (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0)
-            .prop_map(|(r, b, a)| Color::rgba(r, -1.0, b, a)),
+        (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(|(g, b, a)| Color::rgba(-0.5, g, b, a)),
+        (0.0f32..1.0, 0.0f32..1.0, 0.0f32..1.0).prop_map(|(r, b, a)| Color::rgba(r, -1.0, b, a)),
         // NaN in components
         Just(Color::rgba(f32::NAN, 0.5, 0.5, 1.0)),
         Just(Color::rgba(0.5, f32::NAN, 0.5, 1.0)),
@@ -388,16 +386,16 @@ proptest! {
     fn prop_invalid_transform_fails_ron_deserialization(transform in invalid_transform()) {
         // Serialize the invalid transform
         let ron_str = ron::to_string(&transform).unwrap();
-        
+
         // Attempt to deserialize with validation
         let result: Result<Transform, String> = from_ron_validated(&ron_str);
-        
+
         prop_assert!(
             result.is_err(),
             "Invalid Transform should fail RON deserialization with validation: {:?}",
             transform
         );
-        
+
         let err = result.unwrap_err();
         prop_assert!(err.contains("Validation error"), "Error should mention validation: {}", err);
     }
@@ -409,10 +407,10 @@ proptest! {
     fn prop_valid_transform_passes_ron_deserialization(transform in valid_transform()) {
         // Serialize the valid transform
         let ron_str = ron::to_string(&transform).unwrap();
-        
+
         // Attempt to deserialize with validation
         let result: Result<Transform, String> = from_ron_validated(&ron_str);
-        
+
         prop_assert!(
             result.is_ok(),
             "Valid Transform should pass RON deserialization with validation: {:?}, error: {:?}",
@@ -428,7 +426,7 @@ proptest! {
     fn prop_invalid_color_fails_ron_deserialization(color in invalid_color()) {
         let ron_str = ron::to_string(&color).unwrap();
         let result: Result<Color, String> = from_ron_validated(&ron_str);
-        
+
         prop_assert!(
             result.is_err(),
             "Invalid Color should fail RON deserialization with validation: {:?}",
@@ -443,7 +441,7 @@ proptest! {
     fn prop_valid_color_passes_ron_deserialization(color in valid_color()) {
         let ron_str = ron::to_string(&color).unwrap();
         let result: Result<Color, String> = from_ron_validated(&ron_str);
-        
+
         prop_assert!(
             result.is_ok(),
             "Valid Color should pass RON deserialization with validation: {:?}, error: {:?}",

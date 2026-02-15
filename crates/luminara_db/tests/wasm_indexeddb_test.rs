@@ -32,8 +32,7 @@ mod wasm_tests {
             .expect("Failed to initialize database");
 
         // Create an entity
-        let entity = EntityRecord::new(Some("TestEntity".to_string()))
-            .with_tag("test");
+        let entity = EntityRecord::new(Some("TestEntity".to_string())).with_tag("test");
 
         let entity_id = db
             .store_entity(entity.clone())
@@ -94,7 +93,10 @@ mod wasm_tests {
 
             // Verify the entity persisted
             let stats = db.get_statistics().await.expect("Failed to get statistics");
-            assert_eq!(stats.entity_count, 1, "Entity should persist across connections");
+            assert_eq!(
+                stats.entity_count, 1,
+                "Entity should persist across connections"
+            );
         }
     }
 
@@ -106,8 +108,7 @@ mod wasm_tests {
 
         // Store multiple entities
         for i in 0..5 {
-            let entity = EntityRecord::new(Some(format!("Entity{}", i)))
-                .with_tag("queryable");
+            let entity = EntityRecord::new(Some(format!("Entity{}", i))).with_tag("queryable");
             db.store_entity(entity)
                 .await
                 .expect("Failed to store entity");
@@ -133,9 +134,18 @@ mod wasm_tests {
         let entity2 = EntityRecord::new(Some("Entity2".to_string()));
         let entity3 = EntityRecord::new(Some("Entity3".to_string()));
 
-        let id1 = db.store_entity(entity1).await.expect("Failed to store entity1");
-        let id2 = db.store_entity(entity2).await.expect("Failed to store entity2");
-        let id3 = db.store_entity(entity3).await.expect("Failed to store entity3");
+        let id1 = db
+            .store_entity(entity1)
+            .await
+            .expect("Failed to store entity1");
+        let id2 = db
+            .store_entity(entity2)
+            .await
+            .expect("Failed to store entity2");
+        let id3 = db
+            .store_entity(entity3)
+            .await
+            .expect("Failed to store entity3");
 
         // Load all entities concurrently
         let loaded1 = db.load_entity(&id1).await.expect("Failed to load entity1");

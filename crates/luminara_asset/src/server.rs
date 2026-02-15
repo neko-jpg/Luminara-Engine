@@ -38,7 +38,7 @@ struct LoadRequest {
     path: PathBuf,
     id: AssetId,
     expected_type: TypeId,
-    extension: String,
+    _extension: String,
     loader: Arc<dyn ErasedAssetLoader>,
 }
 
@@ -176,7 +176,7 @@ impl AssetServer {
                 path: full_path,
                 id,
                 expected_type: TypeId::of::<T>(),
-                extension,
+                _extension: extension,
                 loader,
             });
         } else {

@@ -160,8 +160,8 @@ impl RonMigrationTool {
         id_map: &mut HashMap<u64, surrealdb::RecordId>,
     ) -> DbResult<(surrealdb::RecordId, usize)> {
         // Create entity record
-        let entity = EntityRecord::new(Some(entity_data.name.clone()))
-            .with_tags(entity_data.tags.clone());
+        let entity =
+            EntityRecord::new(Some(entity_data.name.clone())).with_tags(entity_data.tags.clone());
 
         // Store entity
         let entity_id = self.db.store_entity(entity).await?;
@@ -188,9 +188,8 @@ impl RonMigrationTool {
 
         // Recursively migrate children
         for child_data in &entity_data.children {
-            let (_, child_component_count) = self
-                .migrate_entity_first_pass(child_data, id_map)
-                .await?;
+            let (_, child_component_count) =
+                self.migrate_entity_first_pass(child_data, id_map).await?;
             component_count += child_component_count;
         }
 
@@ -256,10 +255,7 @@ impl RonMigrationTool {
     /// # Returns
     ///
     /// Combined migration statistics
-    pub async fn migrate_batch(
-        &self,
-        paths: &[impl AsRef<Path>],
-    ) -> DbResult<MigrationStatistics> {
+    pub async fn migrate_batch(&self, paths: &[impl AsRef<Path>]) -> DbResult<MigrationStatistics> {
         let start = std::time::Instant::now();
 
         let mut total_entities = 0;

@@ -5,7 +5,6 @@
 ///
 /// **Validates: Requirement 9.5**
 /// - WHEN commands affect multiple entities, THE System SHALL ensure atomic execution (all or nothing)
-
 use luminara_core::{
     AddComponentCommand, AtomicCommand, CommandHistory, Component, ModifyComponentCommand,
     RemoveComponentCommand, SpawnEntityCommand, UndoCommand, World,
@@ -51,7 +50,7 @@ impl Component for Health {
 fn test_requirement_9_5_atomic_execution_all_succeed() {
     // Requirement 9.5: WHEN commands affect multiple entities,
     // THE System SHALL ensure atomic execution (all or nothing)
-    
+
     let mut world = World::new();
     let mut history = CommandHistory::new(10);
 
@@ -98,7 +97,7 @@ fn test_requirement_9_5_atomic_execution_partial_failure() {
     // Requirement 9.5: WHEN commands affect multiple entities,
     // THE System SHALL ensure atomic execution (all or nothing)
     // This test verifies the "nothing" part - if one fails, all rollback
-    
+
     let mut world = World::new();
 
     // Create entities
@@ -413,16 +412,16 @@ fn test_atomic_command_spawn_and_configure() {
 
     // Create atomic command that spawns and configures entities
     let mut atomic_cmd = AtomicCommand::new("Spawn configured entities");
-    
+
     // Spawn first entity
     atomic_cmd.add_command(Box::new(SpawnEntityCommand::new()));
-    
+
     // Note: In a real implementation, we'd need a way to reference the just-spawned entity
     // For this test, we'll spawn entities first, then configure them
-    
+
     let entity1 = world.spawn();
     let entity2 = world.spawn();
-    
+
     let mut config_cmd = AtomicCommand::new("Configure spawned entities");
     config_cmd.add_command(Box::new(AddComponentCommand::new(
         entity1,
@@ -462,11 +461,11 @@ fn test_atomic_command_spawn_and_configure() {
 #[test]
 fn test_atomic_command_description() {
     let mut atomic_cmd = AtomicCommand::new("Test operation");
-    
+
     // Empty command
     assert!(atomic_cmd.description().contains("Test operation"));
     assert!(atomic_cmd.description().contains("empty"));
-    
+
     // Add commands
     let mut world = World::new();
     let entity = world.spawn();
@@ -478,7 +477,7 @@ fn test_atomic_command_description() {
         entity,
         Velocity { x: 0.0, y: 0.0 },
     )));
-    
+
     assert!(atomic_cmd.description().contains("Test operation"));
     assert!(atomic_cmd.description().contains("2 operations"));
 }

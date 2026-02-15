@@ -1,6 +1,6 @@
 use luminara_core::Entity;
-use serde::{Deserialize, Serialize};
 use luminara_reflect_derive::Reflect;
+use serde::{Deserialize, Serialize};
 
 /// Handle to an audio clip asset
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

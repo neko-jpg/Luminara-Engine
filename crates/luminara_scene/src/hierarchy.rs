@@ -52,19 +52,19 @@ pub fn set_parent(world: &mut World, child: Entity, parent: Entity) {
     }
 
     // Set new parent
-    world.add_component(child, Parent(parent));
+    let _ = world.add_component(child, Parent(parent));
 
     // Add to new parent's children
     if let Some(children) = world.get_component_mut::<Children>(parent) {
         children.0.push(child);
     } else {
-        world.add_component(parent, Children(vec![child]));
+        let _ = world.add_component(parent, Children(vec![child]));
     }
 }
 
 pub fn remove_parent(world: &mut World, child: Entity) {
     if let Ok(Some(parent)) = world.remove_component::<Parent>(child) {
-        if let Some(mut children) = world.get_component_mut::<Children>(parent.0) {
+        if let Some(children) = world.get_component_mut::<Children>(parent.0) {
             children.0.retain(|&e| e != child);
         }
     }
@@ -92,7 +92,7 @@ pub fn transform_propagate_system(world: &mut World) {
     // Process each root hierarchy using breadth-first traversal
     for root in roots {
         let root_transform = *world.get_component::<Transform>(root).unwrap();
-        world.add_component(root, GlobalTransform(root_transform));
+        let _ = world.add_component(root, GlobalTransform(root_transform));
 
         // Queue for breadth-first traversal: (entity, parent_global_matrix)
         let mut queue = VecDeque::new();
@@ -120,7 +120,7 @@ pub fn transform_propagate_system(world: &mut World) {
                     scale,
                 };
 
-                world.add_component(entity, GlobalTransform(global_transform));
+                let _ = world.add_component(entity, GlobalTransform(global_transform));
 
                 // Add this entity's children to the queue
                 if let Some(children) = world.get_component::<Children>(entity) {

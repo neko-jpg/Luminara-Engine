@@ -74,7 +74,11 @@ impl Reflect for Material {
         }
     }
 
-    fn set_field(&mut self, name: &str, value: Box<dyn Reflect>) -> Result<(), luminara_core::ReflectError> {
+    fn set_field(
+        &mut self,
+        name: &str,
+        value: Box<dyn Reflect>,
+    ) -> Result<(), luminara_core::ReflectError> {
         match name {
             "name" => {
                 if let Some(v) = value.as_any().downcast_ref::<String>() {
@@ -118,7 +122,10 @@ impl Reflect for Material {
         })
     }
 
-    fn deserialize_json(&mut self, value: &serde_json::Value) -> Result<(), luminara_core::ReflectError> {
+    fn deserialize_json(
+        &mut self,
+        value: &serde_json::Value,
+    ) -> Result<(), luminara_core::ReflectError> {
         if let serde_json::Value::Object(map) = value {
             if let Some(name) = map.get("name").and_then(|v| v.as_str()) {
                 self.name = name.to_string();

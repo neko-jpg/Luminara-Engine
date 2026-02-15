@@ -1,7 +1,7 @@
 use luminara_core::{Component, Entity};
 use luminara_math::{Transform, Vec3};
-use serde::{Deserialize, Serialize};
 use luminara_reflect_derive::Reflect;
+use serde::{Deserialize, Serialize};
 
 /// Component to store the previous frame's transform for interpolation
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]

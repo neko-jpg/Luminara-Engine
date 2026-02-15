@@ -9,8 +9,8 @@ use crate::error::{DbError, DbResult};
 use crate::schema::OperationRecord;
 use crate::LuminaraDatabase;
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
 use std::time::{SystemTime, UNIX_EPOCH};
+use surrealdb::RecordId;
 
 /// Operation timeline manager
 ///
@@ -211,9 +211,10 @@ impl OperationTimeline {
                     .load_operation_history(1, Some(&self.current_branch))
                     .await?;
 
-                return Ok(operations.into_iter().next().and_then(|op| {
-                    op.id.clone().map(|id| (id, op))
-                }));
+                return Ok(operations
+                    .into_iter()
+                    .next()
+                    .and_then(|op| op.id.clone().map(|id| (id, op))));
             }
         };
 
@@ -226,9 +227,10 @@ impl OperationTimeline {
         let mut result = self.db.execute_query(&query).await?;
         let operations: Vec<OperationRecord> = result.take(0)?;
 
-        Ok(operations.into_iter().next().and_then(|op| {
-            op.id.clone().map(|id| (id, op))
-        }))
+        Ok(operations
+            .into_iter()
+            .next()
+            .and_then(|op| op.id.clone().map(|id| (id, op))))
     }
 
     /// Get operation history for the current branch
@@ -334,7 +336,10 @@ impl OperationTimeline {
     /// * `branch_name` - Name of the branch
     pub async fn get_branch_info(&self, branch_name: &str) -> DbResult<Option<BranchInfo>> {
         // Query operations in this branch
-        let operations = self.db.load_operation_history(1000, Some(branch_name)).await?;
+        let operations = self
+            .db
+            .load_operation_history(1000, Some(branch_name))
+            .await?;
 
         if operations.is_empty() {
             return Ok(None);
@@ -344,10 +349,7 @@ impl OperationTimeline {
         let head = operations.first().and_then(|op| op.id.clone());
 
         // Find creation time (oldest operation)
-        let created_at = operations
-            .last()
-            .map(|op| op.timestamp)
-            .unwrap_or(0);
+        let created_at = operations.last().map(|op| op.timestamp).unwrap_or(0);
 
         Ok(Some(BranchInfo {
             name: branch_name.to_string(),
@@ -513,7 +515,10 @@ impl OperationTimeline {
             ));
         }
 
-        let operations = self.db.load_operation_history(10000, Some(branch_name)).await?;
+        let operations = self
+            .db
+            .load_operation_history(10000, Some(branch_name))
+            .await?;
 
         for operation in operations {
             if let Some(op_id) = operation.id {

@@ -76,28 +76,16 @@ impl LuminaraDatabase {
     /// Initialize database schema
     async fn init_schema(db: &Surreal<Db>) -> DbResult<()> {
         // Define entity table
-        db.query(
-            "DEFINE TABLE entity SCHEMALESS;",
-        )
-        .await?;
+        db.query("DEFINE TABLE entity SCHEMALESS;").await?;
 
         // Define component table
-        db.query(
-            "DEFINE TABLE component SCHEMALESS;",
-        )
-        .await?;
+        db.query("DEFINE TABLE component SCHEMALESS;").await?;
 
         // Define asset table
-        db.query(
-            "DEFINE TABLE asset SCHEMALESS;",
-        )
-        .await?;
+        db.query("DEFINE TABLE asset SCHEMALESS;").await?;
 
         // Define operation table
-        db.query(
-            "DEFINE TABLE operation SCHEMALESS;",
-        )
-        .await?;
+        db.query("DEFINE TABLE operation SCHEMALESS;").await?;
 
         Ok(())
     }
@@ -156,10 +144,7 @@ impl LuminaraDatabase {
         let entity = self.load_entity(id).await?;
 
         // Load components by querying component table
-        let query = format!(
-            "SELECT * FROM component WHERE entity = {}",
-            id
-        );
+        let query = format!("SELECT * FROM component WHERE entity = {}", id);
         let mut result = self.db.query(&query).await?;
         let components: Vec<ComponentRecord> = result.take(0)?;
 
@@ -284,7 +269,7 @@ impl LuminaraDatabase {
         // Then, load the entities for those components
         let mut entities = Vec::new();
         let mut seen_ids = std::collections::HashSet::new();
-        
+
         for component in components {
             if seen_ids.insert(component.entity.clone()) {
                 if let Ok(entity) = self.load_entity(&component.entity).await {
@@ -319,23 +304,26 @@ impl LuminaraDatabase {
     fn find_entity_descendants_recursive<'a>(
         &'a self,
         id: &'a RecordId,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DbResult<Vec<EntityRecord>>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DbResult<Vec<EntityRecord>>> + Send + 'a>>
+    {
         Box::pin(async move {
             // Load entity and recursively collect all descendants
             let entity = self.load_entity(id).await?;
             let mut descendants = Vec::new();
-            
+
             // Collect immediate children
             for child_id in &entity.children {
                 if let Ok(child) = self.load_entity(child_id).await {
                     descendants.push(child.clone());
                     // Recursively get descendants of this child
-                    if let Ok(child_descendants) = self.find_entity_descendants_recursive(child_id).await {
+                    if let Ok(child_descendants) =
+                        self.find_entity_descendants_recursive(child_id).await
+                    {
                         descendants.extend(child_descendants);
                     }
                 }
             }
-            
+
             Ok(descendants)
         })
     }
@@ -363,23 +351,26 @@ impl LuminaraDatabase {
     fn find_entity_ancestors_recursive<'a>(
         &'a self,
         id: &'a RecordId,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DbResult<Vec<EntityRecord>>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = DbResult<Vec<EntityRecord>>> + Send + 'a>>
+    {
         Box::pin(async move {
             // Load entity and recursively collect all ancestors
             let entity = self.load_entity(id).await?;
             let mut ancestors = Vec::new();
-            
+
             // Collect parent and its ancestors
             if let Some(parent_id) = &entity.parent {
                 if let Ok(parent) = self.load_entity(parent_id).await {
                     ancestors.push(parent.clone());
                     // Recursively get ancestors of this parent
-                    if let Ok(parent_ancestors) = self.find_entity_ancestors_recursive(parent_id).await {
+                    if let Ok(parent_ancestors) =
+                        self.find_entity_ancestors_recursive(parent_id).await
+                    {
                         ancestors.extend(parent_ancestors);
                     }
                 }
             }
-            
+
             Ok(ancestors)
         })
     }
@@ -418,7 +409,8 @@ impl LuminaraDatabase {
 
     /// Store a component to the database
     pub async fn store_component(&self, component: ComponentRecord) -> DbResult<RecordId> {
-        let result: Option<ComponentRecord> = self.db.create("component").content(component).await?;
+        let result: Option<ComponentRecord> =
+            self.db.create("component").content(component).await?;
 
         result
             .and_then(|c| c.id)
@@ -433,7 +425,11 @@ impl LuminaraDatabase {
     }
 
     /// Update a component in the database
-    pub async fn update_component(&self, id: &RecordId, component: ComponentRecord) -> DbResult<()> {
+    pub async fn update_component(
+        &self,
+        id: &RecordId,
+        component: ComponentRecord,
+    ) -> DbResult<()> {
         let _: Option<ComponentRecord> = self.db.update(id.clone()).content(component).await?;
         Ok(())
     }
@@ -511,7 +507,7 @@ impl LuminaraDatabase {
     pub async fn find_asset_dependencies(&self, asset_id: &RecordId) -> DbResult<Vec<AssetRecord>> {
         // Load the asset
         let asset = self.load_asset(asset_id).await?;
-        
+
         // Load all direct dependencies
         let mut dependencies = Vec::new();
         for dep_id in &asset.dependencies {
@@ -519,7 +515,7 @@ impl LuminaraDatabase {
                 dependencies.push(dep);
             }
         }
-        
+
         Ok(dependencies)
     }
 
@@ -560,7 +556,7 @@ impl LuminaraDatabase {
                 for dep_id in &asset.dependencies {
                     if !visited.contains(dep_id) {
                         to_visit.push(dep_id.clone());
-                        
+
                         // Load and add to results
                         if let Ok(dep) = self.load_asset(dep_id).await {
                             all_dependencies.push(dep);
@@ -591,10 +587,7 @@ impl LuminaraDatabase {
     /// ```
     pub async fn find_asset_dependents(&self, asset_id: &RecordId) -> DbResult<Vec<AssetRecord>> {
         // Query all assets that have this asset in their dependencies
-        let query = format!(
-            "SELECT * FROM asset WHERE {} IN dependencies",
-            asset_id
-        );
+        let query = format!("SELECT * FROM asset WHERE {} IN dependencies", asset_id);
         let mut result = self.db.query(&query).await?;
         let dependents: Vec<AssetRecord> = result.take(0)?;
         Ok(dependents)
@@ -624,22 +617,19 @@ impl LuminaraDatabase {
     ) -> DbResult<Vec<AssetRecord>> {
         // Find all entities in the scene (descendants)
         let entities = self.find_entity_descendants(scene_id).await?;
-        
+
         // Collect all unique assets of the specified type
         let mut assets = Vec::new();
         let mut seen_ids = std::collections::HashSet::new();
-        
+
         // For each entity, find components that reference assets
         for entity in entities {
             if let Some(entity_id) = &entity.id {
                 // Load components
-                let query = format!(
-                    "SELECT * FROM component WHERE entity = {}",
-                    entity_id
-                );
+                let query = format!("SELECT * FROM component WHERE entity = {}", entity_id);
                 let mut result = self.db.query(&query).await?;
                 let components: Vec<ComponentRecord> = result.take(0)?;
-                
+
                 // Extract asset references from component data
                 for component in components {
                     if let Some(asset_refs) = self.extract_asset_references(&component.data) {
@@ -656,7 +646,7 @@ impl LuminaraDatabase {
                 }
             }
         }
-        
+
         Ok(assets)
     }
 
@@ -683,16 +673,16 @@ impl LuminaraDatabase {
     ) -> DbResult<Vec<AssetRecord>> {
         // Find all materials in the scene
         let materials = self.find_assets_in_scene(scene_id, "Material").await?;
-        
+
         // For each material, find texture dependencies
         let mut textures = Vec::new();
         let mut seen_ids = std::collections::HashSet::new();
-        
+
         for material in materials {
             if let Some(material_id) = &material.id {
                 // Find dependencies of this material
                 let deps = self.find_asset_dependencies(material_id).await?;
-                
+
                 // Filter for textures
                 for dep in deps {
                     if dep.asset_type == "Texture" {
@@ -705,7 +695,7 @@ impl LuminaraDatabase {
                 }
             }
         }
-        
+
         Ok(textures)
     }
 
@@ -733,10 +723,10 @@ impl LuminaraDatabase {
     /// that point to assets.
     fn extract_asset_references(&self, data: &serde_json::Value) -> Option<Vec<RecordId>> {
         let mut refs = Vec::new();
-        
+
         // Recursively search for asset references in the JSON data
         self.extract_asset_references_recursive(data, &mut refs);
-        
+
         if refs.is_empty() {
             None
         } else {
@@ -758,7 +748,7 @@ impl LuminaraDatabase {
                         refs.push(record_id);
                     }
                 }
-                
+
                 // Recursively check all values
                 for val in map.values() {
                     self.extract_asset_references_recursive(val, refs);
@@ -777,7 +767,8 @@ impl LuminaraDatabase {
 
     /// Store an operation to the timeline
     pub async fn store_operation(&self, operation: OperationRecord) -> DbResult<RecordId> {
-        let result: Option<OperationRecord> = self.db.create("operation").content(operation).await?;
+        let result: Option<OperationRecord> =
+            self.db.create("operation").content(operation).await?;
 
         result
             .and_then(|o| o.id)

@@ -3,9 +3,7 @@
 //! These tests verify that the WorldSync system correctly syncs entities and components
 //! to the database with minimal latency.
 
-use luminara_db::{
-    ComponentRecord, EntityRecord, LuminaraDatabase, WorldSync,
-};
+use luminara_db::{ComponentRecord, EntityRecord, LuminaraDatabase, WorldSync};
 use serde_json::json;
 
 #[tokio::test]
@@ -54,9 +52,7 @@ async fn test_sync_entity_with_components() {
         .unwrap();
 
     // Verify component was created
-    let component_mapping = sync
-        .get_component_record_id(entity_id, "Transform")
-        .await;
+    let component_mapping = sync.get_component_record_id(entity_id, "Transform").await;
     assert!(component_mapping.is_some());
     assert_eq!(component_mapping.unwrap(), comp_id);
 }
@@ -70,7 +66,11 @@ async fn test_update_existing_entity() {
 
     // Sync entity first time
     let record_id1 = sync
-        .sync_entity(entity_id, Some("Player".to_string()), vec!["player".to_string()])
+        .sync_entity(
+            entity_id,
+            Some("Player".to_string()),
+            vec!["player".to_string()],
+        )
         .await
         .unwrap();
 
@@ -189,7 +189,7 @@ async fn test_sync_latency_target() {
     // Verify sync completed within target (16ms)
     // Note: This is a soft target, actual performance depends on hardware
     println!("Sync took {:.2}ms", result.duration_ms);
-    
+
     // Check if exceeded target flag is set correctly
     if result.duration_ms > 16.0 {
         assert!(result.exceeded_target);

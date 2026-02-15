@@ -124,7 +124,7 @@ unsafe impl<T: ?Sized> Send for PhantomDataSend<T> {}
 unsafe impl<T: ?Sized> Sync for PhantomDataSend<T> {}
 impl<T: ?Sized> Clone for PhantomDataSend<T> {
     fn clone(&self) -> Self {
-        Self(PhantomData)
+        *self
     }
 }
 impl<T: ?Sized> Copy for PhantomDataSend<T> {}

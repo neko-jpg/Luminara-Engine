@@ -571,7 +571,9 @@ fn test_registry_provides_metadata_for_all_components() {
 
         let type_info = type_info.unwrap();
         assert!(!type_info.type_name.is_empty());
-        assert!(type_info.type_name.contains(type_name.split("::").last().unwrap()));
+        assert!(type_info
+            .type_name
+            .contains(type_name.split("::").last().unwrap()));
     }
 }
 

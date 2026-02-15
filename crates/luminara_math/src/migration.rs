@@ -149,23 +149,24 @@ where
     T: for<'de> Deserialize<'de> + Migratable,
 {
     // First, try to parse as versioned data
-    let ron_value: ron::Value = ron::from_str(s)
-        .map_err(|e| format!("RON parse error: {}", e))?;
-    
+    let ron_value: ron::Value = ron::from_str(s).map_err(|e| format!("RON parse error: {}", e))?;
+
     let rust_value: serde_json::Value = ron_value
         .into_rust()
         .map_err(|e| format!("RON conversion error: {}", e))?;
-    
+
     let value = rust_value;
 
     // Check if version field exists
     if let Some(version_value) = value.get("version") {
         let version = version_value
             .as_u64()
-            .ok_or_else(|| "Version field must be a number".to_string())? as u32;
+            .ok_or_else(|| "Version field must be a number".to_string())?
+            as u32;
 
         // Get the data field
-        let data = value.get("data")
+        let data = value
+            .get("data")
             .ok_or_else(|| "Missing 'data' field in versioned format".to_string())?;
 
         if version == CURRENT_VERSION {
@@ -233,15 +234,15 @@ where
     T: Serialize,
 {
     let mut result = Vec::new();
-    
+
     // Write version as first 4 bytes
     result.extend_from_slice(&CURRENT_VERSION.to_le_bytes());
-    
+
     // Write data
     let data_bytes =
         bincode::serialize(value).map_err(|e| format!("Binary serialization error: {}", e))?;
     result.extend_from_slice(&data_bytes);
-    
+
     Ok(result)
 }
 
@@ -397,14 +398,14 @@ impl fmt::Display for BatchMigrationResult {
         writeln!(f, "  Succeeded: {}", self.succeeded)?;
         writeln!(f, "  Failed: {}", self.failed)?;
         writeln!(f, "  Success Rate: {:.1}%", self.success_rate() * 100.0)?;
-        
+
         if !self.errors.is_empty() {
             writeln!(f, "\nErrors:")?;
             for (name, error) in &self.errors {
                 writeln!(f, "  {}: {}", name, error)?;
             }
         }
-        
+
         Ok(())
     }
 }

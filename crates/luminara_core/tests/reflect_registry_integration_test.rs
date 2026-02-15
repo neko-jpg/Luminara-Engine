@@ -47,7 +47,11 @@ fn test_registry_provides_complete_schema_information() {
     assert_eq!(position_info.kind, TypeKind::Struct);
     assert_eq!(position_info.fields.len(), 3);
 
-    let field_names: Vec<_> = position_info.fields.iter().map(|f| f.name.as_str()).collect();
+    let field_names: Vec<_> = position_info
+        .fields
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
     assert!(field_names.contains(&"x"));
     assert!(field_names.contains(&"y"));
     assert!(field_names.contains(&"z"));
@@ -55,8 +59,14 @@ fn test_registry_provides_complete_schema_information() {
     // Verify all fields have type information
     for field in &position_info.fields {
         assert!(!field.name.is_empty(), "Field name should not be empty");
-        assert!(!field.type_name.is_empty(), "Field type name should not be empty");
-        assert!(field.type_name.contains("f32"), "Position fields should be f32");
+        assert!(
+            !field.type_name.is_empty(),
+            "Field type name should not be empty"
+        );
+        assert!(
+            field.type_name.contains("f32"),
+            "Position fields should be f32"
+        );
     }
 
     // Verify Velocity component schema
@@ -134,12 +144,20 @@ fn test_type_lookup_by_name() {
     registry.register::<Health>();
 
     // Lookup by exact name
-    assert!(registry.get_type_info_by_name("luminara_core::Position").is_some());
-    assert!(registry.get_type_info_by_name("luminara_core::Velocity").is_some());
-    assert!(registry.get_type_info_by_name("luminara_core::Health").is_some());
+    assert!(registry
+        .get_type_info_by_name("luminara_core::Position")
+        .is_some());
+    assert!(registry
+        .get_type_info_by_name("luminara_core::Velocity")
+        .is_some());
+    assert!(registry
+        .get_type_info_by_name("luminara_core::Health")
+        .is_some());
 
     // Lookup non-existent type
-    assert!(registry.get_type_info_by_name("luminara_core::NonExistent").is_none());
+    assert!(registry
+        .get_type_info_by_name("luminara_core::NonExistent")
+        .is_none());
 
     // Verify all registered type names are accessible
     let type_names: Vec<_> = registry.type_names().collect();
@@ -162,16 +180,22 @@ fn test_registry_metadata_completeness() {
         .expect("Position should be registered");
 
     // Verify TypeInfo completeness
-    assert!(!type_info.type_name.is_empty(), "Type name should not be empty");
+    assert!(
+        !type_info.type_name.is_empty(),
+        "Type name should not be empty"
+    );
     assert_eq!(type_info.kind, TypeKind::Struct, "Should be struct type");
     assert!(!type_info.fields.is_empty(), "Should have fields");
 
     // Verify FieldInfo completeness for each field
     for field in &type_info.fields {
         assert!(!field.name.is_empty(), "Field name should not be empty");
-        assert!(!field.type_name.is_empty(), "Field type name should not be empty");
+        assert!(
+            !field.type_name.is_empty(),
+            "Field type name should not be empty"
+        );
         // TypeId is always valid (non-zero)
-        
+
         // Verify field is accessible through reflection
         let instance = registry.construct("luminara_core::Position").unwrap();
         let field_value = instance.field(&field.name);
@@ -190,7 +214,9 @@ fn test_registry_empty_state() {
 
     assert_eq!(registry.len(), 0);
     assert!(registry.is_empty());
-    assert!(registry.get_type_info_by_name("luminara_core::Position").is_none());
+    assert!(registry
+        .get_type_info_by_name("luminara_core::Position")
+        .is_none());
     assert!(registry.construct("luminara_core::Position").is_none());
 }
 

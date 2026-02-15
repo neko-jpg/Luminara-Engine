@@ -174,10 +174,7 @@ fn test_requirement_9_2_record_sufficient_state_for_undo() {
     history.execute(cmd, &mut world).unwrap();
 
     // Verify component was added
-    assert_eq!(
-        world.get_component::<Position>(entity),
-        Some(&initial_pos)
-    );
+    assert_eq!(world.get_component::<Position>(entity), Some(&initial_pos));
 
     // Undo the command
     history.undo(&mut world).unwrap();
@@ -189,10 +186,7 @@ fn test_requirement_9_2_record_sufficient_state_for_undo() {
     history.redo(&mut world).unwrap();
 
     // Verify component was re-added
-    assert_eq!(
-        world.get_component::<Position>(entity),
-        Some(&initial_pos)
-    );
+    assert_eq!(world.get_component::<Position>(entity), Some(&initial_pos));
 }
 
 #[test]
@@ -330,10 +324,7 @@ fn test_modify_component_command_state_preservation() {
     history.undo(&mut world).unwrap();
 
     // Verify original state restored
-    assert_eq!(
-        world.get_component::<Position>(entity),
-        Some(&initial_pos)
-    );
+    assert_eq!(world.get_component::<Position>(entity), Some(&initial_pos));
 
     // Redo modification
     history.redo(&mut world).unwrap();

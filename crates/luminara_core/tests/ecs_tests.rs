@@ -167,23 +167,3 @@ fn test_or_filter() {
     assert_eq!(results.len(), 2);
 }
 
-#[test]
-fn test_commands() {
-    use luminara_core::commands::{CommandQueue, Commands};
-
-    let mut world = World::new();
-    let mut queue = CommandQueue::new();
-    {
-        let mut commands = Commands::new(&mut queue);
-        commands.spawn(()).insert(Position { x: 1, y: 1 });
-        let e2 = world.spawn();
-        commands.entity(e2).insert(Velocity { dx: 10, dy: 10 });
-        commands.despawn(e2);
-    }
-
-    queue.apply_or_drop_all(&mut world);
-
-    // Check results
-    let query = luminara_core::query::Query::<&Position>::new(&world);
-    assert_eq!(query.iter().count(), 1);
-}

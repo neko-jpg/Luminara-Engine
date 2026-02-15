@@ -4,7 +4,7 @@ use luminara_math::Transform;
 use luminara_scene::*;
 
 /// Test that entity hierarchies are correctly serialized and deserialized
-/// 
+///
 /// Requirements: 8.5 - Preserve parent-child relationships
 #[test]
 fn test_hierarchy_serialization_preserves_relationships() {
@@ -18,12 +18,18 @@ fn test_hierarchy_serialization_preserves_relationships() {
 
     let child1 = world.spawn();
     world.add_component(child1, Name::new("Child1"));
-    world.add_component(child1, Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)));
+    world.add_component(
+        child1,
+        Transform::from_translation(Vec3::new(1.0, 0.0, 0.0)),
+    );
     set_parent(&mut world, child1, root);
 
     let child2 = world.spawn();
     world.add_component(child2, Name::new("Child2"));
-    world.add_component(child2, Transform::from_translation(Vec3::new(-1.0, 0.0, 0.0)));
+    world.add_component(
+        child2,
+        Transform::from_translation(Vec3::new(-1.0, 0.0, 0.0)),
+    );
     set_parent(&mut world, child2, root);
 
     let grandchild = world.spawn();
@@ -90,7 +96,7 @@ fn test_hierarchy_serialization_preserves_relationships() {
 }
 
 /// Test that entity references are correctly handled during serialization
-/// 
+///
 /// Requirements: 8.5 - Handle entity references correctly
 #[test]
 fn test_entity_reference_handling() {
@@ -131,14 +137,8 @@ fn test_entity_reference_handling() {
     let new_e3 = find_entity_by_name(&new_world, "Entity3").unwrap();
 
     // Verify parent-child relationships are correct
-    assert_eq!(
-        new_world.get_component::<Parent>(new_e2).unwrap().0,
-        new_e1
-    );
-    assert_eq!(
-        new_world.get_component::<Parent>(new_e3).unwrap().0,
-        new_e1
-    );
+    assert_eq!(new_world.get_component::<Parent>(new_e2).unwrap().0, new_e1);
+    assert_eq!(new_world.get_component::<Parent>(new_e3).unwrap().0, new_e1);
 
     let children = new_world.get_component::<Children>(new_e1).unwrap();
     assert_eq!(children.0.len(), 2);
@@ -147,7 +147,7 @@ fn test_entity_reference_handling() {
 }
 
 /// Test partial loading of entities by name
-/// 
+///
 /// Requirements: 8.7 - Support partial loading
 #[test]
 fn test_partial_loading_by_name() {
@@ -190,7 +190,7 @@ fn test_partial_loading_by_name() {
 }
 
 /// Test that serialization round-trip preserves all data
-/// 
+///
 /// Requirements: 8.5, 8.6 - Preserve all entity data
 #[test]
 fn test_serialization_round_trip_complete() {
@@ -207,10 +207,7 @@ fn test_serialization_round_trip_complete() {
 
     let child = world.spawn();
     world.add_component(child, Name::new("Child"));
-    world.add_component(
-        child,
-        Transform::from_translation(Vec3::new(4.0, 5.0, 6.0)),
-    );
+    world.add_component(child, Transform::from_translation(Vec3::new(4.0, 5.0, 6.0)));
     let mut child_tags = Tag::new();
     child_tags.insert("child");
     world.add_component(child, child_tags);
@@ -252,7 +249,7 @@ fn test_serialization_round_trip_complete() {
 }
 
 /// Test serialization of deep hierarchies
-/// 
+///
 /// Requirements: 8.5 - Handle complex hierarchies
 #[test]
 fn test_deep_hierarchy_serialization() {
@@ -300,26 +297,14 @@ fn test_deep_hierarchy_serialization() {
     let level1 = find_entity_by_name(&new_world, "Level1").unwrap();
     let level0 = find_entity_by_name(&new_world, "Level0").unwrap();
 
-    assert_eq!(
-        new_world.get_component::<Parent>(level4).unwrap().0,
-        level3
-    );
-    assert_eq!(
-        new_world.get_component::<Parent>(level3).unwrap().0,
-        level2
-    );
-    assert_eq!(
-        new_world.get_component::<Parent>(level2).unwrap().0,
-        level1
-    );
-    assert_eq!(
-        new_world.get_component::<Parent>(level1).unwrap().0,
-        level0
-    );
+    assert_eq!(new_world.get_component::<Parent>(level4).unwrap().0, level3);
+    assert_eq!(new_world.get_component::<Parent>(level3).unwrap().0, level2);
+    assert_eq!(new_world.get_component::<Parent>(level2).unwrap().0, level1);
+    assert_eq!(new_world.get_component::<Parent>(level1).unwrap().0, level0);
 }
 
 /// Test serialization with multiple root entities
-/// 
+///
 /// Requirements: 8.6 - Include all entities in scene
 #[test]
 fn test_multiple_roots_serialization() {

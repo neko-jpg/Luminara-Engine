@@ -46,10 +46,7 @@ async fn test_store_and_load_entity_with_components() {
     db.update_entity(&entity_id, entity).await.unwrap();
 
     // Load entity with components
-    let (loaded_entity, components) = db
-        .load_entity_with_components(&entity_id)
-        .await
-        .unwrap();
+    let (loaded_entity, components) = db.load_entity_with_components(&entity_id).await.unwrap();
 
     assert_eq!(loaded_entity.name, Some("Player".to_string()));
     assert_eq!(components.len(), 2);
@@ -117,12 +114,7 @@ async fn test_load_entity_with_relationships() {
     let entity = EntityRecord::new(Some("Entity".to_string()));
     let entity_id = db.store_entity(entity).await.unwrap();
 
-    let component = ComponentRecord::new(
-        "Transform",
-        "test",
-        json!({"x": 1.0}),
-        entity_id.clone(),
-    );
+    let component = ComponentRecord::new("Transform", "test", json!({"x": 1.0}), entity_id.clone());
     let component_id = db.store_component(component).await.unwrap();
 
     // Create child
@@ -147,10 +139,7 @@ async fn test_load_entity_with_relationships() {
     db.update_entity(&child_id, child).await.unwrap();
 
     // Load with all relationships
-    let full_entity = db
-        .load_entity_with_relationships(&entity_id)
-        .await
-        .unwrap();
+    let full_entity = db.load_entity_with_relationships(&entity_id).await.unwrap();
 
     assert_eq!(full_entity.entity.name, Some("Entity".to_string()));
     assert_eq!(full_entity.components.len(), 1);
@@ -182,20 +171,10 @@ async fn test_find_entities_with_component() {
     let entity3_id = db.store_entity(entity3).await.unwrap();
 
     // Add Transform to entity1 and entity2
-    let transform1 = ComponentRecord::new(
-        "Transform",
-        "test",
-        json!({}),
-        entity1_id.clone(),
-    );
+    let transform1 = ComponentRecord::new("Transform", "test", json!({}), entity1_id.clone());
     db.store_component(transform1).await.unwrap();
 
-    let transform2 = ComponentRecord::new(
-        "Transform",
-        "test",
-        json!({}),
-        entity2_id.clone(),
-    );
+    let transform2 = ComponentRecord::new("Transform", "test", json!({}), entity2_id.clone());
     db.store_component(transform2).await.unwrap();
 
     // Add Mesh to entity3
@@ -246,18 +225,17 @@ async fn test_find_entity_descendants() {
 
     let mut grandchild1 = db.load_entity(&grandchild1_id).await.unwrap();
     grandchild1.parent = Some(child1_id.clone());
-    db.update_entity(&grandchild1_id, grandchild1).await.unwrap();
+    db.update_entity(&grandchild1_id, grandchild1)
+        .await
+        .unwrap();
 
     // Find descendants of root (should find all 3 descendants)
     let descendants = db.find_entity_descendants(&root_id).await.unwrap();
-    
+
     // Should find Child1, Child2, and Grandchild1
     assert_eq!(descendants.len(), 3);
-    
-    let names: Vec<String> = descendants
-        .iter()
-        .filter_map(|e| e.name.clone())
-        .collect();
+
+    let names: Vec<String> = descendants.iter().filter_map(|e| e.name.clone()).collect();
     assert!(names.contains(&"Child1".to_string()));
     assert!(names.contains(&"Child2".to_string()));
     assert!(names.contains(&"Grandchild1".to_string()));
@@ -293,14 +271,11 @@ async fn test_find_entity_ancestors() {
 
     // Find ancestors of grandchild (should find child and root)
     let ancestors = db.find_entity_ancestors(&grandchild_id).await.unwrap();
-    
+
     // Should find Child and Root
     assert_eq!(ancestors.len(), 2);
-    
-    let names: Vec<String> = ancestors
-        .iter()
-        .filter_map(|e| e.name.clone())
-        .collect();
+
+    let names: Vec<String> = ancestors.iter().filter_map(|e| e.name.clone()).collect();
     assert!(names.contains(&"Child".to_string()));
     assert!(names.contains(&"Root".to_string()));
 }
@@ -328,12 +303,7 @@ async fn test_complex_entity_graph() {
     );
     let transform_id = db.store_component(transform).await.unwrap();
 
-    let mesh = ComponentRecord::new(
-        "Mesh",
-        "test",
-        json!({"vertices": 100}),
-        player_id.clone(),
-    );
+    let mesh = ComponentRecord::new("Mesh", "test", json!({"vertices": 100}), player_id.clone());
     let mesh_id = db.store_component(mesh).await.unwrap();
 
     // Setup scene hierarchy
@@ -357,16 +327,10 @@ async fn test_complex_entity_graph() {
     // Query: Find all entities with Transform
     let entities_with_transform = db.find_entities_with_component("Transform").await.unwrap();
     assert_eq!(entities_with_transform.len(), 1);
-    assert_eq!(
-        entities_with_transform[0].name,
-        Some("Player".to_string())
-    );
+    assert_eq!(entities_with_transform[0].name, Some("Player".to_string()));
 
     // Query: Load player with all relationships
-    let player_full = db
-        .load_entity_with_relationships(&player_id)
-        .await
-        .unwrap();
+    let player_full = db.load_entity_with_relationships(&player_id).await.unwrap();
     assert_eq!(player_full.components.len(), 2);
     assert!(player_full.hierarchy.parent.is_some());
     assert_eq!(

@@ -78,9 +78,7 @@ fn color_strategy() -> impl Strategy<Value = Color> {
 
 /// Check if two Vec3 values are approximately equal
 fn vec3_approx_eq(a: &Vec3, b: &Vec3, epsilon: f32) -> bool {
-    (a.x - b.x).abs() < epsilon
-        && (a.y - b.y).abs() < epsilon
-        && (a.z - b.z).abs() < epsilon
+    (a.x - b.x).abs() < epsilon && (a.y - b.y).abs() < epsilon && (a.z - b.z).abs() < epsilon
 }
 
 /// Check if two Quat values are approximately equal
@@ -90,12 +88,12 @@ fn quat_approx_eq(a: &Quat, b: &Quat, epsilon: f32) -> bool {
         && (a.y - b.y).abs() < epsilon
         && (a.z - b.z).abs() < epsilon
         && (a.w - b.w).abs() < epsilon;
-    
+
     let opposite_sign = (a.x + b.x).abs() < epsilon
         && (a.y + b.y).abs() < epsilon
         && (a.z + b.z).abs() < epsilon
         && (a.w + b.w).abs() < epsilon;
-    
+
     same_sign || opposite_sign
 }
 
@@ -129,14 +127,14 @@ where
         return false;
     }
     let ron_str = ron_result.unwrap();
-    
+
     // Deserialize from RON
     let deserialize_result: Result<T, _> = ron::from_str(&ron_str);
     if deserialize_result.is_err() {
         return false;
     }
     let deserialized = deserialize_result.unwrap();
-    
+
     // Check approximate equality (for floating point values)
     approx_eq(value, &deserialized, 1e-6)
 }
@@ -152,14 +150,14 @@ where
         return false;
     }
     let binary = binary_result.unwrap();
-    
+
     // Deserialize from binary
     let deserialize_result: Result<T, _> = bincode::deserialize(&binary);
     if deserialize_result.is_err() {
         return false;
     }
     let deserialized = deserialize_result.unwrap();
-    
+
     // Check approximate equality (for floating point values)
     approx_eq(value, &deserialized, 1e-6)
 }
@@ -308,23 +306,31 @@ mod integration_tests {
 
         // Test RON
         let ron_str = ron::to_string(&data).expect("Failed to serialize to RON");
-        let deserialized: ComplexData = ron::from_str(&ron_str)
-            .expect("Failed to deserialize from RON");
+        let deserialized: ComplexData =
+            ron::from_str(&ron_str).expect("Failed to deserialize from RON");
 
         assert!(vec3_approx_eq(&data.position, &deserialized.position, 1e-6));
         assert!(quat_approx_eq(&data.rotation, &deserialized.rotation, 1e-6));
-        assert!(transform_approx_eq(&data.transform, &deserialized.transform, 1e-6));
+        assert!(transform_approx_eq(
+            &data.transform,
+            &deserialized.transform,
+            1e-6
+        ));
         assert!(color_approx_eq(&data.color, &deserialized.color, 1e-6));
         assert_eq!(data.nested.len(), deserialized.nested.len());
 
         // Test binary
         let binary = bincode::serialize(&data).expect("Failed to serialize to binary");
-        let deserialized: ComplexData = bincode::deserialize(&binary)
-            .expect("Failed to deserialize from binary");
+        let deserialized: ComplexData =
+            bincode::deserialize(&binary).expect("Failed to deserialize from binary");
 
         assert!(vec3_approx_eq(&data.position, &deserialized.position, 1e-6));
         assert!(quat_approx_eq(&data.rotation, &deserialized.rotation, 1e-6));
-        assert!(transform_approx_eq(&data.transform, &deserialized.transform, 1e-6));
+        assert!(transform_approx_eq(
+            &data.transform,
+            &deserialized.transform,
+            1e-6
+        ));
         assert!(color_approx_eq(&data.color, &deserialized.color, 1e-6));
         assert_eq!(data.nested.len(), deserialized.nested.len());
     }
@@ -345,7 +351,10 @@ mod integration_tests {
         // Identity transform
         let identity_transform = Transform::IDENTITY;
         assert!(test_ron_roundtrip(&identity_transform, transform_approx_eq));
-        assert!(test_binary_roundtrip(&identity_transform, transform_approx_eq));
+        assert!(test_binary_roundtrip(
+            &identity_transform,
+            transform_approx_eq
+        ));
 
         // Transparent color
         let transparent = Color::TRANSPARENT;
@@ -378,7 +387,6 @@ mod integration_tests {
     }
 }
 
-
 // ============================================================================
 // Handle<T> Serialization Tests
 // ============================================================================
@@ -402,7 +410,8 @@ mod handle_tests {
 
     /// Strategy for generating random AssetId
     fn asset_id_strategy() -> impl Strategy<Value = AssetId> {
-        prop::string::string_regex("[a-zA-Z0-9_/]{1,50}").unwrap()
+        prop::string::string_regex("[a-zA-Z0-9_/]{1,50}")
+            .unwrap()
             .prop_map(|path| AssetId::from_path(&path))
     }
 
@@ -423,11 +432,11 @@ mod handle_tests {
         fn prop_handle_ron_roundtrip(handle in handle_strategy()) {
             // Serialize to RON
             let ron_str = ron::to_string(&handle).expect("Failed to serialize Handle to RON");
-            
+
             // Deserialize from RON
             let deserialized: Handle<TestAsset> = ron::from_str(&ron_str)
                 .expect("Failed to deserialize Handle from RON");
-            
+
             // Handles should be equal (same asset ID)
             prop_assert_eq!(handle, deserialized);
         }
@@ -440,11 +449,11 @@ mod handle_tests {
         fn prop_handle_binary_roundtrip(handle in handle_strategy()) {
             // Serialize to binary
             let binary = bincode::serialize(&handle).expect("Failed to serialize Handle to binary");
-            
+
             // Deserialize from binary
             let deserialized: Handle<TestAsset> = bincode::deserialize(&binary)
                 .expect("Failed to deserialize Handle from binary");
-            
+
             // Handles should be equal (same asset ID)
             prop_assert_eq!(handle, deserialized);
         }
@@ -466,14 +475,14 @@ mod handle_tests {
 
             // Test RON
             let ron_str = ron::to_string(&handle).expect("Failed to serialize");
-            let deserialized: Handle<TestAsset> = ron::from_str(&ron_str)
-                .expect("Failed to deserialize");
+            let deserialized: Handle<TestAsset> =
+                ron::from_str(&ron_str).expect("Failed to deserialize");
             assert_eq!(handle, deserialized);
 
             // Test binary
             let binary = bincode::serialize(&handle).expect("Failed to serialize");
-            let deserialized: Handle<TestAsset> = bincode::deserialize(&binary)
-                .expect("Failed to deserialize");
+            let deserialized: Handle<TestAsset> =
+                bincode::deserialize(&binary).expect("Failed to deserialize");
             assert_eq!(handle, deserialized);
         }
     }
@@ -503,9 +512,9 @@ mod handle_tests {
         // Test RON
         let ron_str = ron::ser::to_string_pretty(&entity, ron::ser::PrettyConfig::default())
             .expect("Failed to serialize");
-        let deserialized: EntityWithAssets = ron::from_str(&ron_str)
-            .expect("Failed to deserialize");
-        
+        let deserialized: EntityWithAssets =
+            ron::from_str(&ron_str).expect("Failed to deserialize");
+
         assert_eq!(entity.name, deserialized.name);
         assert_eq!(entity.texture, deserialized.texture);
         assert_eq!(entity.model, deserialized.model);
@@ -513,9 +522,9 @@ mod handle_tests {
 
         // Test binary
         let binary = bincode::serialize(&entity).expect("Failed to serialize");
-        let deserialized: EntityWithAssets = bincode::deserialize(&binary)
-            .expect("Failed to deserialize");
-        
+        let deserialized: EntityWithAssets =
+            bincode::deserialize(&binary).expect("Failed to deserialize");
+
         assert_eq!(entity.name, deserialized.name);
         assert_eq!(entity.texture, deserialized.texture);
         assert_eq!(entity.model, deserialized.model);

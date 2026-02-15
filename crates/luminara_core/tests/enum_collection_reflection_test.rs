@@ -155,10 +155,7 @@ fn test_enum_variant_inspection() {
 fn test_enum_discriminant_values() {
     let states = vec![
         GameState::MainMenu,
-        GameState::Playing {
-            level: 1,
-            score: 0,
-        },
+        GameState::Playing { level: 1, score: 0 },
         GameState::Paused(1),
         GameState::GameOver,
     ];
@@ -337,11 +334,20 @@ fn property_enum_variant_completeness() {
 
     for state in states {
         let variant = state.enum_variant();
-        assert!(variant.is_some(), "All enum values should provide variant info");
+        assert!(
+            variant.is_some(),
+            "All enum values should provide variant info"
+        );
 
         let variant = variant.unwrap();
-        assert!(!variant.variant_name.is_empty(), "Variant name should not be empty");
-        assert!(variant.discriminant.is_some(), "Discriminant should be available");
+        assert!(
+            !variant.variant_name.is_empty(),
+            "Variant name should not be empty"
+        );
+        assert!(
+            variant.discriminant.is_some(),
+            "Discriminant should be available"
+        );
 
         // Verify type info is consistent
         let type_info = state.type_info();
@@ -363,7 +369,11 @@ fn property_collection_operations() {
     // All elements should be accessible
     for i in 0..len {
         let elem = vec.collection_get(i);
-        assert!(elem.is_some(), "Element at index {} should be accessible", i);
+        assert!(
+            elem.is_some(),
+            "Element at index {} should be accessible",
+            i
+        );
     }
 
     // Out of bounds should return None
@@ -391,7 +401,11 @@ fn property_collection_operations() {
 
     for key in keys {
         let value = map.map_get(&key);
-        assert!(value.is_some(), "Value for key '{}' should be accessible", key);
+        assert!(
+            value.is_some(),
+            "Value for key '{}' should be accessible",
+            key
+        );
     }
 
     // Non-existent key should return None
@@ -405,8 +419,13 @@ fn property_collection_mutation() {
     // Test Vec mutation
     let mut vec = vec![10i32, 20, 30];
 
-    let elem_mut = vec.collection_get_mut(1).expect("Should get mutable element");
-    let value_mut = elem_mut.as_any_mut().downcast_mut::<i32>().expect("Should downcast");
+    let elem_mut = vec
+        .collection_get_mut(1)
+        .expect("Should get mutable element");
+    let value_mut = elem_mut
+        .as_any_mut()
+        .downcast_mut::<i32>()
+        .expect("Should downcast");
     *value_mut = 99;
 
     assert_eq!(vec[1], 99, "Mutation should be reflected in original vec");
@@ -416,7 +435,10 @@ fn property_collection_mutation() {
     map.insert("x".to_string(), 5i32);
 
     let value_mut = map.map_get_mut("x").expect("Should get mutable value");
-    let int_mut = value_mut.as_any_mut().downcast_mut::<i32>().expect("Should downcast");
+    let int_mut = value_mut
+        .as_any_mut()
+        .downcast_mut::<i32>()
+        .expect("Should downcast");
     *int_mut = 42;
 
     assert_eq!(map["x"], 42, "Mutation should be reflected in original map");

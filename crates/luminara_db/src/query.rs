@@ -184,10 +184,7 @@ mod tests {
 
     #[test]
     fn test_basic_query() {
-        let query = QueryBuilder::new()
-            .select("*")
-            .from("entity")
-            .build();
+        let query = QueryBuilder::new().select("*").from("entity").build();
 
         assert_eq!(query, "SELECT * FROM entity");
     }
@@ -210,7 +207,10 @@ mod tests {
             .and("name = 'Hero'")
             .build();
 
-        assert_eq!(query, "SELECT * FROM entity WHERE 'player' IN tags AND name = 'Hero'");
+        assert_eq!(
+            query,
+            "SELECT * FROM entity WHERE 'player' IN tags AND name = 'Hero'"
+        );
     }
 
     #[test]
@@ -221,7 +221,10 @@ mod tests {
             .limit(10)
             .build();
 
-        assert_eq!(query, "SELECT * FROM operation ORDER BY timestamp DESC LIMIT 10");
+        assert_eq!(
+            query,
+            "SELECT * FROM operation ORDER BY timestamp DESC LIMIT 10"
+        );
     }
 
     #[test]
@@ -233,6 +236,9 @@ mod tests {
     #[test]
     fn test_recent_operations() {
         let query = QueryBuilder::recent_operations(5).build();
-        assert_eq!(query, "SELECT * FROM operation ORDER BY timestamp DESC LIMIT 5");
+        assert_eq!(
+            query,
+            "SELECT * FROM operation ORDER BY timestamp DESC LIMIT 5"
+        );
     }
 }

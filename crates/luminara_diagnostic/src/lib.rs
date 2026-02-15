@@ -20,28 +20,30 @@ pub mod benchmark;
 pub mod profiler;
 
 /// Re-export commonly used types
-pub use architecture::{ArchitectureAnalyzer, AnalysisReport};
-pub use benchmark::{BenchmarkSuite, BenchmarkResult};
-pub use profiler::{PerformanceProfiler, ProfilingReport, SystemProfiler, Bottleneck, BottleneckSeverity};
+pub use architecture::{AnalysisReport, ArchitectureAnalyzer};
+pub use benchmark::{BenchmarkResult, BenchmarkSuite};
+pub use profiler::{
+    Bottleneck, BottleneckSeverity, PerformanceProfiler, ProfilingReport, SystemProfiler,
+};
 
 /// Common error type for diagnostic tools
 #[derive(Debug, thiserror::Error)]
 pub enum DiagnosticError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Parse error: {0}")]
     Parse(String),
-    
+
     #[error("Analysis error: {0}")]
     Analysis(String),
-    
+
     #[error("Benchmark error: {0}")]
     Benchmark(String),
-    
+
     #[error("Profiling error: {0}")]
     Profiling(String),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 }

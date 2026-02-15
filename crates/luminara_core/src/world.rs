@@ -8,7 +8,7 @@ use crate::event::{Event, Events};
 use crate::resource::{Resource, ResourceMap};
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 use std::alloc::Layout;
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::collections::HashMap;
 
 /// The collection of all data in the ECS engine.
@@ -315,11 +315,11 @@ impl World {
         self.resources.insert(resource);
     }
 
-    pub fn get_resource<R: Resource>(&self) -> Option<MappedRwLockReadGuard<R>> {
+    pub fn get_resource<R: Resource>(&self) -> Option<MappedRwLockReadGuard<'_, R>> {
         self.resources.get::<R>()
     }
 
-    pub fn get_resource_mut<R: Resource>(&self) -> Option<MappedRwLockWriteGuard<R>> {
+    pub fn get_resource_mut<R: Resource>(&self) -> Option<MappedRwLockWriteGuard<'_, R>> {
         self.resources.get_mut::<R>()
     }
 
@@ -347,11 +347,11 @@ impl World {
         }
     }
 
-    pub fn get_events_mut<E: Event>(&self) -> Option<MappedRwLockWriteGuard<Events<E>>> {
+    pub fn get_events_mut<E: Event>(&self) -> Option<MappedRwLockWriteGuard<'_, Events<E>>> {
         self.resources.get_mut::<Events<E>>()
     }
 
-    pub fn get_events<E: Event>(&self) -> Option<MappedRwLockReadGuard<Events<E>>> {
+    pub fn get_events<E: Event>(&self) -> Option<MappedRwLockReadGuard<'_, Events<E>>> {
         self.resources.get::<Events<E>>()
     }
 

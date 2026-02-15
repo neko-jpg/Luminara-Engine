@@ -396,10 +396,7 @@ async fn test_find_assets_in_scene() {
     db.store_component(component2).await.unwrap();
 
     // Find all textures in the scene
-    let textures = db
-        .find_assets_in_scene(&scene_id, "Texture")
-        .await
-        .unwrap();
+    let textures = db.find_assets_in_scene(&scene_id, "Texture").await.unwrap();
 
     assert_eq!(textures.len(), 2);
     let paths: Vec<&str> = textures.iter().map(|t| t.path.as_str()).collect();

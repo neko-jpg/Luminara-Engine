@@ -1,6 +1,9 @@
 //! Basic CRUD operation tests for the database
 
-use luminara_db::{schema::AssetMetadata, AssetRecord, ComponentRecord, EntityRecord, LuminaraDatabase, OperationRecord};
+use luminara_db::{
+    schema::AssetMetadata, AssetRecord, ComponentRecord, EntityRecord, LuminaraDatabase,
+    OperationRecord,
+};
 use serde_json::json;
 
 #[tokio::test]
@@ -80,12 +83,7 @@ async fn test_asset_crud() {
         custom: json!({}),
     };
 
-    let asset = AssetRecord::new(
-        "assets/textures/player.png",
-        "Texture",
-        "abc123",
-        metadata,
-    );
+    let asset = AssetRecord::new("assets/textures/player.png", "Texture", "abc123", metadata);
 
     let asset_id = db.store_asset(asset).await.unwrap();
 
@@ -95,7 +93,10 @@ async fn test_asset_crud() {
     assert_eq!(loaded.asset_type, "Texture");
 
     // Load by path
-    let loaded_by_path = db.load_asset_by_path("assets/textures/player.png").await.unwrap();
+    let loaded_by_path = db
+        .load_asset_by_path("assets/textures/player.png")
+        .await
+        .unwrap();
     assert_eq!(loaded_by_path.hash, "abc123");
 
     // Delete asset
@@ -148,11 +149,17 @@ async fn test_query_entities() {
     db.store_entity(entity3).await.unwrap();
 
     // Query entities with "player" tag
-    let players = db.query_entities("SELECT * FROM entity WHERE 'player' IN tags").await.unwrap();
+    let players = db
+        .query_entities("SELECT * FROM entity WHERE 'player' IN tags")
+        .await
+        .unwrap();
     assert_eq!(players.len(), 2);
 
     // Query entities with "enemy" tag
-    let enemies = db.query_entities("SELECT * FROM entity WHERE 'enemy' IN tags").await.unwrap();
+    let enemies = db
+        .query_entities("SELECT * FROM entity WHERE 'enemy' IN tags")
+        .await
+        .unwrap();
     assert_eq!(enemies.len(), 1);
 }
 
@@ -164,12 +171,7 @@ async fn test_database_statistics() {
     let entity = EntityRecord::new(Some("Test".to_string()));
     let entity_id = db.store_entity(entity).await.unwrap();
 
-    let component = ComponentRecord::new(
-        "Transform",
-        "test",
-        json!({}),
-        entity_id,
-    );
+    let component = ComponentRecord::new("Transform", "test", json!({}), entity_id);
     db.store_component(component).await.unwrap();
 
     // Get statistics

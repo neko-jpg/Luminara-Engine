@@ -3,6 +3,9 @@ name = "luminara_core"
 version.workspace = true
 edition.workspace = true
 
+[features]
+math = []
+
 [dependencies]
 downcast-rs = "1.2"
 parking_lot = "0.12"

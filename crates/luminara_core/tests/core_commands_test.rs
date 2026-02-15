@@ -11,7 +11,6 @@
 /// - RemoveComponentCommand
 /// - ModifyComponentCommand
 /// - ModifyTransformCommand (when math feature is enabled)
-
 use luminara_core::{
     AddComponentCommand, CommandHistory, Component, DestroyEntityCommand, ModifyComponentCommand,
     RemoveComponentCommand, SpawnEntityCommand, UndoCommand, World,
@@ -193,10 +192,7 @@ fn test_requirement_9_4_modify_component_command() {
     // Verify component was modified
     assert_eq!(
         world.get_component::<Position>(entity),
-        Some(&Position {
-            x: 100.0,
-            y: 200.0
-        })
+        Some(&Position { x: 100.0, y: 200.0 })
     );
 
     // Undo modify component
@@ -214,10 +210,7 @@ fn test_requirement_9_4_modify_component_command() {
     // Verify component was modified again
     assert_eq!(
         world.get_component::<Position>(entity),
-        Some(&Position {
-            x: 100.0,
-            y: 200.0
-        })
+        Some(&Position { x: 100.0, y: 200.0 })
     );
 }
 

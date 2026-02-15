@@ -399,8 +399,7 @@ pub fn from_binary_validated<T>(bytes: &[u8]) -> Result<T, String>
 where
     T: for<'de> Deserialize<'de> + Validate,
 {
-    let value: T =
-        bincode::deserialize(bytes).map_err(|e| format!("Binary parse error: {}", e))?;
+    let value: T = bincode::deserialize(bytes).map_err(|e| format!("Binary parse error: {}", e))?;
     value
         .validate()
         .map_err(|e| format!("Validation error: {}", e))?;

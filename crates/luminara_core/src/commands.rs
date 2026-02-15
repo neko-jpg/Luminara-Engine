@@ -112,7 +112,7 @@ impl UndoCommand for DestroyEntityCommand {
         // TODO: Capture all component data using reflection
         // For now, we just mark that we captured state
         self.captured_state = Some(Vec::new());
-        
+
         let despawned = world.despawn(self.entity);
         if !despawned {
             return Err(CommandError::CommandError(format!(
@@ -126,11 +126,11 @@ impl UndoCommand for DestroyEntityCommand {
     fn undo(&mut self, world: &mut World) -> CommandResult<()> {
         // Spawn a new entity
         let new_entity = world.spawn();
-        
+
         // TODO: Restore all components using reflection
         // For now, we just update the entity reference
         self.entity = new_entity;
-        
+
         Ok(())
     }
 
@@ -307,7 +307,7 @@ impl<T: Component + Clone> UndoCommand for ModifyComponentCommand<T> {
         // 2. Keep our old_value (from the first command)
         // 3. Update new_value to other's new_value
         // This creates a single command that goes from the original value to the final value
-        
+
         // For now, we return an error since we can't safely downcast without Any trait
         Err(CommandError::CommandError(
             "Command merging requires proper type downcasting support".to_string(),
