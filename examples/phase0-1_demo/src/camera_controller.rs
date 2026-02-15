@@ -1,7 +1,10 @@
-use luminara::prelude::*;
-use luminara::input::{ActionMap, InputExt, input_map::{ActionBinding, InputSource}};
 use luminara::input::keyboard::Key;
 use luminara::input::mouse::MouseButton;
+use luminara::input::{
+    input_map::{ActionBinding, InputSource},
+    ActionMap, InputExt,
+};
+use luminara::prelude::*;
 
 // ============================================================================
 // Actions
@@ -15,12 +18,12 @@ pub enum CameraAction {
     MoveRight,
     MoveUp,
     MoveDown,
-    LookActive,   // Right mouse button — hold to enable mouse look
-    ToggleMode,   // C — switch 1st/3rd person
-    LookUp,       // Arrow Up
-    LookDown,     // Arrow Down
-    LookLeft,     // Arrow Left
-    LookRight,    // Arrow Right
+    LookActive, // Right mouse button — hold to enable mouse look
+    ToggleMode, // C — switch 1st/3rd person
+    LookUp,     // Arrow Up
+    LookDown,   // Arrow Down
+    LookLeft,   // Arrow Left
+    LookRight,  // Arrow Right
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,48 +83,84 @@ pub fn setup_camera_input(world: &mut World) {
     let mut map = ActionMap::<CameraAction>::new();
 
     // Movement — WASD only (arrow keys reserved for looking)
-    map.bind(CameraAction::MoveForward, ActionBinding {
-        inputs: vec![InputSource::Key(Key::W)],
-    });
-    map.bind(CameraAction::MoveBackward, ActionBinding {
-        inputs: vec![InputSource::Key(Key::S)],
-    });
-    map.bind(CameraAction::MoveLeft, ActionBinding {
-        inputs: vec![InputSource::Key(Key::A)],
-    });
-    map.bind(CameraAction::MoveRight, ActionBinding {
-        inputs: vec![InputSource::Key(Key::D)],
-    });
-    map.bind(CameraAction::MoveUp, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Space), InputSource::Key(Key::E)],
-    });
-    map.bind(CameraAction::MoveDown, ActionBinding {
-        inputs: vec![InputSource::Key(Key::LShift), InputSource::Key(Key::Q)],
-    });
+    map.bind(
+        CameraAction::MoveForward,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::W)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveBackward,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::S)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveLeft,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::A)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveRight,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::D)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveUp,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Space), InputSource::Key(Key::E)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveDown,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::LShift), InputSource::Key(Key::Q)],
+        },
+    );
 
     // Mouse look — hold right-click
-    map.bind(CameraAction::LookActive, ActionBinding {
-        inputs: vec![InputSource::MouseButton(MouseButton::Right)],
-    });
+    map.bind(
+        CameraAction::LookActive,
+        ActionBinding {
+            inputs: vec![InputSource::MouseButton(MouseButton::Right)],
+        },
+    );
 
     // Keyboard look — arrow keys (always work, no button needed)
-    map.bind(CameraAction::LookUp, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Up)],
-    });
-    map.bind(CameraAction::LookDown, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Down)],
-    });
-    map.bind(CameraAction::LookLeft, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Left)],
-    });
-    map.bind(CameraAction::LookRight, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Right)],
-    });
+    map.bind(
+        CameraAction::LookUp,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Up)],
+        },
+    );
+    map.bind(
+        CameraAction::LookDown,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Down)],
+        },
+    );
+    map.bind(
+        CameraAction::LookLeft,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Left)],
+        },
+    );
+    map.bind(
+        CameraAction::LookRight,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Right)],
+        },
+    );
 
     // Camera mode toggle
-    map.bind(CameraAction::ToggleMode, ActionBinding {
-        inputs: vec![InputSource::Key(Key::C)],
-    });
+    map.bind(
+        CameraAction::ToggleMode,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::C)],
+        },
+    );
 
     world.insert_resource(map);
 }
@@ -137,7 +176,9 @@ pub fn camera_controller_system(
     mut query: Query<(&mut Transform, &mut CameraController)>,
 ) {
     let dt = time.delta_seconds();
-    if dt <= 0.0 { return; }
+    if dt <= 0.0 {
+        return;
+    }
 
     // ── Read raw mouse delta BEFORE any state changes ──────────────
     let mouse_dx = input.mouse.delta.x;
@@ -157,17 +198,17 @@ pub fn camera_controller_system(
     }
 
     // ── Pre-read all input states (avoids borrow issues) ───────────
-    let look_up    = InputExt::action_pressed(&*input, CameraAction::LookUp, &map);
-    let look_down  = InputExt::action_pressed(&*input, CameraAction::LookDown, &map);
-    let look_left  = InputExt::action_pressed(&*input, CameraAction::LookLeft, &map);
+    let look_up = InputExt::action_pressed(&*input, CameraAction::LookUp, &map);
+    let look_down = InputExt::action_pressed(&*input, CameraAction::LookDown, &map);
+    let look_left = InputExt::action_pressed(&*input, CameraAction::LookLeft, &map);
     let look_right = InputExt::action_pressed(&*input, CameraAction::LookRight, &map);
-    let toggle     = InputExt::action_just_pressed(&*input, CameraAction::ToggleMode, &map);
-    let move_fwd   = InputExt::action_pressed(&*input, CameraAction::MoveForward, &map);
-    let move_back  = InputExt::action_pressed(&*input, CameraAction::MoveBackward, &map);
-    let move_left  = InputExt::action_pressed(&*input, CameraAction::MoveLeft, &map);
+    let toggle = InputExt::action_just_pressed(&*input, CameraAction::ToggleMode, &map);
+    let move_fwd = InputExt::action_pressed(&*input, CameraAction::MoveForward, &map);
+    let move_back = InputExt::action_pressed(&*input, CameraAction::MoveBackward, &map);
+    let move_left = InputExt::action_pressed(&*input, CameraAction::MoveLeft, &map);
     let move_right_key = InputExt::action_pressed(&*input, CameraAction::MoveRight, &map);
-    let move_up    = InputExt::action_pressed(&*input, CameraAction::MoveUp, &map);
-    let move_down  = InputExt::action_pressed(&*input, CameraAction::MoveDown, &map);
+    let move_up = InputExt::action_pressed(&*input, CameraAction::MoveUp, &map);
+    let move_down = InputExt::action_pressed(&*input, CameraAction::MoveDown, &map);
 
     for (transform, ctrl) in query.iter_mut() {
         // ── Mode toggle ────────────────────────────────────────────
@@ -183,17 +224,25 @@ pub fn camera_controller_system(
         // This skips the first frame after right-click (which has a huge
         // accumulated delta from the cursor position jump).
         if grab_active && ctrl.grab_was_active {
-            ctrl.yaw   -= mouse_dx * ctrl.mouse_sensitivity;
+            ctrl.yaw -= mouse_dx * ctrl.mouse_sensitivity;
             ctrl.pitch -= mouse_dy * ctrl.mouse_sensitivity;
         }
         ctrl.grab_was_active = grab_active;
 
         // ── Keyboard look (always works, no right-click needed) ────
         let kb_speed = ctrl.keyboard_look_speed * dt;
-        if look_up    { ctrl.pitch += kb_speed; }
-        if look_down  { ctrl.pitch -= kb_speed; }
-        if look_left  { ctrl.yaw   += kb_speed; }
-        if look_right { ctrl.yaw   -= kb_speed; }
+        if look_up {
+            ctrl.pitch += kb_speed;
+        }
+        if look_down {
+            ctrl.pitch -= kb_speed;
+        }
+        if look_left {
+            ctrl.yaw += kb_speed;
+        }
+        if look_right {
+            ctrl.yaw -= kb_speed;
+        }
 
         // Clamp pitch
         ctrl.pitch = ctrl.pitch.clamp(-89.0, 89.0);
@@ -202,7 +251,7 @@ pub fn camera_controller_system(
         // Yaw: rotate around world-Y axis (left / right)
         // Pitch: rotate around local-X axis (up / down)
         // Order: yaw * pitch — standard FPS camera
-        let yaw_q   = Quat::from_rotation_y(ctrl.yaw.to_radians());
+        let yaw_q = Quat::from_rotation_y(ctrl.yaw.to_radians());
         let pitch_q = Quat::from_rotation_x(ctrl.pitch.to_radians());
         transform.rotation = yaw_q * pitch_q;
 
@@ -210,15 +259,27 @@ pub fn camera_controller_system(
         // Movement direction uses yaw only (ignores pitch so you don't
         // accelerate into the ground when looking down).
         let forward = yaw_q * Vec3::NEG_Z;
-        let right   = yaw_q * Vec3::X;
+        let right = yaw_q * Vec3::X;
 
         let mut vel = Vec3::ZERO;
-        if move_fwd       { vel += forward; }
-        if move_back      { vel -= forward; }
-        if move_right_key { vel += right; }
-        if move_left      { vel -= right; }
-        if move_up        { vel += Vec3::Y; }
-        if move_down      { vel -= Vec3::Y; }
+        if move_fwd {
+            vel += forward;
+        }
+        if move_back {
+            vel -= forward;
+        }
+        if move_right_key {
+            vel += right;
+        }
+        if move_left {
+            vel -= right;
+        }
+        if move_up {
+            vel += Vec3::Y;
+        }
+        if move_down {
+            vel -= Vec3::Y;
+        }
 
         if vel.length_squared() > 0.0 {
             vel = vel.normalize();

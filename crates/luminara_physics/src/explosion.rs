@@ -1,5 +1,5 @@
-use luminara_core::{App, AppInterface, Component, CoreStage, Entity, Plugin, Query, World};
 use luminara_core::system::ExclusiveMarker;
+use luminara_core::{App, AppInterface, Component, CoreStage, Entity, Plugin, Query, World};
 use luminara_math::Vec3;
 use rapier3d::prelude::*;
 
@@ -60,7 +60,7 @@ pub fn explosion_system(world: &mut World) {
 
     // 2. Process physics
     {
-        let physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
+        let mut physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
 
         for (_, explosion) in &explosions_to_process {
             let center = point![explosion.center.x, explosion.center.y, explosion.center.z];

@@ -63,8 +63,8 @@ pub fn set_parent(world: &mut World, child: Entity, parent: Entity) {
 }
 
 pub fn remove_parent(world: &mut World, child: Entity) {
-    if let Some(parent) = world.remove_component::<Parent>(child) {
-        if let Some(children) = world.get_component_mut::<Children>(parent.0) {
+    if let Ok(Some(parent)) = world.remove_component::<Parent>(child) {
+        if let Some(mut children) = world.get_component_mut::<Children>(parent.0) {
             children.0.retain(|&e| e != child);
         }
     }

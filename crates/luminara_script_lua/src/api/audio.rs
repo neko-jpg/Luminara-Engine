@@ -1,5 +1,5 @@
-use mlua::prelude::*;
 use luminara_core::world::World;
+use mlua::prelude::*;
 
 // "Audio: play sounds, volume/pitch, spatial audio"
 
@@ -7,9 +7,7 @@ pub struct LuaAudio;
 
 impl LuaUserData for LuaAudio {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method("version", |_, _, ()| {
-            Ok("0.1.0")
-        });
+        methods.add_method("version", |_, _, ()| Ok("0.1.0"));
     }
 }
 

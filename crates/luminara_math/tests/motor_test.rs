@@ -1,17 +1,25 @@
-use luminara_core::shared_types::{Entity, Query, CoreStage};
-use luminara_core::{App, World};
+use luminara_core::shared_types::{Component, Res, ResMut}; // Assuming Res/ResMut might be needed if using plugins
+use luminara_core::shared_types::{CoreStage, Entity, Query};
 use luminara_core::system::FunctionMarker;
-use luminara_core::shared_types::{Component, ResMut, Res}; // Assuming Res/ResMut might be needed if using plugins
+use luminara_core::{App, World};
 use luminara_math::algebra::transform_motor::MotorTransform;
-use luminara_math::{Vec3, Quat};
+use luminara_math::{Quat, Vec3};
 
 #[derive(Clone, Debug)]
 struct Parent(Entity);
-impl Component for Parent { fn type_name() -> &'static str { "Parent" } }
+impl Component for Parent {
+    fn type_name() -> &'static str {
+        "Parent"
+    }
+}
 
 #[derive(Clone, Debug)]
 struct Children(Vec<Entity>);
-impl Component for Children { fn type_name() -> &'static str { "Children" } }
+impl Component for Children {
+    fn type_name() -> &'static str {
+        "Children"
+    }
+}
 
 // Simplified propagation system test structure
 // We just test MotorTransform logic directly since ECS integration depends on core
@@ -75,7 +83,10 @@ fn test_motor_transform_composition() {
 
     // Let's verify what the motor ACTUALLY does to the point.
     let p_vec_len = p_vec.length();
-    assert!((p_vec_len - 10.0).abs() < 0.001, "Translation magnitude should be 10.0");
+    assert!(
+        (p_vec_len - 10.0).abs() < 0.001,
+        "Translation magnitude should be 10.0"
+    );
 
     // Verify rotation is 90 deg Y
     let expected_rot = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);

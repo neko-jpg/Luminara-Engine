@@ -1,5 +1,5 @@
-use luminara_core::shared_types::Resource;
 use crate::smoothing::MouseSmoothing;
+use luminara_core::shared_types::Resource;
 use luminara_math::Vec2;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

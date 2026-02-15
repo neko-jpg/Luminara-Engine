@@ -1,10 +1,10 @@
-use luminara_core::world::World;
+use crate::intent_resolver::EngineCommand;
 use luminara_core::entity::Entity;
-use std::collections::{HashMap, BTreeMap};
-use std::time::Instant;
-use serde::{Serialize, Deserialize};
-use crate::intent_resolver::EngineCommand; // Reuse defined enum or duplicate?
-// `EngineCommand` is in `intent_resolver`. Let's use it.
+use luminara_core::world::World;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::time::Instant; // Reuse defined enum or duplicate?
+                        // `EngineCommand` is in `intent_resolver`. Let's use it.
 
 // Requirements 9.1-9.8
 // "Immutable operation log... undo... branching... persistence"
@@ -53,11 +53,12 @@ impl OperationTimeline {
         }
     }
 
-    pub fn record(&mut self,
+    pub fn record(
+        &mut self,
         prompt: String,
         response: String,
         _commands: Vec<EngineCommand>,
-        _inverse: Vec<EngineCommand>
+        _inverse: Vec<EngineCommand>,
     ) -> OperationId {
         let id = self.next_id;
         self.next_id += 1;

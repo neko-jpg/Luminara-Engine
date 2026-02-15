@@ -23,43 +23,43 @@
 //! - **H**: Toggle HUD command menu
 //! - **Esc**: Free cursor / Exit
 
-use luminara::prelude::*;
+use log::{error, info};
 use luminara::asset::AssetServer;
+use luminara::prelude::*;
+use luminara_audio::{AudioClipHandle, AudioSource};
 use luminara_core::{CoreStage, ExclusiveMarker};
 use luminara_input::keyboard::Key;
 use luminara_input::mouse::MouseButton;
-use luminara_render::{
-    CommandBuffer, DirectionalLight, GizmoCategories, Gizmos, OverlayRenderer,
-    ParticleEmitter, PbrMaterial, PointLight, Texture,
-};
-use luminara_audio::{AudioSource, AudioClipHandle};
 use luminara_physics::camera_shake::CameraShake;
 use luminara_physics::explosion::Explosion;
 use luminara_physics::target_game::draw_crosshair;
-use luminara_physics::{Target, TargetGameState, CollisionEvents, physics3d::PhysicsWorld3D};
-use rapier3d::prelude::{nalgebra, point, vector, Ray, QueryFilter};
-use log::{error, info};
+use luminara_physics::{physics3d::PhysicsWorld3D, CollisionEvents, Target, TargetGameState};
+use luminara_render::{
+    CommandBuffer, DirectionalLight, GizmoCategories, Gizmos, OverlayRenderer, ParticleEmitter,
+    PbrMaterial, PointLight, Texture,
+};
+use rapier3d::prelude::{nalgebra, point, vector, QueryFilter, Ray};
 use std::time::Instant;
 
+mod advanced_effects;
 mod camera_controller;
-mod post_effects;
-mod scene_manager;
+mod console;
 mod lod_system;
 mod mouse_interaction;
-mod console;
-mod advanced_effects;
+mod post_effects;
+mod scene_manager;
 mod spectacle_scenes;
 
+use advanced_effects::*;
 use camera_controller::{
     camera_controller_system, setup_camera_input, CameraAction, CameraController,
 };
+use console::{console_input_system, console_render_system, Console};
+use lod_system::lod_update_system;
 use luminara::input::ActionMap;
+use mouse_interaction::{mouse_interaction_system, MouseInteractionState};
 use post_effects::PostEffects;
 use scene_manager::SceneManager;
-use lod_system::lod_update_system;
-use mouse_interaction::{MouseInteractionState, mouse_interaction_system};
-use console::{Console, console_input_system, console_render_system};
-use advanced_effects::*;
 use spectacle_scenes::*;
 
 // ============================================================================
@@ -216,7 +216,7 @@ fn main() {
     app.add_system::<ExclusiveMarker>(CoreStage::Update, mouse_interaction_system);
     app.add_system::<ExclusiveMarker>(CoreStage::Update, console_input_system);
     app.add_system::<ExclusiveMarker>(CoreStage::Update, console_render_system);
-    
+
     // Advanced effects systems
     app.add_system::<ExclusiveMarker>(CoreStage::Update, rotating_platform_system);
     app.add_system::<ExclusiveMarker>(CoreStage::Update, pendulum_system);
@@ -386,9 +386,24 @@ fn setup_scene(world: &mut World) {
 
     // ── Fill lights (multiple for richer scene) ────────────────────────
     let fill_lights = [
-        ("FillLight_Blue", Vec3::new(-15.0, 8.0, 15.0), Color::rgb(0.4, 0.5, 1.0), 0.6),
-        ("FillLight_Warm", Vec3::new(15.0, 6.0, -10.0), Color::rgb(1.0, 0.7, 0.4), 0.5),
-        ("FillLight_Green", Vec3::new(0.0, 15.0, 0.0), Color::rgb(0.3, 0.8, 0.3), 0.3),
+        (
+            "FillLight_Blue",
+            Vec3::new(-15.0, 8.0, 15.0),
+            Color::rgb(0.4, 0.5, 1.0),
+            0.6,
+        ),
+        (
+            "FillLight_Warm",
+            Vec3::new(15.0, 6.0, -10.0),
+            Color::rgb(1.0, 0.7, 0.4),
+            0.5,
+        ),
+        (
+            "FillLight_Green",
+            Vec3::new(0.0, 15.0, 0.0),
+            Color::rgb(0.3, 0.8, 0.3),
+            0.3,
+        ),
     ];
     for (name, pos, color, intensity) in &fill_lights {
         let fill = world.spawn();
@@ -464,10 +479,17 @@ fn create_ground(world: &mut World) {
         let mesh_handle = asset_server.add(Mesh::cube(1.0));
         let concrete_texture = asset_server.load::<Texture>("assets/textures/concrete_albedo.png");
         let normal_texture = asset_server.load::<Texture>("assets/textures/concrete_normal.png");
-        let roughness_texture = asset_server.load::<Texture>("assets/textures/concrete_roughness.png");
-        (mesh_handle, concrete_texture, normal_texture, roughness_texture)
+        let roughness_texture =
+            asset_server.load::<Texture>("assets/textures/concrete_roughness.png");
+        (
+            mesh_handle,
+            concrete_texture,
+            normal_texture,
+            roughness_texture,
+        )
     });
-    if let Some((mesh_handle, concrete_texture, normal_texture, roughness_texture)) = ground_assets {
+    if let Some((mesh_handle, concrete_texture, normal_texture, roughness_texture)) = ground_assets
+    {
         world.add_component(ground, mesh_handle);
         world.add_component(
             ground,
@@ -522,10 +544,26 @@ fn create_ground(world: &mut World) {
 
 fn create_walls(world: &mut World) {
     let walls = [
-        ("Wall_N", Vec3::new(0.0, 4.0, 31.0), Vec3::new(62.0, 8.0, 1.0)),
-        ("Wall_S", Vec3::new(0.0, 4.0, -31.0), Vec3::new(62.0, 8.0, 1.0)),
-        ("Wall_E", Vec3::new(31.0, 4.0, 0.0), Vec3::new(1.0, 8.0, 62.0)),
-        ("Wall_W", Vec3::new(-31.0, 4.0, 0.0), Vec3::new(1.0, 8.0, 62.0)),
+        (
+            "Wall_N",
+            Vec3::new(0.0, 4.0, 31.0),
+            Vec3::new(62.0, 8.0, 1.0),
+        ),
+        (
+            "Wall_S",
+            Vec3::new(0.0, 4.0, -31.0),
+            Vec3::new(62.0, 8.0, 1.0),
+        ),
+        (
+            "Wall_E",
+            Vec3::new(31.0, 4.0, 0.0),
+            Vec3::new(1.0, 8.0, 62.0),
+        ),
+        (
+            "Wall_W",
+            Vec3::new(-31.0, 4.0, 0.0),
+            Vec3::new(1.0, 8.0, 62.0),
+        ),
     ];
     for (name, pos, s) in &walls {
         let e = world.spawn();
@@ -538,8 +576,12 @@ fn create_walls(world: &mut World) {
                 scale: *s,
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(e, h);
+        }
         world.add_component(
             e,
             PbrMaterial {
@@ -643,8 +685,12 @@ fn create_demo_objects(world: &mut World) {
                 scale: Vec3::new(1.5, 6.0, 1.5),
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(e, h);
+        }
         world.add_component(
             e,
             PbrMaterial {
@@ -686,9 +732,21 @@ fn create_demo_objects(world: &mut World) {
 
 fn create_hud_markers(world: &mut World) {
     let markers = [
-        (Vec3::new(-5.0, 8.0, -5.0), Color::rgb(1.0, 0.3, 0.3), "Marker_Red"),
-        (Vec3::new(5.0, 9.0, -5.0), Color::rgb(0.3, 1.0, 0.3), "Marker_Green"),
-        (Vec3::new(0.0, 10.0, -8.0), Color::rgb(0.3, 0.3, 1.0), "Marker_Blue"),
+        (
+            Vec3::new(-5.0, 8.0, -5.0),
+            Color::rgb(1.0, 0.3, 0.3),
+            "Marker_Red",
+        ),
+        (
+            Vec3::new(5.0, 9.0, -5.0),
+            Color::rgb(0.3, 1.0, 0.3),
+            "Marker_Green",
+        ),
+        (
+            Vec3::new(0.0, 10.0, -8.0),
+            Color::rgb(0.3, 0.3, 1.0),
+            "Marker_Blue",
+        ),
     ];
     for (pos, color, name) in &markers {
         let e = world.spawn();
@@ -698,16 +756,19 @@ fn create_hud_markers(world: &mut World) {
             Transform {
                 translation: *pos,
                 rotation: Quat::from_rotation_y(0.785),
-                            scale: Vec3::splat(0.5),
-                        },
-                    );
-                        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
-                    
-                    world.add_component(
-                        e,
-                        PbrMaterial {
-                
+                scale: Vec3::splat(0.5),
+            },
+        );
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(e, h);
+        }
+
+        world.add_component(
+            e,
+            PbrMaterial {
                 albedo: *color,
                 albedo_texture: None,
                 normal_texture: None,
@@ -738,13 +799,13 @@ fn create_targets(world: &mut World) {
         (Vec3::new(-18.0, 3.0, -25.0), 10, Color::rgb(1.0, 0.2, 0.2)),
         (Vec3::new(-12.0, 5.0, -25.0), 20, Color::rgb(1.0, 0.5, 0.1)),
         (Vec3::new(-6.0, 4.0, -25.0), 15, Color::rgb(1.0, 0.8, 0.0)),
-        (Vec3::new(0.0, 6.0, -25.0), 50, Color::rgb(0.2, 1.0, 0.2)),     // center = high value
+        (Vec3::new(0.0, 6.0, -25.0), 50, Color::rgb(0.2, 1.0, 0.2)), // center = high value
         (Vec3::new(6.0, 4.0, -25.0), 15, Color::rgb(0.0, 0.8, 1.0)),
         (Vec3::new(12.0, 5.0, -25.0), 20, Color::rgb(0.5, 0.3, 1.0)),
         (Vec3::new(18.0, 3.0, -25.0), 10, Color::rgb(1.0, 0.3, 0.7)),
         // Elevated row
         (Vec3::new(-9.0, 9.0, -25.0), 30, Color::rgb(1.0, 1.0, 0.2)),
-        (Vec3::new(0.0, 11.0, -25.0), 100, Color::rgb(1.0, 0.0, 0.0)),    // golden target
+        (Vec3::new(0.0, 11.0, -25.0), 100, Color::rgb(1.0, 0.0, 0.0)), // golden target
         (Vec3::new(9.0, 9.0, -25.0), 30, Color::rgb(0.2, 1.0, 1.0)),
     ];
     for (pos, points, color) in &target_configs {
@@ -759,8 +820,12 @@ fn create_targets(world: &mut World) {
                 scale: Vec3::splat(target_scale),
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::sphere(0.5, 16)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::sphere(0.5, 16)));
+        if let Some(h) = mesh_h {
+            world.add_component(e, h);
+        }
         world.add_component(
             e,
             PbrMaterial {
@@ -786,7 +851,9 @@ fn create_targets(world: &mut World) {
         world.add_component(
             e,
             Collider {
-                shape: ColliderShape::Sphere { radius: target_scale * 0.5 },
+                shape: ColliderShape::Sphere {
+                    radius: target_scale * 0.5,
+                },
                 friction: 0.3,
                 restitution: 0.0,
                 is_sensor: false,
@@ -828,8 +895,12 @@ fn create_arches(world: &mut World) {
                 scale: Vec3::new(0.8, 8.0, 0.8),
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(lp, h); }
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(lp, h);
+        }
         world.add_component(
             lp,
             PbrMaterial {
@@ -844,11 +915,24 @@ fn create_arches(world: &mut World) {
         );
         world.add_component(
             lp,
-            RigidBody { body_type: RigidBodyType::Static, mass: 0.0, linear_damping: 0.0, angular_damping: 0.0, gravity_scale: 0.0 },
+            RigidBody {
+                body_type: RigidBodyType::Static,
+                mass: 0.0,
+                linear_damping: 0.0,
+                angular_damping: 0.0,
+                gravity_scale: 0.0,
+            },
         );
         world.add_component(
             lp,
-            Collider { shape: ColliderShape::Box { half_extents: Vec3::new(0.4, 4.0, 0.4) }, friction: 0.5, restitution: 0.0, is_sensor: false },
+            Collider {
+                shape: ColliderShape::Box {
+                    half_extents: Vec3::new(0.4, 4.0, 0.4),
+                },
+                friction: 0.5,
+                restitution: 0.0,
+                is_sensor: false,
+            },
         );
 
         // Right pillar
@@ -862,14 +946,45 @@ fn create_arches(world: &mut World) {
                 scale: Vec3::new(0.8, 8.0, 0.8),
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(rp, h); }
-        world.add_component(rp, PbrMaterial {
-            albedo: Color::rgb(0.55, 0.50, 0.45), albedo_texture: None, normal_texture: None,
-            metallic: 0.15, roughness: 0.85, metallic_roughness_texture: None, emissive: Color::BLACK,
-        });
-        world.add_component(rp, RigidBody { body_type: RigidBodyType::Static, mass: 0.0, linear_damping: 0.0, angular_damping: 0.0, gravity_scale: 0.0 });
-        world.add_component(rp, Collider { shape: ColliderShape::Box { half_extents: Vec3::new(0.4, 4.0, 0.4) }, friction: 0.5, restitution: 0.0, is_sensor: false });
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(rp, h);
+        }
+        world.add_component(
+            rp,
+            PbrMaterial {
+                albedo: Color::rgb(0.55, 0.50, 0.45),
+                albedo_texture: None,
+                normal_texture: None,
+                metallic: 0.15,
+                roughness: 0.85,
+                metallic_roughness_texture: None,
+                emissive: Color::BLACK,
+            },
+        );
+        world.add_component(
+            rp,
+            RigidBody {
+                body_type: RigidBodyType::Static,
+                mass: 0.0,
+                linear_damping: 0.0,
+                angular_damping: 0.0,
+                gravity_scale: 0.0,
+            },
+        );
+        world.add_component(
+            rp,
+            Collider {
+                shape: ColliderShape::Box {
+                    half_extents: Vec3::new(0.4, 4.0, 0.4),
+                },
+                friction: 0.5,
+                restitution: 0.0,
+                is_sensor: false,
+            },
+        );
 
         // Cross-beam
         let beam = world.spawn();
@@ -882,14 +997,45 @@ fn create_arches(world: &mut World) {
                 scale: Vec3::new(7.0, 0.8, 0.8),
             },
         );
-        let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(beam, h); }
-        world.add_component(beam, PbrMaterial {
-            albedo: Color::rgb(0.6, 0.55, 0.48), albedo_texture: None, normal_texture: None,
-            metallic: 0.2, roughness: 0.8, metallic_roughness_texture: None, emissive: Color::BLACK,
-        });
-        world.add_component(beam, RigidBody { body_type: RigidBodyType::Static, mass: 0.0, linear_damping: 0.0, angular_damping: 0.0, gravity_scale: 0.0 });
-        world.add_component(beam, Collider { shape: ColliderShape::Box { half_extents: Vec3::new(3.5, 0.4, 0.4) }, friction: 0.5, restitution: 0.0, is_sensor: false });
+        let mesh_h = world
+            .get_resource::<AssetServer>()
+            .map(|a| a.add(Mesh::cube(1.0)));
+        if let Some(h) = mesh_h {
+            world.add_component(beam, h);
+        }
+        world.add_component(
+            beam,
+            PbrMaterial {
+                albedo: Color::rgb(0.6, 0.55, 0.48),
+                albedo_texture: None,
+                normal_texture: None,
+                metallic: 0.2,
+                roughness: 0.8,
+                metallic_roughness_texture: None,
+                emissive: Color::BLACK,
+            },
+        );
+        world.add_component(
+            beam,
+            RigidBody {
+                body_type: RigidBodyType::Static,
+                mass: 0.0,
+                linear_damping: 0.0,
+                angular_damping: 0.0,
+                gravity_scale: 0.0,
+            },
+        );
+        world.add_component(
+            beam,
+            Collider {
+                shape: ColliderShape::Box {
+                    half_extents: Vec3::new(3.5, 0.4, 0.4),
+                },
+                friction: 0.5,
+                restitution: 0.0,
+                is_sensor: false,
+            },
+        );
     }
     info!("  * 5 decorative arches");
 }
@@ -948,11 +1094,31 @@ fn create_particle_emitters(world: &mut World) {
 fn create_dynamic_lights(world: &mut World) {
     // Colored accent lights around the arena
     let accent_configs = [
-        ("AccentLight_Red", Vec3::new(-20.0, 4.0, 0.0), Color::rgb(1.0, 0.1, 0.1)),
-        ("AccentLight_Blue", Vec3::new(20.0, 4.0, 0.0), Color::rgb(0.1, 0.3, 1.0)),
-        ("AccentLight_Purple", Vec3::new(0.0, 4.0, 20.0), Color::rgb(0.7, 0.1, 1.0)),
-        ("AccentLight_Cyan", Vec3::new(0.0, 4.0, -20.0), Color::rgb(0.1, 0.9, 0.9)),
-        ("AccentLight_Gold", Vec3::new(0.0, 12.0, -25.0), Color::rgb(1.0, 0.85, 0.3)),
+        (
+            "AccentLight_Red",
+            Vec3::new(-20.0, 4.0, 0.0),
+            Color::rgb(1.0, 0.1, 0.1),
+        ),
+        (
+            "AccentLight_Blue",
+            Vec3::new(20.0, 4.0, 0.0),
+            Color::rgb(0.1, 0.3, 1.0),
+        ),
+        (
+            "AccentLight_Purple",
+            Vec3::new(0.0, 4.0, 20.0),
+            Color::rgb(0.7, 0.1, 1.0),
+        ),
+        (
+            "AccentLight_Cyan",
+            Vec3::new(0.0, 4.0, -20.0),
+            Color::rgb(0.1, 0.9, 0.9),
+        ),
+        (
+            "AccentLight_Gold",
+            Vec3::new(0.0, 12.0, -25.0),
+            Color::rgb(1.0, 0.85, 0.3),
+        ),
     ];
     for (name, pos, color) in &accent_configs {
         let e = world.spawn();
@@ -976,7 +1142,7 @@ fn create_dynamic_lights(world: &mut World) {
 // ============================================================================
 
 fn add_spawned_entity(world: &mut World, entity: Entity) {
-    if let Some(state) = world.get_resource_mut::<DemoState>() {
+    if let Some(mut state) = world.get_resource_mut::<DemoState>() {
         state.spawned_entities.push(entity);
         state.spawn_counter += 1;
     }
@@ -1076,8 +1242,12 @@ fn spawn_cube_at(world: &mut World, pos: Vec3, size: f32, color: Color) -> Entit
             scale: Vec3::splat(size),
         },
     );
-    let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::cube(1.0)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
+    let mesh_h = world
+        .get_resource::<AssetServer>()
+        .map(|a| a.add(Mesh::cube(1.0)));
+    if let Some(h) = mesh_h {
+        world.add_component(e, h);
+    }
     world.add_component(
         e,
         PbrMaterial {
@@ -1125,8 +1295,12 @@ fn spawn_emissive_orb(world: &mut World, pos: Vec3, radius: f32, glow: Color) ->
             scale: Vec3::splat(radius * 2.0),
         },
     );
-    let mesh_h = world.get_resource::<AssetServer>().map(|a| a.add(Mesh::sphere(0.5, 24)));
-        if let Some(h) = mesh_h { world.add_component(e, h); }
+    let mesh_h = world
+        .get_resource::<AssetServer>()
+        .map(|a| a.add(Mesh::sphere(0.5, 24)));
+    if let Some(h) = mesh_h {
+        world.add_component(e, h);
+    }
     world.add_component(
         e,
         PbrMaterial {
@@ -1167,7 +1341,13 @@ fn spawn_emissive_orb(world: &mut World, pos: Vec3, radius: f32, glow: Color) ->
 
 /// Gizmo category names for cycling.
 const GIZMO_CATEGORIES: &[&str] = &[
-    "all", "physics", "collision", "camera", "bounds", "skeleton", "navigation",
+    "all",
+    "physics",
+    "collision",
+    "camera",
+    "bounds",
+    "skeleton",
+    "navigation",
 ];
 
 const GRAVITY_DIRECTIONS: &[Vec3] = &[
@@ -1213,7 +1393,7 @@ fn input_system(world: &mut World) {
     let mut wants_spawn_magnetic_demo = false;
 
     // Read input resource
-    if let Some(input) = world.get_resource_mut::<Input>() {
+    if let Some(mut input) = world.get_resource_mut::<Input>() {
         // Actions (just_pressed = single fire)
         wants_spawn_random = input.just_pressed(Key::T);
         wants_spawn_sphere = input.just_pressed(Key::Num1);
@@ -1240,7 +1420,7 @@ fn input_system(world: &mut World) {
         wants_decrease_exposure = input.just_pressed(Key::BracketLeft); // [ key
         wants_next_scene = input.just_pressed(Key::Period); // > key
         wants_previous_scene = input.just_pressed(Key::Comma); // < key
-        
+
         // Spectacle scene spawning (Num keys with Shift)
         wants_spawn_domino_chain = input.just_pressed(Key::D);
         wants_spawn_pendulum_array = input.just_pressed(Key::N);
@@ -1265,7 +1445,7 @@ fn input_system(world: &mut World) {
         .unwrap_or(1.0 / 60.0);
 
     // Now mutate DemoState
-    if let Some(state) = world.get_resource_mut::<DemoState>() {
+    if let Some(mut state) = world.get_resource_mut::<DemoState>() {
         state.frame_count += 1;
         state.scene_time += dt;
         state.update_fps();
@@ -1278,7 +1458,8 @@ fn input_system(world: &mut World) {
 
         // ── Gizmo cycling ───────────────────────────────────────────
         if wants_toggle_gizmos && state.toggle_cooldown == 0 {
-            state.gizmo_category_index = (state.gizmo_category_index + 1) % (GIZMO_CATEGORIES.len() + 1);
+            state.gizmo_category_index =
+                (state.gizmo_category_index + 1) % (GIZMO_CATEGORIES.len() + 1);
             if state.gizmo_category_index == 0 {
                 state.gizmos_on = false;
                 state.push_notification("Gizmos: OFF".into(), [1.0, 0.5, 0.5, 1.0]);
@@ -1296,7 +1477,11 @@ fn input_system(world: &mut World) {
             state.toggle_cooldown = 10;
             new_physics_paused = Some(state.physics_paused);
             state.push_notification(
-                if state.physics_paused { "Physics: PAUSED".into() } else { "Physics: RUNNING".into() },
+                if state.physics_paused {
+                    "Physics: PAUSED".into()
+                } else {
+                    "Physics: RUNNING".into()
+                },
                 [0.5, 0.8, 1.0, 1.0],
             );
         }
@@ -1315,7 +1500,11 @@ fn input_system(world: &mut World) {
             state.slow_motion = !state.slow_motion;
             state.toggle_cooldown = 10;
             state.push_notification(
-                if state.slow_motion { "SLOW MOTION: ON (0.25x)".into() } else { "SLOW MOTION: OFF".into() },
+                if state.slow_motion {
+                    "SLOW MOTION: ON (0.25x)".into()
+                } else {
+                    "SLOW MOTION: OFF".into()
+                },
                 [1.0, 1.0, 0.3, 1.0],
             );
         }
@@ -1325,7 +1514,11 @@ fn input_system(world: &mut World) {
             state.target_mode = !state.target_mode;
             state.toggle_cooldown = 10;
             state.push_notification(
-                if state.target_mode { "TARGET MODE: ON — [LMB] to shoot!".into() } else { "TARGET MODE: OFF".into() },
+                if state.target_mode {
+                    "TARGET MODE: ON — [LMB] to shoot!".into()
+                } else {
+                    "TARGET MODE: OFF".into()
+                },
                 [1.0, 0.4, 0.2, 1.0],
             );
         }
@@ -1342,10 +1535,7 @@ fn input_system(world: &mut World) {
                 3 => "LEFT",
                 _ => "UNKNOWN",
             };
-            state.push_notification(
-                format!("Gravity: {}", dir_name),
-                [0.5, 0.8, 1.0, 1.0],
-            );
+            state.push_notification(format!("Gravity: {}", dir_name), [0.5, 0.8, 1.0, 1.0]);
         }
 
         // ── Adjust gravity scale ────────────────────────────────────
@@ -1372,7 +1562,14 @@ fn input_system(world: &mut World) {
             state.post_effects.toggle_bloom();
             state.toggle_cooldown = 10;
             state.push_notification(
-                format!("Bloom: {}", if state.post_effects.bloom_enabled { "ON" } else { "OFF" }),
+                format!(
+                    "Bloom: {}",
+                    if state.post_effects.bloom_enabled {
+                        "ON"
+                    } else {
+                        "OFF"
+                    }
+                ),
                 [1.0, 0.8, 0.3, 1.0],
             );
         }
@@ -1381,7 +1578,14 @@ fn input_system(world: &mut World) {
             state.post_effects.toggle_dof();
             state.toggle_cooldown = 10;
             state.push_notification(
-                format!("DOF: {}", if state.post_effects.dof_enabled { "ON" } else { "OFF" }),
+                format!(
+                    "DOF: {}",
+                    if state.post_effects.dof_enabled {
+                        "ON"
+                    } else {
+                        "OFF"
+                    }
+                ),
                 [0.8, 0.8, 1.0, 1.0],
             );
         }
@@ -1405,19 +1609,16 @@ fn input_system(world: &mut World) {
 
     // Handle scene switching (needs mutable access to SceneManager)
     if wants_next_scene || wants_previous_scene {
-        if let Some(scene_mgr) = world.get_resource_mut::<SceneManager>() {
+        if let Some(mut scene_mgr) = world.get_resource_mut::<SceneManager>() {
             if wants_next_scene {
                 scene_mgr.next_scene();
             } else {
                 scene_mgr.previous_scene();
             }
             let scene_name = scene_mgr.current_scene().name.clone();
-            
-            if let Some(state) = world.get_resource_mut::<DemoState>() {
-                state.push_notification(
-                    format!("Scene: {}", scene_name),
-                    [0.5, 1.0, 0.8, 1.0],
-                );
+
+            if let Some(mut state) = world.get_resource_mut::<DemoState>() {
+                state.push_notification(format!("Scene: {}", scene_name), [0.5, 1.0, 0.8, 1.0]);
             }
         }
     }
@@ -1436,9 +1637,15 @@ fn input_system(world: &mut World) {
             .map(|s| s.slow_motion)
             .unwrap_or(false);
 
-        if let Some(time) = world.get_resource_mut::<Time>() {
+        if let Some(mut time) = world.get_resource_mut::<Time>() {
             if let Some(p) = paused {
-                time.time_scale = if p { 0.0 } else if slow_motion { 0.25 } else { 1.0 };
+                time.time_scale = if p {
+                    0.0
+                } else if slow_motion {
+                    0.25
+                } else {
+                    1.0
+                };
             } else if slow_motion {
                 time.time_scale = 0.25;
             } else {
@@ -1459,8 +1666,14 @@ fn input_system(world: &mut World) {
             .get_resource::<DemoState>()
             .map(|s| (s.physics_paused, s.slow_motion))
             .unwrap_or((false, false));
-        if let Some(time) = world.get_resource_mut::<Time>() {
-            time.time_scale = if paused { 0.0 } else if slow { 0.25 } else { 1.0 };
+        if let Some(mut time) = world.get_resource_mut::<Time>() {
+            time.time_scale = if paused {
+                0.0
+            } else if slow {
+                0.25
+            } else {
+                1.0
+            };
         }
     }
 
@@ -1471,7 +1684,7 @@ fn input_system(world: &mut World) {
             .map(|s| (s.gravity_index, s.gravity_scale))
             .unwrap_or((0, 1.0));
         let gravity = GRAVITY_DIRECTIONS[gravity_index % GRAVITY_DIRECTIONS.len()] * gravity_scale;
-        if let Some(physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
+        if let Some(mut physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
             physics_world.gravity = vector![gravity.x, gravity.y, gravity.z];
         }
     }
@@ -1482,7 +1695,7 @@ fn input_system(world: &mut World) {
             .get_resource::<DemoState>()
             .map(|s| (s.gizmos_on, s.gizmo_category_index))
             .unwrap_or((true, 0));
-        if let Some(gizmo_cats) = world.get_resource_mut::<GizmoCategories>() {
+        if let Some(mut gizmo_cats) = world.get_resource_mut::<GizmoCategories>() {
             if !gizmos_on {
                 gizmo_cats.disable_all();
             } else if cat_idx > 0 && cat_idx <= GIZMO_CATEGORIES.len() {
@@ -1556,10 +1769,13 @@ fn input_system(world: &mut World) {
                 shake.elapsed = 0.0;
             }
         }
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.explosion_counter += 1;
             state.push_notification(
-                format!("EXPLOSION #{} at ({:.0}, {:.0}, {:.0})!", state.explosion_counter, spawn_pos.x, spawn_pos.y, spawn_pos.z),
+                format!(
+                    "EXPLOSION #{} at ({:.0}, {:.0}, {:.0})!",
+                    state.explosion_counter, spawn_pos.x, spawn_pos.y, spawn_pos.z
+                ),
                 [1.0, 0.3, 0.1, 1.0],
             );
         }
@@ -1572,10 +1788,10 @@ fn input_system(world: &mut World) {
             .map(|s| s.target_mode)
             .unwrap_or(false);
         if target_active {
-            if let Some(tgs) = world.get_resource_mut::<TargetGameState>() {
+            if let Some(mut tgs) = world.get_resource_mut::<TargetGameState>() {
                 tgs.record_shot();
             }
-            
+
             // Perform raycast for target shooting using camera position
             let (cam_pos, cam_dir) = {
                 let mut pos = Vec3::ZERO;
@@ -1588,8 +1804,13 @@ fn input_system(world: &mut World) {
                         -yaw.sin() * pitch.cos(),
                         pitch.sin(),
                         -yaw.cos() * pitch.cos(),
-                    ).normalize();
-                    pos = Vec3::new(transform.translation.x, transform.translation.y, transform.translation.z);
+                    )
+                    .normalize();
+                    pos = Vec3::new(
+                        transform.translation.x,
+                        transform.translation.y,
+                        transform.translation.z,
+                    );
                     break;
                 }
                 (pos, dir)
@@ -1602,11 +1823,11 @@ fn input_system(world: &mut World) {
                         point![cam_pos.x, cam_pos.y, cam_pos.z],
                         vector![cam_dir.x, cam_dir.y, cam_dir.z],
                     );
-                    
+
                     let max_toi = 100.0;
                     let solid = true;
                     let query_filter = QueryFilter::default();
-                    
+
                     if let Some((handle, toi)) = physics_world.query_pipeline.cast_ray(
                         &physics_world.rigid_body_set,
                         &physics_world.collider_set,
@@ -1618,7 +1839,8 @@ fn input_system(world: &mut World) {
                         let mut result = None;
                         if let Some(collider) = physics_world.collider_set.get(handle) {
                             if let Some(body_handle) = collider.parent() {
-                                if let Some(entity) = physics_world.body_to_entity.get(&body_handle) {
+                                if let Some(entity) = physics_world.body_to_entity.get(&body_handle)
+                                {
                                     result = Some((*entity, toi));
                                 }
                             }
@@ -1637,23 +1859,24 @@ fn input_system(world: &mut World) {
             match hit_result {
                 Some((entity, toi)) => {
                     // Check if entity is a target that hasn't been hit yet
-                    let target_info = world.get_component::<Target>(entity)
+                    let target_info = world
+                        .get_component::<Target>(entity)
                         .filter(|t| !t.hit)
                         .map(|t| t.points);
 
                     if let Some(points) = target_info {
                         let hit_pos_vec3 = cam_pos + cam_dir * toi;
-                        
-                        if let Some(tgs) = world.get_resource_mut::<TargetGameState>() {
+
+                        if let Some(mut tgs) = world.get_resource_mut::<TargetGameState>() {
                             tgs.register_hit(points, hit_pos_vec3);
                         }
-                        
+
                         // Mark target as hit
                         if let Some(target) = world.get_component_mut::<Target>(entity) {
                             target.hit = true;
                             target.hit_flash_timer = 0.5;
                         }
-                        
+
                         // Spawn particle effect
                         let particle_entity = world.spawn();
                         world.add_component(particle_entity, Name::new("HitParticles"));
@@ -1678,13 +1901,13 @@ fn input_system(world: &mut World) {
                                 lifetime: 1.0,
                             },
                         );
-                        
+
                         info!("Target hit! +{} points", points);
                     }
                 }
                 None => {
                     // Miss
-                    if let Some(tgs) = world.get_resource_mut::<TargetGameState>() {
+                    if let Some(mut tgs) = world.get_resource_mut::<TargetGameState>() {
                         tgs.register_miss();
                     }
                 }
@@ -1704,7 +1927,7 @@ fn input_system(world: &mut World) {
             _ => spawn_emissive_orb(world, spawn_pos, 0.6, Color::rgb(3.0, 0.5, 1.0)),
         };
         add_spawned_entity(world, ent);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification(
                 format!("Spawned object #{}", state.spawn_counter),
                 [0.5, 1.0, 0.5, 1.0],
@@ -1726,7 +1949,7 @@ fn input_system(world: &mut World) {
     if wants_spawn_target {
         let ent = spawn_target_at(world, spawn_pos, 0.8, 10);
         add_spawned_entity(world, ent);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification("Spawned target!".into(), [1.0, 0.4, 0.2, 1.0]);
         }
     }
@@ -1742,7 +1965,7 @@ fn input_system(world: &mut World) {
             let ent = spawn_cube_at(world, p, 1.5, color);
             add_spawned_entity(world, ent);
         }
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification("Spawned stack of 5!".into(), [0.8, 0.8, 0.2, 1.0]);
         }
     }
@@ -1761,25 +1984,25 @@ fn input_system(world: &mut World) {
             let ent = spawn_sphere_at(world, spawn_pos + offset, 0.5, color);
             add_spawned_entity(world, ent);
         }
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification("Sphere rain! (10)".into(), [0.5, 0.5, 1.0, 1.0]);
         }
     }
     if wants_clear {
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             let entities_to_remove: Vec<Entity> = state.spawned_entities.drain(..).collect();
             let count = entities_to_remove.len();
             let _ = state;
             for ent in entities_to_remove {
                 world.despawn(ent);
             }
-            if let Some(state) = world.get_resource_mut::<DemoState>() {
+            if let Some(mut state) = world.get_resource_mut::<DemoState>() {
                 state.push_notification(format!("Cleared {} objects", count), [1.0, 0.8, 0.3, 1.0]);
             }
         }
     }
     if wants_reset {
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             let entities_to_remove: Vec<Entity> = state.spawned_entities.drain(..).collect();
             state.gizmos_on = true;
             state.gizmo_category_index = 0;
@@ -1790,51 +2013,60 @@ fn input_system(world: &mut World) {
             for ent in entities_to_remove {
                 world.despawn(ent);
             }
-            if let Some(time) = world.get_resource_mut::<Time>() {
+            if let Some(mut time) = world.get_resource_mut::<Time>() {
                 time.time_scale = 1.0;
             }
-            if let Some(tgs) = world.get_resource_mut::<TargetGameState>() {
+            if let Some(mut tgs) = world.get_resource_mut::<TargetGameState>() {
                 tgs.reset();
             }
-            if let Some(state) = world.get_resource_mut::<DemoState>() {
+            if let Some(mut state) = world.get_resource_mut::<DemoState>() {
                 state.push_notification("Scene RESET".into(), [1.0, 1.0, 1.0, 1.0]);
             }
         }
     }
-    
+
     // ── Spectacle scene spawning ────────────────────────────────────
     if wants_spawn_domino_chain {
         create_domino_chain(world);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.push_notification("🎲 DOMINO CHAIN spawned! Push the first one!".into(), [1.0, 0.5, 0.2, 1.0]);
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
+            state.push_notification(
+                "🎲 DOMINO CHAIN spawned! Push the first one!".into(),
+                [1.0, 0.5, 0.2, 1.0],
+            );
         }
     }
-    
+
     if wants_spawn_pendulum_array {
         create_pendulum_array(world);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification("⚖️ PENDULUM ARRAY spawned!".into(), [0.5, 0.8, 1.0, 1.0]);
         }
     }
-    
+
     if wants_spawn_rotating_platforms {
         create_rotating_platforms(world);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.push_notification("🔄 ROTATING PLATFORMS spawned!".into(), [0.8, 0.5, 1.0, 1.0]);
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
+            state.push_notification(
+                "🔄 ROTATING PLATFORMS spawned!".into(),
+                [0.8, 0.5, 1.0, 1.0],
+            );
         }
     }
-    
+
     if wants_spawn_orbital_system {
         create_orbital_system(world);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
             state.push_notification("🌌 ORBITAL SYSTEM spawned!".into(), [1.0, 0.8, 0.3, 1.0]);
         }
     }
-    
+
     if wants_spawn_magnetic_demo {
         create_magnetic_field_demo(world);
-        if let Some(state) = world.get_resource_mut::<DemoState>() {
-            state.push_notification("🧲 MAGNETIC FIELD demo spawned!".into(), [0.3, 1.0, 0.8, 1.0]);
+        if let Some(mut state) = world.get_resource_mut::<DemoState>() {
+            state.push_notification(
+                "🧲 MAGNETIC FIELD demo spawned!".into(),
+                [0.3, 1.0, 0.8, 1.0],
+            );
         }
     }
 }
@@ -1865,7 +2097,7 @@ fn target_game_system(world: &mut World) {
     }
 
     // Update target game state timer
-    if let Some(tgs) = world.get_resource_mut::<TargetGameState>() {
+    if let Some(mut tgs) = world.get_resource_mut::<TargetGameState>() {
         tgs.active = target_active;
         tgs.show_crosshair = target_active;
         tgs.update(dt);
@@ -1886,18 +2118,24 @@ fn gizmo_draw_system(world: &mut World) {
         return;
     }
 
-    if let Some(cmd_buf) = world.get_resource_mut::<CommandBuffer>() {
+    if let Some(mut cmd_buf) = world.get_resource_mut::<CommandBuffer>() {
         // Ground grid
-        Gizmos::grid(cmd_buf, Vec3::ZERO, 60.0, 30, Color::rgba(0.3, 0.3, 0.3, 0.4));
+        Gizmos::grid(
+            &mut cmd_buf,
+            Vec3::ZERO,
+            60.0,
+            30,
+            Color::rgba(0.3, 0.3, 0.3, 0.4),
+        );
 
         // World axes at origin
-        Gizmos::axes(cmd_buf, Vec3::new(0.0, 0.01, 0.0), 3.0);
+        Gizmos::axes(&mut cmd_buf, Vec3::new(0.0, 0.01, 0.0), 3.0);
 
         // Draw circles around energy cores
         for i in 0..6 {
             let a = i as f32 * std::f32::consts::TAU / 6.0;
             let pos = Vec3::new(a.cos() * 14.0, 2.5, a.sin() * 14.0);
-            Gizmos::circle(cmd_buf, pos, 1.5, 16, Color::rgba(0.0, 0.8, 1.0, 0.6));
+            Gizmos::circle(&mut cmd_buf, pos, 1.5, 16, Color::rgba(0.0, 0.8, 1.0, 0.6));
         }
 
         // Arrow pointing up at each pillar
@@ -1908,7 +2146,12 @@ fn gizmo_draw_system(world: &mut World) {
             Vec3::new(20.0, 6.0, 20.0),
         ];
         for pos in &pillar_positions {
-            Gizmos::arrow(cmd_buf, *pos, *pos + Vec3::new(0.0, 3.0, 0.0), Color::rgb(1.0, 0.8, 0.2));
+            Gizmos::arrow(
+                &mut cmd_buf,
+                *pos,
+                *pos + Vec3::new(0.0, 3.0, 0.0),
+                Color::rgb(1.0, 0.8, 0.2),
+            );
         }
 
         // Collision bounds for walls (transparent)
@@ -1949,29 +2192,46 @@ fn gizmo_draw_system(world: &mut World) {
 
 fn hud_system(world: &mut World) {
     // Gather state info
-    let (frame, fps, spawned, gizmos, phys, menu_visible, slow_mo, target_mode, notifications, scene_time, gravity_scale, post_fx_status) =
-        if let Some(state) = world.get_resource::<DemoState>() {
-            (
-                state.frame_count,
-                state.current_fps,
-                state.spawned_entities.len(),
-                state.gizmos_on,
-                state.physics_paused,
-                state.menu_visible,
-                state.slow_motion,
-                state.target_mode,
-                state.notifications.clone(),
-                state.scene_time,
-                state.gravity_scale,
-                state.post_effects.status_string(),
-            )
-        } else {
-            return;
-        };
+    let (
+        frame,
+        fps,
+        spawned,
+        gizmos,
+        phys,
+        menu_visible,
+        slow_mo,
+        target_mode,
+        notifications,
+        scene_time,
+        gravity_scale,
+        post_fx_status,
+    ) = if let Some(state) = world.get_resource::<DemoState>() {
+        (
+            state.frame_count,
+            state.current_fps,
+            state.spawned_entities.len(),
+            state.gizmos_on,
+            state.physics_paused,
+            state.menu_visible,
+            state.slow_motion,
+            state.target_mode,
+            state.notifications.clone(),
+            state.scene_time,
+            state.gravity_scale,
+            state.post_effects.status_string(),
+        )
+    } else {
+        return;
+    };
 
     // Get frame stats for detailed performance info
-    let (avg_fps, p99_frame_time) = if let Some(frame_stats) = world.get_resource::<luminara_diagnostic::frame_stats::FrameStats>() {
-        (frame_stats.average_fps(), frame_stats.percentile_frame_time(99.0))
+    let (avg_fps, p99_frame_time) = if let Some(frame_stats) =
+        world.get_resource::<luminara_diagnostic::frame_stats::FrameStats>()
+    {
+        (
+            frame_stats.average_fps(),
+            frame_stats.percentile_frame_time(99.0),
+        )
     } else {
         (0.0, 0.0)
     };
@@ -1985,7 +2245,7 @@ fn hud_system(world: &mut World) {
     let (screen_w, screen_h) = (1440.0f32, 900.0f32);
 
     // ── In-game overlay via OverlayRenderer ─────────────────────────
-    if let Some(overlay) = world.get_resource_mut::<OverlayRenderer>() {
+    if let Some(mut overlay) = world.get_resource_mut::<OverlayRenderer>() {
         overlay.clear();
 
         let scale = 1.0;
@@ -2007,12 +2267,17 @@ fn hud_system(world: &mut World) {
         );
         let bar_w = status.len() as f32 * cw + 28.0;
         overlay.draw_gradient_rect(
-            8.0, 8.0, bar_w, ch + 14.0,
+            8.0,
+            8.0,
+            bar_w,
+            ch + 14.0,
             [0.05, 0.1, 0.2, 0.9],
             [0.02, 0.05, 0.1, 0.9],
         );
         overlay.draw_text_outlined(
-            18.0, 14.0, &status,
+            18.0,
+            14.0,
+            &status,
             [0.0, 1.0, 0.8, 1.0],
             [0.0, 0.0, 0.0, 1.0],
             scale,
@@ -2022,12 +2287,17 @@ fn hud_system(world: &mut World) {
         let badge = "LUMINARA ENGINE v0.1";
         let badge_w = badge.len() as f32 * cw + 20.0;
         overlay.draw_gradient_rect(
-            screen_w - badge_w - 8.0, 8.0, badge_w, ch + 14.0,
+            screen_w - badge_w - 8.0,
+            8.0,
+            badge_w,
+            ch + 14.0,
             [0.15, 0.05, 0.2, 0.85],
             [0.08, 0.02, 0.12, 0.85],
         );
         overlay.draw_text_outlined(
-            screen_w - badge_w + 2.0, 14.0, badge,
+            screen_w - badge_w + 2.0,
+            14.0,
+            badge,
             [0.8, 0.6, 1.0, 1.0],
             [0.0, 0.0, 0.0, 1.0],
             scale,
@@ -2036,15 +2306,39 @@ fn hud_system(world: &mut World) {
         // ── Post-effects status (below badge) ───────────────────────
         let fx_text = format!("FX: {}", post_fx_status);
         let fx_w = fx_text.len() as f32 * cw + 20.0;
-        overlay.draw_rect(screen_w - fx_w - 8.0, 30.0, fx_w, ch + 10.0, [0.1, 0.05, 0.15, 0.8]);
-        overlay.draw_text(screen_w - fx_w + 2.0, 34.0, &fx_text, [0.8, 0.8, 1.0, 1.0], scale);
+        overlay.draw_rect(
+            screen_w - fx_w - 8.0,
+            30.0,
+            fx_w,
+            ch + 10.0,
+            [0.1, 0.05, 0.15, 0.8],
+        );
+        overlay.draw_text(
+            screen_w - fx_w + 2.0,
+            34.0,
+            &fx_text,
+            [0.8, 0.8, 1.0, 1.0],
+            scale,
+        );
 
         // ── Mouse grab hint (below post-effects status) ─────────────
         if !grabbed {
             let hint = "RMB to Look | [Esc] Free";
             let hint_w = hint.len() as f32 * cw + 20.0;
-            overlay.draw_rect(screen_w - hint_w - 8.0, 52.0, hint_w, ch + 10.0, [0.6, 0.1, 0.1, 0.8]);
-            overlay.draw_text(screen_w - hint_w + 2.0, 56.0, hint, [1.0, 1.0, 1.0, 1.0], scale);
+            overlay.draw_rect(
+                screen_w - hint_w - 8.0,
+                52.0,
+                hint_w,
+                ch + 10.0,
+                [0.6, 0.1, 0.1, 0.8],
+            );
+            overlay.draw_text(
+                screen_w - hint_w + 2.0,
+                56.0,
+                hint,
+                [1.0, 1.0, 1.0, 1.0],
+                scale,
+            );
         }
 
         // ── Slow Motion indicator (center-top, pulsing) ─────────────
@@ -2054,12 +2348,17 @@ fn hud_system(world: &mut World) {
             let lw = label.len() as f32 * cw * 1.5 + 30.0;
             let lx = (screen_w - lw) * 0.5;
             overlay.draw_gradient_rect(
-                lx, 50.0, lw, ch * 1.5 + 14.0,
+                lx,
+                50.0,
+                lw,
+                ch * 1.5 + 14.0,
                 [0.5 * pulse, 0.3 * pulse, 0.0, 0.85],
                 [0.3 * pulse, 0.15 * pulse, 0.0, 0.85],
             );
             overlay.draw_text_outlined(
-                lx + 15.0, 56.0, label,
+                lx + 15.0,
+                56.0,
+                label,
                 [1.0, 0.9 * pulse, 0.3, 1.0],
                 [0.0, 0.0, 0.0, 1.0],
                 1.5,
@@ -2074,7 +2373,9 @@ fn hud_system(world: &mut World) {
             let y = if slow_mo { 85.0 } else { 50.0 };
             overlay.draw_rect(lx, y, lw, ch * 1.3 + 10.0, [0.1, 0.1, 0.4, 0.85]);
             overlay.draw_text_outlined(
-                lx + 12.0, y + 5.0, label,
+                lx + 12.0,
+                y + 5.0,
+                label,
                 [0.7, 0.7, 1.0, 1.0],
                 [0.0, 0.0, 0.0, 1.0],
                 1.3,
@@ -2084,17 +2385,36 @@ fn hud_system(world: &mut World) {
         // ── Notification feed (right side) with animation ──────────────────────────
         for (i, (msg, remaining, color)) in notifications.iter().enumerate() {
             let alpha = (*remaining / 3.0f32).min(1.0f32);
-            let fade_in = if *remaining > 2.5f32 { (3.0f32 - *remaining) / 0.5f32 } else { 1.0f32 };
+            let fade_in = if *remaining > 2.5f32 {
+                (3.0f32 - *remaining) / 0.5f32
+            } else {
+                1.0f32
+            };
             let effective_alpha = alpha * fade_in;
             let ny = 60.0f32 + i as f32 * (line_h + 4.0f32) - (1.0f32 - fade_in) * 20.0f32; // Slide in from top
             let nw = msg.len() as f32 * cw + 20.0;
             overlay.draw_gradient_rect(
-                screen_w - nw - 12.0, ny, nw, line_h + 2.0,
-                [color[0] * 0.2, color[1] * 0.2, color[2] * 0.2, 0.8 * effective_alpha],
-                [color[0] * 0.1, color[1] * 0.1, color[2] * 0.1, 0.6 * effective_alpha],
+                screen_w - nw - 12.0,
+                ny,
+                nw,
+                line_h + 2.0,
+                [
+                    color[0] * 0.2,
+                    color[1] * 0.2,
+                    color[2] * 0.2,
+                    0.8 * effective_alpha,
+                ],
+                [
+                    color[0] * 0.1,
+                    color[1] * 0.1,
+                    color[2] * 0.1,
+                    0.6 * effective_alpha,
+                ],
             );
             overlay.draw_text(
-                screen_w - nw - 2.0, ny + 2.0, msg,
+                screen_w - nw - 2.0,
+                ny + 2.0,
+                msg,
                 [color[0], color[1], color[2], effective_alpha],
                 scale,
             );
@@ -2113,22 +2433,38 @@ fn hud_system(world: &mut World) {
                 let score_panel_y = screen_h - 120.0;
 
                 overlay.draw_gradient_rect(
-                    score_panel_x, score_panel_y, score_panel_w, 110.0,
+                    score_panel_x,
+                    score_panel_y,
+                    score_panel_w,
+                    110.0,
                     [0.1, 0.02, 0.02, 0.85],
                     [0.05, 0.01, 0.01, 0.85],
                 );
                 overlay.draw_text_outlined(
-                    score_panel_x + 10.0, score_panel_y + 8.0,
+                    score_panel_x + 10.0,
+                    score_panel_y + 8.0,
                     "TARGET GAME",
                     [1.0, 0.3, 0.2, 1.0],
                     [0.0, 0.0, 0.0, 1.0],
                     1.2,
                 );
                 let score_text = format!("Score: {}", tgs.score);
-                overlay.draw_text(score_panel_x + 10.0, score_panel_y + 30.0, &score_text, [1.0, 1.0, 0.5, 1.0], scale);
+                overlay.draw_text(
+                    score_panel_x + 10.0,
+                    score_panel_y + 30.0,
+                    &score_text,
+                    [1.0, 1.0, 0.5, 1.0],
+                    scale,
+                );
 
                 let shots_text = format!("Shots: {} | Hits: {}", tgs.shots_fired, tgs.hits);
-                overlay.draw_text(score_panel_x + 10.0, score_panel_y + 48.0, &shots_text, [0.8, 0.8, 0.8, 1.0], scale);
+                overlay.draw_text(
+                    score_panel_x + 10.0,
+                    score_panel_y + 48.0,
+                    &shots_text,
+                    [0.8, 0.8, 0.8, 1.0],
+                    scale,
+                );
 
                 let acc_text = format!("Accuracy: {:.0}%", tgs.accuracy() * 100.0);
                 let acc_color = if tgs.accuracy() > 0.7 {
@@ -2138,12 +2474,19 @@ fn hud_system(world: &mut World) {
                 } else {
                     [1.0, 0.3, 0.3, 1.0]
                 };
-                overlay.draw_text(score_panel_x + 10.0, score_panel_y + 66.0, &acc_text, acc_color, scale);
+                overlay.draw_text(
+                    score_panel_x + 10.0,
+                    score_panel_y + 66.0,
+                    &acc_text,
+                    acc_color,
+                    scale,
+                );
 
                 if !tgs.feedback_message.is_empty() && tgs.feedback_timer > 0.0 {
                     let fb_alpha = (tgs.feedback_timer / 1.0).min(1.0);
                     overlay.draw_text_outlined(
-                        score_panel_x + 10.0, score_panel_y + 88.0,
+                        score_panel_x + 10.0,
+                        score_panel_y + 88.0,
                         &tgs.feedback_message,
                         [1.0, 1.0, 0.0, fb_alpha],
                         [0.0, 0.0, 0.0, fb_alpha],
@@ -2156,38 +2499,38 @@ fn hud_system(world: &mut World) {
         // ── Command palette (toggled with H) — now with gradient ────
         if menu_visible {
             let lines: &[(&str, [f32; 4])] = &[
-                ("=== CONTROLS ===",           [1.0, 0.85, 0.3, 1.0]),
-                ("",                            [0.0; 4]),
-                ("[WASD] Move  [RMB] Look",    [0.9, 0.9, 0.9, 1.0]),
-                ("[Space/Q] Up/Down",           [0.9, 0.9, 0.9, 1.0]),
-                ("[C] Camera Mode",             [0.5, 0.8, 1.0, 1.0]),
-                ("",                            [0.0; 4]),
-                ("=== SPECTACLE SCENES ===",    [1.0, 0.5, 0.2, 1.0]),
-                ("[D] Domino Chain",            [1.0, 0.6, 0.3, 1.0]),
-                ("[N] Pendulum Array",          [0.5, 0.8, 1.0, 1.0]),
-                ("[M] Rotating Platforms",      [0.8, 0.5, 1.0, 1.0]),
-                ("[O] Orbital System",          [1.0, 0.8, 0.3, 1.0]),
-                ("[K] Magnetic Field",          [0.3, 1.0, 0.8, 1.0]),
-                ("",                            [0.0; 4]),
-                ("[T] Spawn Random",            [0.5, 1.0, 0.5, 1.0]),
-                ("[1-5] Shapes/Stack/Rain",     [0.5, 1.0, 0.5, 1.0]),
-                ("[E] Explosion",               [1.0, 0.4, 0.2, 1.0]),
-                ("[F] Target Mode",             [1.0, 0.6, 0.3, 1.0]),
-                ("[Y] Spawn Target",            [1.0, 0.6, 0.3, 1.0]),
-                ("[V] Cycle Gravity",           [0.5, 0.8, 1.0, 1.0]),
-                ("[+/-] Gravity Scale",         [0.5, 0.8, 1.0, 1.0]),
-                ("[B] Slow Motion",             [1.0, 1.0, 0.3, 1.0]),
-                ("",                            [0.0; 4]),
-                ("[7] Toggle Bloom",            [1.0, 0.8, 0.3, 1.0]),
-                ("[8] Toggle DOF",              [0.8, 0.8, 1.0, 1.0]),
-                ("[[/]] Exposure",              [1.0, 1.0, 0.5, 1.0]),
-                ("[,/.] Prev/Next Scene",       [0.5, 1.0, 0.8, 1.0]),
-                ("",                            [0.0; 4]),
-                ("[X] Clear  [R] Reset",        [0.8, 0.8, 0.8, 1.0]),
-                ("[G] Cycle Gizmos",            [0.5, 0.8, 1.0, 1.0]),
-                ("[P] Pause Physics",           [0.5, 0.8, 1.0, 1.0]),
-                ("[H] Hide Menu",               [0.6, 0.6, 0.6, 1.0]),
-                ("[Esc] Free/Exit",             [1.0, 0.5, 0.5, 1.0]),
+                ("=== CONTROLS ===", [1.0, 0.85, 0.3, 1.0]),
+                ("", [0.0; 4]),
+                ("[WASD] Move  [RMB] Look", [0.9, 0.9, 0.9, 1.0]),
+                ("[Space/Q] Up/Down", [0.9, 0.9, 0.9, 1.0]),
+                ("[C] Camera Mode", [0.5, 0.8, 1.0, 1.0]),
+                ("", [0.0; 4]),
+                ("=== SPECTACLE SCENES ===", [1.0, 0.5, 0.2, 1.0]),
+                ("[D] Domino Chain", [1.0, 0.6, 0.3, 1.0]),
+                ("[N] Pendulum Array", [0.5, 0.8, 1.0, 1.0]),
+                ("[M] Rotating Platforms", [0.8, 0.5, 1.0, 1.0]),
+                ("[O] Orbital System", [1.0, 0.8, 0.3, 1.0]),
+                ("[K] Magnetic Field", [0.3, 1.0, 0.8, 1.0]),
+                ("", [0.0; 4]),
+                ("[T] Spawn Random", [0.5, 1.0, 0.5, 1.0]),
+                ("[1-5] Shapes/Stack/Rain", [0.5, 1.0, 0.5, 1.0]),
+                ("[E] Explosion", [1.0, 0.4, 0.2, 1.0]),
+                ("[F] Target Mode", [1.0, 0.6, 0.3, 1.0]),
+                ("[Y] Spawn Target", [1.0, 0.6, 0.3, 1.0]),
+                ("[V] Cycle Gravity", [0.5, 0.8, 1.0, 1.0]),
+                ("[+/-] Gravity Scale", [0.5, 0.8, 1.0, 1.0]),
+                ("[B] Slow Motion", [1.0, 1.0, 0.3, 1.0]),
+                ("", [0.0; 4]),
+                ("[7] Toggle Bloom", [1.0, 0.8, 0.3, 1.0]),
+                ("[8] Toggle DOF", [0.8, 0.8, 1.0, 1.0]),
+                ("[[/]] Exposure", [1.0, 1.0, 0.5, 1.0]),
+                ("[,/.] Prev/Next Scene", [0.5, 1.0, 0.8, 1.0]),
+                ("", [0.0; 4]),
+                ("[X] Clear  [R] Reset", [0.8, 0.8, 0.8, 1.0]),
+                ("[G] Cycle Gizmos", [0.5, 0.8, 1.0, 1.0]),
+                ("[P] Pause Physics", [0.5, 0.8, 1.0, 1.0]),
+                ("[H] Hide Menu", [0.6, 0.6, 0.6, 1.0]),
+                ("[Esc] Free/Exit", [1.0, 0.5, 0.5, 1.0]),
             ];
 
             let panel_x = 10.0;
@@ -2198,7 +2541,10 @@ fn hud_system(world: &mut World) {
 
             // Gradient panel background
             overlay.draw_gradient_rect(
-                panel_x, panel_y, panel_w, panel_h,
+                panel_x,
+                panel_y,
+                panel_w,
+                panel_h,
                 [0.02, 0.04, 0.08, 0.92],
                 [0.01, 0.02, 0.05, 0.88],
             );
@@ -2220,14 +2566,21 @@ fn hud_system(world: &mut World) {
         let bottom_text = format!("Frame: {} | Entities: {}", frame, spawned);
         let bw = bottom_text.len() as f32 * cw + 20.0;
         overlay.draw_rect(8.0, screen_h - 24.0, bw, ch + 10.0, [0.0, 0.0, 0.0, 0.6]);
-        overlay.draw_text(16.0, screen_h - 20.0, &bottom_text, [0.5, 0.5, 0.5, 1.0], scale);
+        overlay.draw_text(
+            16.0,
+            screen_h - 20.0,
+            &bottom_text,
+            [0.5, 0.5, 0.5, 1.0],
+            scale,
+        );
     }
 
     // ── Periodic console output ─────────────────────────────────────
     if frame % 300 == 0 && frame > 0 {
         info!(
             "FPS: {:.0} | Spawned: {} | Gizmos: {} | Physics: {} | SlowMo: {}",
-            fps, spawned,
+            fps,
+            spawned,
             if gizmos { "ON" } else { "OFF" },
             if phys { "PAUSED" } else { "OK" },
             if slow_mo { "ON" } else { "OFF" },
@@ -2251,7 +2604,7 @@ fn animate_energy_cores_system(world: &mut World) {
             // Rotate around Y axis
             let rotation_speed = 1.0;
             transform.rotation = transform.rotation * Quat::from_rotation_y(rotation_speed * dt);
-            
+
             // Add floating motion
             let float_speed = 2.0;
             let float_amplitude = 0.5;
@@ -2298,7 +2651,7 @@ fn post_effects_system(world: &mut World) {
         .unwrap_or_default();
 
     // Apply post-effects to command buffer
-    if let Some(cmd_buf) = world.get_resource_mut::<CommandBuffer>() {
+    if let Some(mut cmd_buf) = world.get_resource_mut::<CommandBuffer>() {
         // In a real implementation, this would apply the effects
         // For now, we just store the configuration
         let _ = (cmd_buf, post_effects);

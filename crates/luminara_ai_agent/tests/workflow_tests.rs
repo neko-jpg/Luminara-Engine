@@ -1,4 +1,4 @@
-use luminara_ai_agent::{AiContextEngine, IntentResolver, CodeVerificationPipeline};
+use luminara_ai_agent::{AiContextEngine, CodeVerificationPipeline, IntentResolver};
 use luminara_core::world::World;
 use luminara_script_lua::LuaScriptRuntime;
 use std::sync::Arc;

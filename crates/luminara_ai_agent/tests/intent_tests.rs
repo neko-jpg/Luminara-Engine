@@ -1,12 +1,17 @@
-use luminara_ai_agent::{IntentResolver, SemanticIndex, intent_resolver::{EntityReference, RelativePosition}};
+use luminara_ai_agent::{
+    intent_resolver::{EntityReference, RelativePosition},
+    IntentResolver, SemanticIndex,
+};
 use luminara_math::Vec3;
-use std::sync::Arc;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
+use std::sync::Arc;
 
 #[quickcheck]
 fn test_entity_reference_resolution_semantic(name: String) -> TestResult {
-    if name.is_empty() { return TestResult::discard(); }
+    if name.is_empty() {
+        return TestResult::discard();
+    }
 
     // Setup SemanticIndex with mocked data
     let mut index = SemanticIndex::new();

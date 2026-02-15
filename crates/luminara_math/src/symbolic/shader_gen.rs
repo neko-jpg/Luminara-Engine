@@ -52,10 +52,18 @@ fn fs_main(@builtin(position) coord: vec4<f32>) -> @location(0) vec4<f32> {{
                 "y" => "y".to_string(),
                 _ => "0.0".to_string(),
             },
-            SymExpr::Add(a, b) => format!("({} + {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b)),
-            SymExpr::Sub(a, b) => format!("({} - {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b)),
-            SymExpr::Mul(a, b) => format!("({} * {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b)),
-            SymExpr::Div(a, b) => format!("({} / {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b)),
+            SymExpr::Add(a, b) => {
+                format!("({} + {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b))
+            }
+            SymExpr::Sub(a, b) => {
+                format!("({} - {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b))
+            }
+            SymExpr::Mul(a, b) => {
+                format!("({} * {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b))
+            }
+            SymExpr::Div(a, b) => {
+                format!("({} / {})", Self::expr_to_wgsl(a), Self::expr_to_wgsl(b))
+            }
             SymExpr::Sin(a) => format!("sin({})", Self::expr_to_wgsl(a)),
             SymExpr::Cos(a) => format!("cos({})", Self::expr_to_wgsl(a)),
             _ => "0.0".to_string(),

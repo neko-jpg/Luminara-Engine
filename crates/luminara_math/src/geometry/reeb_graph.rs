@@ -3,8 +3,8 @@
 //! Uses discrete Morse theory-inspired gradient tracing to construct the graph.
 
 use glam::Vec3;
-use std::collections::{HashSet, BinaryHeap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CriticalType {
@@ -46,11 +46,18 @@ pub struct HeightMap {
 impl HeightMap {
     pub fn new(heights: Vec<f32>, width: usize, height: usize, scale: Vec3) -> Self {
         assert_eq!(heights.len(), width * height);
-        Self { heights, width, height, scale }
+        Self {
+            heights,
+            width,
+            height,
+            scale,
+        }
     }
 
     pub fn get(&self, x: usize, y: usize) -> f32 {
-        if x >= self.width || y >= self.height { return f32::NEG_INFINITY; }
+        if x >= self.width || y >= self.height {
+            return f32::NEG_INFINITY;
+        }
         self.heights[y * self.width + x]
     }
 
@@ -109,7 +116,9 @@ impl ReebGraph {
 
                 for dy in -1..=1 {
                     for dx in -1..=1 {
-                        if dx == 0 && dy == 0 { continue; }
+                        if dx == 0 && dy == 0 {
+                            continue;
+                        }
                         let nx = (sx as isize + dx) as usize;
                         let ny = (sy as isize + dy) as usize;
 
@@ -142,11 +151,19 @@ impl ReebGraph {
     fn add_edge(&mut self, u: usize, v: usize) {
         let dist = self.nodes[u].position.distance(self.nodes[v].position);
         let edge_idx = self.edges.len();
-        self.edges.push(ReebEdge { from: u, to: v, weight: dist });
+        self.edges.push(ReebEdge {
+            from: u,
+            to: v,
+            weight: dist,
+        });
         self.adj[u].push(edge_idx);
 
         let edge_idx_rev = self.edges.len();
-        self.edges.push(ReebEdge { from: v, to: u, weight: dist });
+        self.edges.push(ReebEdge {
+            from: v,
+            to: u,
+            weight: dist,
+        });
         self.adj[v].push(edge_idx_rev);
     }
 
@@ -157,21 +174,30 @@ impl ReebGraph {
 
         // A* search
         let mut open_set = BinaryHeap::new();
-        open_set.push(State { cost: 0.0, position: 0.0, index: start_node }); // position is heuristic? No.
-        // State for BinaryHeap needs Ord.
-        // Custom struct.
+        open_set.push(State {
+            cost: 0.0,
+            position: 0.0,
+            index: start_node,
+        }); // position is heuristic? No.
+            // State for BinaryHeap needs Ord.
+            // Custom struct.
 
         let mut came_from = vec![usize::MAX; self.nodes.len()];
         let mut g_score = vec![f32::INFINITY; self.nodes.len()];
         g_score[start_node] = 0.0;
 
         open_set.push(State {
-            cost: 0.0, // f_score
+            cost: 0.0,     // f_score
             position: 0.0, // heuristic part? Just for ordering.
-            index: start_node
+            index: start_node,
         });
 
-        while let Some(State { cost: current_f, index: current, .. }) = open_set.pop() {
+        while let Some(State {
+            cost: current_f,
+            index: current,
+            ..
+        }) = open_set.pop()
+        {
             if current == end_node {
                 // Reconstruct path
                 let mut path = Vec::new();
@@ -187,7 +213,9 @@ impl ReebGraph {
 
             // If we found a better path already
             // BinaryHeap is max-heap. We invert cost.
-            if -current_f < g_score[current] { continue; } // Actually I used negative logic in State impl?
+            if -current_f < g_score[current] {
+                continue;
+            } // Actually I used negative logic in State impl?
 
             for &edge_idx in &self.adj[current] {
                 let edge = &self.edges[edge_idx];
@@ -197,7 +225,9 @@ impl ReebGraph {
                 if tentative_g < g_score[neighbor] {
                     came_from[neighbor] = current;
                     g_score[neighbor] = tentative_g;
-                    let h = self.nodes[neighbor].position.distance(self.nodes[end_node].position);
+                    let h = self.nodes[neighbor]
+                        .position
+                        .distance(self.nodes[end_node].position);
                     open_set.push(State {
                         cost: -(tentative_g + h), // Max-heap, so negative
                         position: 0.0,
@@ -252,16 +282,26 @@ fn classify_critical_point(map: &HeightMap, x: usize, y: usize) -> Option<Critic
     // Look at 8 neighbors. Count sign changes.
     let h = map.get(x, y);
     let neighbors = [
-        (x+1, y), (x+1, y+1), (x, y+1), (x-1, y+1),
-        (x-1, y), (x-1, y-1), (x, y-1), (x+1, y-1)
+        (x + 1, y),
+        (x + 1, y + 1),
+        (x, y + 1),
+        (x - 1, y + 1),
+        (x - 1, y),
+        (x - 1, y - 1),
+        (x, y - 1),
+        (x + 1, y - 1),
     ];
 
     let mut signs = Vec::with_capacity(8);
     for &(nx, ny) in &neighbors {
         let nh = map.get(nx, ny);
-        if nh > h { signs.push(1); }
-        else if nh < h { signs.push(-1); }
-        else { signs.push(0); } // Flat? Treat as same component?
+        if nh > h {
+            signs.push(1);
+        } else if nh < h {
+            signs.push(-1);
+        } else {
+            signs.push(0);
+        } // Flat? Treat as same component?
     }
 
     // Remove zeros (treat as connected to prev)
@@ -270,7 +310,9 @@ fn classify_critical_point(map: &HeightMap, x: usize, y: usize) -> Option<Critic
     // Better: treat as noise or use Simulation of Simplicity.
     // We filter out 0s.
     let signs_filtered: Vec<i32> = signs.into_iter().filter(|&s| s != 0).collect();
-    if signs_filtered.is_empty() { return None; } // Flat
+    if signs_filtered.is_empty() {
+        return None;
+    } // Flat
 
     // Count changes
     let mut changes = 0;
@@ -282,8 +324,12 @@ fn classify_critical_point(map: &HeightMap, x: usize, y: usize) -> Option<Critic
     }
 
     if changes == 0 {
-        if signs_filtered[0] == 1 { return Some(CriticalType::Minimum); }
-        if signs_filtered[0] == -1 { return Some(CriticalType::Maximum); }
+        if signs_filtered[0] == 1 {
+            return Some(CriticalType::Minimum);
+        }
+        if signs_filtered[0] == -1 {
+            return Some(CriticalType::Maximum);
+        }
     } else if changes >= 4 {
         return Some(CriticalType::Saddle);
     }
@@ -296,7 +342,7 @@ fn trace_gradient(
     node_map: &[Option<usize>],
     mut cx: usize,
     mut cy: usize,
-    ascent: bool
+    ascent: bool,
 ) -> Option<usize> {
     let w = map.width;
     let h = map.height;
@@ -318,10 +364,14 @@ fn trace_gradient(
 
         for dy in -1..=1 {
             for dx in -1..=1 {
-                if dx == 0 && dy == 0 { continue; }
+                if dx == 0 && dy == 0 {
+                    continue;
+                }
                 let nx = (cx as isize + dx) as usize;
                 let ny = (cy as isize + dy) as usize;
-                if nx >= w || ny >= h { continue; }
+                if nx >= w || ny >= h {
+                    continue;
+                }
 
                 let nh = map.get(nx, ny);
                 if ascent {

@@ -1,5 +1,5 @@
-use luminara_core::{World, System, CoreStage};
 use luminara_core::system::{FunctionMarker, IntoSystem};
+use luminara_core::{CoreStage, System, World};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;

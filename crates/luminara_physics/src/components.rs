@@ -1,5 +1,5 @@
 use luminara_core::{Component, Entity};
-use luminara_math::{Vec3, Transform};
+use luminara_math::{Transform, Vec3};
 use serde::{Deserialize, Serialize};
 
 /// Component to store the previous frame's transform for interpolation

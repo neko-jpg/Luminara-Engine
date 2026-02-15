@@ -4,9 +4,9 @@
 //! floating-point errors, using adaptive precision arithmetic.
 
 pub mod error_bounds;
-pub mod expansion;
 pub mod exact_predicates;
+pub mod expansion;
 
 pub use error_bounds::*;
-pub use expansion::*;
 pub use exact_predicates::*;
+pub use expansion::*;

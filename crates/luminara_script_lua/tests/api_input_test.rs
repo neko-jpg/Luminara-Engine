@@ -1,5 +1,5 @@
+use luminara_input::{keyboard::Key, Input};
 use luminara_script_lua::api::input::LuaInput;
-use luminara_input::{Input, keyboard::Key};
 use mlua::prelude::*;
 
 #[test]
@@ -16,10 +16,12 @@ fn test_input_api_basic() -> mlua::Result<()> {
     lua.scope(|scope| {
         let user_data = scope.create_userdata(lua_input)?;
 
-        let chunk = lua.load("
+        let chunk = lua.load(
+            "
             local i = ...
             return i:is_key_pressed(\"Space\")
-        ");
+        ",
+        );
 
         let pressed: bool = chunk.call(user_data)?;
         assert!(pressed);

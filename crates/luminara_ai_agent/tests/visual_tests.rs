@@ -1,11 +1,13 @@
-use luminara_ai_agent::{VisualFeedbackSystem, CaptureConfig};
+use luminara_ai_agent::{CaptureConfig, VisualFeedbackSystem};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
 #[quickcheck]
 fn test_capture_format_compliance(w: u32, h: u32) -> TestResult {
     // Avoid too large allocations for tests
-    if w == 0 || h == 0 || w > 1024 || h > 1024 { return TestResult::discard(); }
+    if w == 0 || h == 0 || w > 1024 || h > 1024 {
+        return TestResult::discard();
+    }
 
     use luminara_core::world::World;
     let world = World::new();
@@ -22,7 +24,9 @@ fn test_capture_format_compliance(w: u32, h: u32) -> TestResult {
 
 #[quickcheck]
 fn test_compression_efficiency(target_reduction: f32) -> TestResult {
-    if target_reduction <= 0.0 || target_reduction >= 1.0 { return TestResult::discard(); }
+    if target_reduction <= 0.0 || target_reduction >= 1.0 {
+        return TestResult::discard();
+    }
 
     let sys = VisualFeedbackSystem::new();
     let original = vec![0u8; 1000];

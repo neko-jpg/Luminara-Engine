@@ -1,8 +1,8 @@
+use crate::input_map::ActionBinding;
+use crate::Input;
 use luminara_core::shared_types::Resource;
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::input_map::ActionBinding;
-use crate::Input;
 
 /// A trait for types that can represent an input action.
 /// typically an enum.
@@ -47,9 +47,24 @@ pub trait InputExt {
     fn action_just_pressed<A: InputAction>(&self, action: A, map: &ActionMap<A>) -> bool;
     fn action_just_released<A: InputAction>(&self, action: A, map: &ActionMap<A>) -> bool;
 
-    fn action_pressed_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool;
-    fn action_just_pressed_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool;
-    fn action_just_released_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool;
+    fn action_pressed_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool;
+    fn action_just_pressed_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool;
+    fn action_just_released_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool;
 }
 
 impl InputExt for Input {
@@ -65,25 +80,49 @@ impl InputExt for Input {
         InputExt::action_just_released_for_player(self, action, map, self.primary_gamepad_id)
     }
 
-    fn action_pressed_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool {
+    fn action_pressed_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = map.bindings.get(&action) {
-            binding.inputs.iter().any(|&source| self.source_pressed_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_pressed_internal(source, gamepad_id))
         } else {
             false
         }
     }
 
-    fn action_just_pressed_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool {
+    fn action_just_pressed_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = map.bindings.get(&action) {
-            binding.inputs.iter().any(|&source| self.source_just_pressed_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_just_pressed_internal(source, gamepad_id))
         } else {
             false
         }
     }
 
-    fn action_just_released_for_player<A: InputAction>(&self, action: A, map: &ActionMap<A>, gamepad_id: u32) -> bool {
+    fn action_just_released_for_player<A: InputAction>(
+        &self,
+        action: A,
+        map: &ActionMap<A>,
+        gamepad_id: u32,
+    ) -> bool {
         if let Some(binding) = map.bindings.get(&action) {
-            binding.inputs.iter().any(|&source| self.source_just_released_internal(source, gamepad_id))
+            binding
+                .inputs
+                .iter()
+                .any(|&source| self.source_just_released_internal(source, gamepad_id))
         } else {
             false
         }

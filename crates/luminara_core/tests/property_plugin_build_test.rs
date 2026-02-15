@@ -233,9 +233,13 @@ fn test_plugin_build_with_app_state() {
     impl Plugin for CountingPlugin {
         fn build(&self, app: &mut App) {
             // Increment counter in app resources
-            if let Some(counter) = app.world.get_resource_mut::<BuildCounter>() {
+            let mut exists = false;
+            if let Some(mut counter) = app.world.get_resource_mut::<BuildCounter>() {
                 counter.count += 1;
-            } else {
+                exists = true;
+            }
+
+            if !exists {
                 app.insert_resource(BuildCounter { count: 1 });
             }
         }

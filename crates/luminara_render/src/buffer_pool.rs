@@ -122,3 +122,17 @@ impl BufferPool {
         &self.stats
     }
 }
+
+impl Drop for BufferPool {
+    fn drop(&mut self) {
+        for buf in self.free_vertex_buffers.drain(..) {
+            buf.destroy();
+        }
+        for buf in self.free_index_buffers.drain(..) {
+            buf.destroy();
+        }
+        for buf in self.free_uniform_buffers.drain(..) {
+            buf.destroy();
+        }
+    }
+}

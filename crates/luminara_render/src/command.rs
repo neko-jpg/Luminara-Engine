@@ -1,6 +1,6 @@
-use luminara_asset::Handle;
-use luminara_math::{Mat4, Color};
 use crate::{Mesh, PbrMaterial};
+use luminara_asset::Handle;
+use luminara_math::{Color, Mat4};
 
 #[derive(Debug, Clone)]
 pub enum GizmoType {
@@ -33,7 +33,6 @@ pub enum DrawCommand {
         count: u32,
     },
 }
-
 
 use luminara_core::shared_types::Resource;
 

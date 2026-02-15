@@ -1,6 +1,6 @@
-use crate::command::{DrawCommand, CommandBuffer, GizmoType};
+use crate::command::{CommandBuffer, DrawCommand, GizmoType};
 use luminara_core::shared_types::Resource;
-use luminara_math::{Mat4, Color, Vec3};
+use luminara_math::{Color, Mat4, Vec3};
 use std::collections::HashMap;
 
 // ── Gizmo Category System ──────────────────────────────────────────────────
@@ -84,7 +84,13 @@ impl Gizmos {
     }
 
     /// Draw a line with a specific category.
-    pub fn line_cat(buffer: &mut CommandBuffer, start: Vec3, end: Vec3, color: Color, _category: &str) {
+    pub fn line_cat(
+        buffer: &mut CommandBuffer,
+        start: Vec3,
+        end: Vec3,
+        color: Color,
+        _category: &str,
+    ) {
         buffer.push(DrawCommand::DrawGizmo {
             gizmo: GizmoType::Line {
                 start: [start.x, start.y, start.z],
@@ -101,7 +107,13 @@ impl Gizmos {
     }
 
     /// Draw a sphere with a specific category.
-    pub fn sphere_cat(buffer: &mut CommandBuffer, position: Vec3, radius: f32, color: Color, _category: &str) {
+    pub fn sphere_cat(
+        buffer: &mut CommandBuffer,
+        position: Vec3,
+        radius: f32,
+        color: Color,
+        _category: &str,
+    ) {
         buffer.push(DrawCommand::DrawGizmo {
             gizmo: GizmoType::Sphere { radius },
             transform: Mat4::from_translation(position),
@@ -115,7 +127,13 @@ impl Gizmos {
     }
 
     /// Draw a cube/box with a specific category.
-    pub fn cube_cat(buffer: &mut CommandBuffer, position: Vec3, half_extents: Vec3, color: Color, _category: &str) {
+    pub fn cube_cat(
+        buffer: &mut CommandBuffer,
+        position: Vec3,
+        half_extents: Vec3,
+        color: Color,
+        _category: &str,
+    ) {
         buffer.push(DrawCommand::DrawGizmo {
             gizmo: GizmoType::Box {
                 half_extents: [half_extents.x, half_extents.y, half_extents.z],
@@ -126,7 +144,13 @@ impl Gizmos {
     }
 
     /// Draw a capsule gizmo.
-    pub fn capsule(buffer: &mut CommandBuffer, position: Vec3, radius: f32, height: f32, color: Color) {
+    pub fn capsule(
+        buffer: &mut CommandBuffer,
+        position: Vec3,
+        radius: f32,
+        height: f32,
+        color: Color,
+    ) {
         buffer.push(DrawCommand::DrawGizmo {
             gizmo: GizmoType::Capsule { radius, height },
             transform: Mat4::from_translation(position),
@@ -170,7 +194,13 @@ impl Gizmos {
     }
 
     /// Draw a wireframe circle in the XZ plane.
-    pub fn circle(buffer: &mut CommandBuffer, center: Vec3, radius: f32, segments: u32, color: Color) {
+    pub fn circle(
+        buffer: &mut CommandBuffer,
+        center: Vec3,
+        radius: f32,
+        segments: u32,
+        color: Color,
+    ) {
         let step = std::f32::consts::TAU / segments as f32;
         for i in 0..segments {
             let a0 = i as f32 * step;
@@ -186,8 +216,23 @@ impl Gizmos {
 
     /// Draw a coordinate axes gizmo (RGB = XYZ).
     pub fn axes(buffer: &mut CommandBuffer, origin: Vec3, length: f32) {
-        Self::arrow(buffer, origin, origin + Vec3::new(length, 0.0, 0.0), Color::rgb(1.0, 0.0, 0.0));
-        Self::arrow(buffer, origin, origin + Vec3::new(0.0, length, 0.0), Color::rgb(0.0, 1.0, 0.0));
-        Self::arrow(buffer, origin, origin + Vec3::new(0.0, 0.0, length), Color::rgb(0.0, 0.0, 1.0));
+        Self::arrow(
+            buffer,
+            origin,
+            origin + Vec3::new(length, 0.0, 0.0),
+            Color::rgb(1.0, 0.0, 0.0),
+        );
+        Self::arrow(
+            buffer,
+            origin,
+            origin + Vec3::new(0.0, length, 0.0),
+            Color::rgb(0.0, 1.0, 0.0),
+        );
+        Self::arrow(
+            buffer,
+            origin,
+            origin + Vec3::new(0.0, 0.0, length),
+            Color::rgb(0.0, 0.0, 1.0),
+        );
     }
 }

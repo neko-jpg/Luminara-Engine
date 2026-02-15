@@ -1,5 +1,5 @@
+use luminara_math::{Quat, Transform, Vec3};
 use luminara_script_lua::api::transform::LuaTransform;
-use luminara_math::{Transform, Vec3, Quat};
 use mlua::prelude::*;
 
 #[test]
@@ -11,12 +11,14 @@ fn test_transform_api() -> mlua::Result<()> {
     lua.scope(|scope| {
         let user_data = scope.create_userdata(lua_transform)?;
 
-        let chunk = lua.load("
+        let chunk = lua.load(
+            "
             local t = ...
             t:set_position(10.0, 20.0, 30.0)
             local x, y, z = t:position()
             return x, y, z
-        ");
+        ",
+        );
 
         let (x, y, z): (f32, f32, f32) = chunk.call(user_data)?;
         assert_eq!(x, 10.0);
@@ -38,11 +40,13 @@ fn test_transform_vectors() -> mlua::Result<()> {
         // Default forward is -Z (0, 0, -1) in Right Handed Y-up system?
         // luminara_math Transform usually assumes -Z forward.
 
-        let chunk = lua.load("
+        let chunk = lua.load(
+            "
             local t = ...
             local fx, fy, fz = t:forward()
             return fx, fy, fz
-        ");
+        ",
+        );
 
         let (fx, fy, fz): (f32, f32, f32) = chunk.call(user_data)?;
         // Just check it returns something reasonable (not NaN)

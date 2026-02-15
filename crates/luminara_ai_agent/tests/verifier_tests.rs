@@ -10,7 +10,10 @@ fn test_verification_pipeline_static_fail() {
 
     assert!(!result.passed);
     assert!(!result.static_issues.is_empty());
-    assert!(result.static_issues.iter().any(|i| i.severity == IssueSeverity::Error));
+    assert!(result
+        .static_issues
+        .iter()
+        .any(|i| i.severity == IssueSeverity::Error));
     // Sandbox should NOT run if static check failed with error
     assert!(result.sandbox_result.is_none());
 }

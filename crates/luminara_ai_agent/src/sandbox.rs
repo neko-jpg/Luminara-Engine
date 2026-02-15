@@ -1,8 +1,8 @@
-use luminara_script::{ScriptId, ScriptError};
+use luminara_script::{ScriptError, ScriptId};
 use luminara_script_lua::LuaScriptRuntime;
-use luminara_script_wasm::{WasmScriptRuntime, ResourceLimits};
-use std::time::Duration;
+use luminara_script_wasm::{ResourceLimits, WasmScriptRuntime};
 use std::path::Path;
+use std::time::Duration;
 
 pub struct ScriptSandbox {
     pub(crate) lua_runtime: LuaScriptRuntime,
@@ -58,8 +58,12 @@ impl ScriptSandbox {
         let globals = lua.globals();
 
         if !self.config.allow_filesystem {
-            globals.set("io", mlua::Value::Nil).map_err(|e| ScriptError::Runtime(e.to_string()))?;
-            globals.set("os", mlua::Value::Nil).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            globals
+                .set("io", mlua::Value::Nil)
+                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            globals
+                .set("os", mlua::Value::Nil)
+                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
         }
 
         if self.config.max_instructions > 0 {
@@ -79,7 +83,11 @@ impl ScriptSandbox {
 
     // For testing
     pub fn run_lua(&self, code: &str) -> Result<(), ScriptError> {
-        self.lua_runtime.get_lua().load(code).exec().map_err(|e| ScriptError::Runtime(e.to_string()))
+        self.lua_runtime
+            .get_lua()
+            .load(code)
+            .exec()
+            .map_err(|e| ScriptError::Runtime(e.to_string()))
     }
 
     pub fn whitelist_script(&mut self, id: ScriptId) {

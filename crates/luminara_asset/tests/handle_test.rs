@@ -1,8 +1,10 @@
-use luminara_asset::{Handle, AssetId, Asset};
+use luminara_asset::{Asset, AssetId, Handle};
 
 struct TestAsset;
 impl Asset for TestAsset {
-    fn type_name() -> &'static str { "TestAsset" }
+    fn type_name() -> &'static str {
+        "TestAsset"
+    }
 }
 
 #[test]

@@ -1,7 +1,7 @@
 // Delaunay triangulation robustness tests using exact predicates
-use luminara_math::foundations::orient2d;
-use luminara_math::foundations::incircle;
 use glam::Vec2;
+use luminara_math::foundations::incircle;
+use luminara_math::foundations::orient2d;
 use proptest::prelude::*;
 
 // Property 3: Delaunay Triangulation Robustness

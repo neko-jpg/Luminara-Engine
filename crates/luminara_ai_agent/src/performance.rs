@@ -1,6 +1,6 @@
 // ... imports ...
-use luminara_core::world::World;
 use crate::intent_resolver::AiIntent;
+use luminara_core::world::World;
 use std::collections::HashMap;
 
 pub struct PerformanceAdvisor {
@@ -89,12 +89,16 @@ impl PerformanceAdvisor {
         match intent {
             AiIntent::SpawnRelative { .. } => {
                 cost_ms += self.cost_model.spawn_overhead_ms + self.cost_model.base_entity_cost_ms;
-            },
+            }
             _ => {}
         }
 
         let new_frame_time = self.metrics.frame_time_ms + cost_ms;
-        let predicted_fps = if new_frame_time > 0.0 { 1000.0 / new_frame_time } else { 0.0 };
+        let predicted_fps = if new_frame_time > 0.0 {
+            1000.0 / new_frame_time
+        } else {
+            0.0
+        };
 
         let severity = if predicted_fps < self.budget.min_fps {
             ImpactSeverity::Critical
@@ -122,9 +126,7 @@ impl PerformanceAdvisor {
     pub fn generate_context(&self) -> String {
         format!(
             "Performance: FPS {:.1}, Entities {}, FrameTime {:.2}ms",
-            self.metrics.current_fps,
-            self.metrics.entity_count,
-            self.metrics.frame_time_ms
+            self.metrics.current_fps, self.metrics.entity_count, self.metrics.frame_time_ms
         )
     }
 

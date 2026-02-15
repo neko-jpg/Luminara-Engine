@@ -1,4 +1,7 @@
-use luminara_ai_agent::{PerformanceAdvisor, ImpactSeverity, intent_resolver::{AiIntent, EntityReference, RelativePosition}};
+use luminara_ai_agent::{
+    intent_resolver::{AiIntent, EntityReference, RelativePosition},
+    ImpactSeverity, PerformanceAdvisor,
+};
 use luminara_math::Vec3;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
@@ -25,7 +28,9 @@ fn test_impact_estimation_basic() {
 
 #[quickcheck]
 fn test_performance_context_completeness(fps: f32) -> TestResult {
-    if !fps.is_finite() || fps < 0.0 { return TestResult::discard(); }
+    if !fps.is_finite() || fps < 0.0 {
+        return TestResult::discard();
+    }
 
     use luminara_core::world::World;
     let world = World::new();

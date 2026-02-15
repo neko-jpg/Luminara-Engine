@@ -1,5 +1,5 @@
-use luminara_math::algebra::{Motor, Bivector, LieGroupIntegrator};
-use glam::{Vec3, Quat};
+use glam::{Quat, Vec3};
+use luminara_math::algebra::{Bivector, LieGroupIntegrator, Motor};
 use proptest::prelude::*;
 
 // Helper to generate random motors (same as motor_test)
@@ -135,7 +135,12 @@ fn test_simple_harmonic_oscillator() {
     let final_angle = angle * sign;
 
     let expected = theta_0 * (1.0f32).cos();
-    assert!((final_angle - expected).abs() < 0.05, "SHO failed: expected {}, got {}", expected, final_angle);
+    assert!(
+        (final_angle - expected).abs() < 0.05,
+        "SHO failed: expected {}, got {}",
+        expected,
+        final_angle
+    );
 }
 
 #[test]
@@ -153,7 +158,8 @@ fn test_free_rigid_body() {
     let steps = 1000;
 
     // Kinetic energy T = 0.5 (I1 w1^2 + ...)
-    let initial_energy = 0.5 * (inertia.x * w.x * w.x + inertia.y * w.y * w.y + inertia.z * w.z * w.z);
+    let initial_energy =
+        0.5 * (inertia.x * w.x * w.x + inertia.y * w.y * w.y + inertia.z * w.z * w.z);
 
     for _ in 0..steps {
         // RK4 for w
@@ -185,7 +191,8 @@ fn test_free_rigid_body() {
     }
 
     // Check energy conservation of w
-    let final_energy = 0.5 * (inertia.x * w.x * w.x + inertia.y * w.y * w.y + inertia.z * w.z * w.z);
+    let final_energy =
+        0.5 * (inertia.x * w.x * w.x + inertia.y * w.y * w.y + inertia.z * w.z * w.z);
     assert!((final_energy - initial_energy).abs() < 1e-4);
 
     // Check that y moved (is not identity)

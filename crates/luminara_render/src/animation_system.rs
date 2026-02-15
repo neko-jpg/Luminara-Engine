@@ -1,8 +1,8 @@
-use luminara_core::{App, AppInterface, Component, CoreStage, Plugin, Query, Res};
-use luminara_core::system::FunctionMarker;
-use luminara_asset::{AssetServer, Handle};
-use luminara_math::{Vec3, Quat};
 use crate::animation::{AnimationClip, AnimationOutput, AnimationPath};
+use luminara_asset::{AssetServer, Handle};
+use luminara_core::system::FunctionMarker;
+use luminara_core::{App, AppInterface, Component, CoreStage, Plugin, Query, Res};
+use luminara_math::{Quat, Vec3};
 
 pub struct AnimationPlayer {
     pub current_clip: Option<Handle<AnimationClip>>,

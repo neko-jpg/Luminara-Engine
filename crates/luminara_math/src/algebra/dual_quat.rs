@@ -42,10 +42,7 @@ impl DualQuat {
         let t_quat = Quat::from_xyzw(trans.x, trans.y, trans.z, 0.0);
         let dual = t_quat.mul_quat(rot) * 0.5;
 
-        Self {
-            real: rot,
-            dual,
-        }
+        Self { real: rot, dual }
     }
 
     /// Normalize the dual quaternion.

@@ -1,8 +1,8 @@
 // Requirements 6.1, 6.2, 6.3, 6.4, 6.6
 // "Implement SchemaDiscoveryService... L0-L2 schemas... categorization... inspect tool"
 
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub struct SchemaDiscoveryService {
     // Registry of component schemas.
@@ -35,7 +35,10 @@ impl SchemaDiscoveryService {
     }
 
     pub fn register_schema(&mut self, schema: ComponentSchema) {
-        self.categories.entry(schema.category.clone()).or_default().push(schema.name.clone());
+        self.categories
+            .entry(schema.category.clone())
+            .or_default()
+            .push(schema.name.clone());
         self.schemas.insert(schema.name.clone(), schema);
     }
 
@@ -51,7 +54,11 @@ impl SchemaDiscoveryService {
     pub fn get_l1_schema(&self, component_name: &str) -> Option<String> {
         // L1: Fields
         self.schemas.get(component_name).map(|s| {
-            let fields: Vec<String> = s.fields.iter().map(|f| format!("{}: {}", f.name, f.type_name)).collect();
+            let fields: Vec<String> = s
+                .fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, f.type_name))
+                .collect();
             format!("{} ({}): {{ {} }}", s.name, s.category, fields.join(", "))
         })
     }
@@ -59,8 +66,18 @@ impl SchemaDiscoveryService {
     pub fn get_l2_schema(&self, component_name: &str) -> Option<String> {
         // L2: Full details (same as L1 for now + description)
         self.schemas.get(component_name).map(|s| {
-            let fields: Vec<String> = s.fields.iter().map(|f| format!("{}: {}", f.name, f.type_name)).collect();
-            format!("Name: {}\nCategory: {}\nDescription: {}\nFields:\n  {}", s.name, s.category, s.description, fields.join("\n  "))
+            let fields: Vec<String> = s
+                .fields
+                .iter()
+                .map(|f| format!("{}: {}", f.name, f.type_name))
+                .collect();
+            format!(
+                "Name: {}\nCategory: {}\nDescription: {}\nFields:\n  {}",
+                s.name,
+                s.category,
+                s.description,
+                fields.join("\n  ")
+            )
         })
     }
 }

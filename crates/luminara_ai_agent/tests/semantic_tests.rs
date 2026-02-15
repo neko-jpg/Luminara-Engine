@@ -4,7 +4,9 @@ use quickcheck_macros::quickcheck;
 
 #[quickcheck]
 fn test_semantic_search_retrieval(id: u64, text: String) -> TestResult {
-    if text.is_empty() { return TestResult::discard(); }
+    if text.is_empty() {
+        return TestResult::discard();
+    }
 
     let mut index = SemanticIndex::new();
     index.index_entity(id, text.clone());

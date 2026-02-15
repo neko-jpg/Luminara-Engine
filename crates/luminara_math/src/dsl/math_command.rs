@@ -2,9 +2,9 @@
 //!
 //! Provides high-level mathematical operations for AI systems.
 
+use crate::symbolic::{differentiate, SymExpr};
 use glam::Vec3;
 use std::rc::Rc;
-use crate::symbolic::{SymExpr, differentiate};
 
 #[derive(Clone, Debug)]
 pub enum SpacingMethod {
@@ -31,14 +31,9 @@ pub enum MathDesignCommand {
         steps: usize,
     },
     /// Distribute points on a manifold.
-    DistributePoints {
-        count: usize,
-        method: SpacingMethod,
-    },
+    DistributePoints { count: usize, method: SpacingMethod },
     /// Compute distance matrix.
-    ComputeDistance {
-        metric: TopologyMetric,
-    },
+    ComputeDistance { metric: TopologyMetric },
 }
 
 pub struct MathCommandExecutor;
@@ -49,9 +44,13 @@ impl MathCommandExecutor {
     /// For simplicity, we return a Result with possible output.
     pub fn execute(&self, cmd: &MathDesignCommand) -> Result<MathCommandOutput, String> {
         match cmd {
-            MathDesignCommand::Trajectory { equation, variable, t_start, t_end, steps } => {
-                self.execute_trajectory(equation, variable, *t_start, *t_end, *steps)
-            }
+            MathDesignCommand::Trajectory {
+                equation,
+                variable,
+                t_start,
+                t_end,
+                steps,
+            } => self.execute_trajectory(equation, variable, *t_start, *t_end, *steps),
             MathDesignCommand::DistributePoints { .. } => {
                 // Placeholder
                 Ok(MathCommandOutput::Points(vec![]))
@@ -69,7 +68,7 @@ impl MathCommandExecutor {
         var: &str,
         t_start: f64,
         t_end: f64,
-        steps: usize
+        steps: usize,
     ) -> Result<MathCommandOutput, String> {
         // Automatic differentiation to get velocity and acceleration
         let velocity_expr = differentiate(equation, var);
@@ -115,7 +114,13 @@ impl MathCommandExecutor {
 fn evaluate_scalar(expr: &SymExpr, var: &str, val: f64) -> f64 {
     match expr {
         SymExpr::Const(v) => *v,
-        SymExpr::Var(name) => if name == var { val } else { f64::NAN },
+        SymExpr::Var(name) => {
+            if name == var {
+                val
+            } else {
+                f64::NAN
+            }
+        }
         SymExpr::Add(l, r) => evaluate_scalar(l, var, val) + evaluate_scalar(r, var, val),
         SymExpr::Sub(l, r) => evaluate_scalar(l, var, val) - evaluate_scalar(r, var, val),
         SymExpr::Mul(l, r) => evaluate_scalar(l, var, val) * evaluate_scalar(r, var, val),

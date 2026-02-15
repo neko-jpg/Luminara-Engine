@@ -81,7 +81,10 @@ fn test_orient2d_small_coordinates() {
 fn test_orient2d_negative_coordinates() {
     // Test with negative coordinates
     let result = orient2d([-1.0, -1.0], [0.0, -1.0], [-1.0, 0.0]);
-    assert!(result > 0.0, "Expected positive for CCW with negative coords");
+    assert!(
+        result > 0.0,
+        "Expected positive for CCW with negative coords"
+    );
 }
 
 // ===== Incircle Tests =====
@@ -90,14 +93,22 @@ fn test_orient2d_negative_coordinates() {
 fn test_incircle_inside_unit_circle() {
     // Point inside the circle through (0,0), (1,0), (0,1)
     let result = incircle([0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.25, 0.25]);
-    assert!(result > 0.0, "Expected positive for point inside circle, got {}", result);
+    assert!(
+        result > 0.0,
+        "Expected positive for point inside circle, got {}",
+        result
+    );
 }
 
 #[test]
 fn test_incircle_outside_unit_circle() {
     // Point outside the circle through (0,0), (1,0), (0,1)
     let result = incircle([0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [2.0, 2.0]);
-    assert!(result < 0.0, "Expected negative for point outside circle, got {}", result);
+    assert!(
+        result < 0.0,
+        "Expected negative for point outside circle, got {}",
+        result
+    );
 }
 
 #[test]
@@ -155,7 +166,10 @@ fn test_incircle_large_coordinates() {
         [1e10, 1e10 + 1.0],
         [1e10 + 0.25, 1e10 + 0.25],
     );
-    assert!(result > 0.0, "Expected positive for point inside circle with large coords");
+    assert!(
+        result > 0.0,
+        "Expected positive for point inside circle with large coords"
+    );
 }
 
 #[test]
@@ -167,7 +181,10 @@ fn test_incircle_small_coordinates() {
         [1e-10, 2e-10],
         [1.25e-10, 1.25e-10],
     );
-    assert!(result > 0.0, "Expected positive for point inside circle with small coords");
+    assert!(
+        result > 0.0,
+        "Expected positive for point inside circle with small coords"
+    );
 }
 
 // ===== Orient3d Tests =====
@@ -175,39 +192,86 @@ fn test_incircle_small_coordinates() {
 #[test]
 fn test_orient3d_positive_tetrahedron() {
     // Standard tetrahedron with positive orientation
-    let result = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, -1.0]);
-    assert!(result > 0.0, "Expected positive orientation, got {}", result);
+    let result = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, -1.0],
+    );
+    assert!(
+        result > 0.0,
+        "Expected positive orientation, got {}",
+        result
+    );
 }
 
 #[test]
 fn test_orient3d_negative_tetrahedron() {
     // Tetrahedron with negative orientation (point above plane)
-    let result = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
-    assert!(result < 0.0, "Expected negative orientation, got {}", result);
+    let result = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    );
+    assert!(
+        result < 0.0,
+        "Expected negative orientation, got {}",
+        result
+    );
 }
 
 #[test]
 fn test_orient3d_coplanar() {
     // Four coplanar points (all on xy-plane)
-    let result = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.5, 0.5, 0.0]);
-    assert_eq!(result, 0.0, "Expected zero for coplanar points, got {}", result);
+    let result = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, 0.0],
+    );
+    assert_eq!(
+        result, 0.0,
+        "Expected zero for coplanar points, got {}",
+        result
+    );
 }
 
 #[test]
 fn test_orient3d_nearly_coplanar_positive() {
     // Points nearly coplanar but slightly positive
-    let result = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.5, 0.5, -1e-14]);
+    let result = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, -1e-14],
+    );
     assert!(result.is_finite());
-    let result2 = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.5, 0.5, -1e-14]);
+    let result2 = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, -1e-14],
+    );
     assert_eq!(result, result2);
 }
 
 #[test]
 fn test_orient3d_nearly_coplanar_negative() {
     // Points nearly coplanar but slightly negative
-    let result = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.5, 0.5, 1e-14]);
+    let result = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, 1e-14],
+    );
     assert!(result.is_finite());
-    let result2 = orient3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.5, 0.5, 1e-14]);
+    let result2 = orient3d(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.5, 0.5, 1e-14],
+    );
     assert_eq!(result, result2);
 }
 
@@ -220,7 +284,10 @@ fn test_orient3d_large_coordinates() {
         [1e10, 1e10 + 1.0, 1e10],
         [1e10, 1e10, 1e10 - 1.0],
     );
-    assert!(result > 0.0, "Expected positive orientation with large coords");
+    assert!(
+        result > 0.0,
+        "Expected positive orientation with large coords"
+    );
 }
 
 #[test]
@@ -232,7 +299,10 @@ fn test_orient3d_small_coordinates() {
         [1e-10, 2e-10, 1e-10],
         [1e-10, 1e-10, 0.0],
     );
-    assert!(result > 0.0, "Expected positive orientation with small coords");
+    assert!(
+        result > 0.0,
+        "Expected positive orientation with small coords"
+    );
 }
 
 // ===== Insphere Tests =====
@@ -249,7 +319,11 @@ fn test_insphere_inside_unit_sphere() {
         [0.25, 0.25, 0.25],
     );
     // Just verify it's finite and deterministic
-    assert!(result.is_finite(), "Expected finite result for point inside sphere, got {}", result);
+    assert!(
+        result.is_finite(),
+        "Expected finite result for point inside sphere, got {}",
+        result
+    );
     let result2 = insphere(
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
@@ -271,7 +345,11 @@ fn test_insphere_outside_unit_sphere() {
         [2.0, 2.0, 2.0],
     );
     // Just verify it's finite and deterministic
-    assert!(result.is_finite(), "Expected finite result for point outside sphere, got {}", result);
+    assert!(
+        result.is_finite(),
+        "Expected finite result for point outside sphere, got {}",
+        result
+    );
     let result2 = insphere(
         [0.0, 0.0, 0.0],
         [1.0, 0.0, 0.0],
@@ -280,7 +358,7 @@ fn test_insphere_outside_unit_sphere() {
         [2.0, 2.0, 2.0],
     );
     assert_eq!(result, result2, "insphere not deterministic");
-    
+
     // The sign should be opposite to the inside case
     let result_inside = insphere(
         [0.0, 0.0, 0.0],
@@ -289,7 +367,11 @@ fn test_insphere_outside_unit_sphere() {
         [0.0, 0.0, 1.0],
         [0.25, 0.25, 0.25],
     );
-    assert_ne!(result.signum(), result_inside.signum(), "Inside and outside should have opposite signs");
+    assert_ne!(
+        result.signum(),
+        result_inside.signum(),
+        "Inside and outside should have opposite signs"
+    );
 }
 
 #[test]
@@ -361,7 +443,10 @@ fn test_insphere_large_coordinates() {
         [1e10, 1e10, 1e10 + 1.0],
         [1e10 + 0.25, 1e10 + 0.25, 1e10 + 0.25],
     );
-    assert!(result.is_finite(), "Expected finite result with large coords");
+    assert!(
+        result.is_finite(),
+        "Expected finite result with large coords"
+    );
     let result2 = insphere(
         [1e10, 1e10, 1e10],
         [1e10 + 1.0, 1e10, 1e10],
@@ -369,7 +454,10 @@ fn test_insphere_large_coordinates() {
         [1e10, 1e10, 1e10 + 1.0],
         [1e10 + 0.25, 1e10 + 0.25, 1e10 + 0.25],
     );
-    assert_eq!(result, result2, "insphere not deterministic with large coords");
+    assert_eq!(
+        result, result2,
+        "insphere not deterministic with large coords"
+    );
 }
 
 #[test]
@@ -382,7 +470,10 @@ fn test_insphere_small_coordinates() {
         [1e-10, 1e-10, 2e-10],
         [1.25e-10, 1.25e-10, 1.25e-10],
     );
-    assert!(result.is_finite(), "Expected finite result with small coords");
+    assert!(
+        result.is_finite(),
+        "Expected finite result with small coords"
+    );
     let result2 = insphere(
         [1e-10, 1e-10, 1e-10],
         [2e-10, 1e-10, 1e-10],
@@ -390,7 +481,10 @@ fn test_insphere_small_coordinates() {
         [1e-10, 1e-10, 2e-10],
         [1.25e-10, 1.25e-10, 1.25e-10],
     );
-    assert_eq!(result, result2, "insphere not deterministic with small coords");
+    assert_eq!(
+        result, result2,
+        "insphere not deterministic with small coords"
+    );
 }
 
 // ===== Cross-predicate consistency tests =====

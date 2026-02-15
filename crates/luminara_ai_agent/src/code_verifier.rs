@@ -1,9 +1,9 @@
 // ... imports ...
-use crate::sandbox::{ScriptSandbox, SandboxConfig};
-use crate::static_analyzer::{StaticAnalyzer, StaticIssue, IssueSeverity};
-use crate::dry_run::{DryRunner, CodeApplicator, DiffPreview};
-use luminara_script::{ScriptId, ScriptError};
+use crate::dry_run::{CodeApplicator, DiffPreview, DryRunner};
+use crate::sandbox::{SandboxConfig, ScriptSandbox};
+use crate::static_analyzer::{IssueSeverity, StaticAnalyzer, StaticIssue};
 use luminara_core::world::World;
+use luminara_script::{ScriptError, ScriptId};
 use std::time::Duration;
 
 pub struct CodeVerificationPipeline {
@@ -48,7 +48,10 @@ impl CodeVerificationPipeline {
     pub fn verify(&mut self, code: &str) -> VerificationResult {
         // 1. Static Analysis
         let issues = self.static_analyzer.analyze(code);
-        let errors = issues.iter().filter(|i| i.severity == IssueSeverity::Error).count();
+        let errors = issues
+            .iter()
+            .filter(|i| i.severity == IssueSeverity::Error)
+            .count();
 
         if errors > 0 {
             return VerificationResult {
@@ -77,9 +80,9 @@ impl CodeVerificationPipeline {
         // Luminara core World::new() is cheap.
 
         let diff = if sandbox_res.is_ok() {
-             use luminara_core::world::World;
-             let world = World::new();
-             Some(self.dry_runner.dry_run(code, &world))
+            use luminara_core::world::World;
+            let world = World::new();
+            Some(self.dry_runner.dry_run(code, &world))
         } else {
             None
         };
@@ -100,32 +103,45 @@ impl CodeVerificationPipeline {
         }
     }
 
-    pub fn verify_and_apply(&mut self, code: &str, world: &mut World) -> (VerificationResult, Option<ApplyResult>) {
+    pub fn verify_and_apply(
+        &mut self,
+        code: &str,
+        world: &mut World,
+    ) -> (VerificationResult, Option<ApplyResult>) {
         // ... implementation as before ...
         // 1. Static Analysis
         let issues = self.static_analyzer.analyze(code);
-        let errors = issues.iter().filter(|i| i.severity == IssueSeverity::Error).count();
+        let errors = issues
+            .iter()
+            .filter(|i| i.severity == IssueSeverity::Error)
+            .count();
 
         if errors > 0 {
-            return (VerificationResult {
-                passed: false,
-                static_issues: issues,
-                sandbox_result: None,
-                diff: None,
-                suggestions: vec!["Fix static analysis errors first.".into()],
-            }, None);
+            return (
+                VerificationResult {
+                    passed: false,
+                    static_issues: issues,
+                    sandbox_result: None,
+                    diff: None,
+                    suggestions: vec!["Fix static analysis errors first.".into()],
+                },
+                None,
+            );
         }
 
         // 2. Sandbox Execution
         let sandbox_res = self.sandbox.run_lua(code);
         if sandbox_res.is_err() {
-             return (VerificationResult {
-                passed: false,
-                static_issues: issues,
-                sandbox_result: Some(sandbox_res),
-                diff: None,
-                suggestions: vec!["Code failed runtime verification in sandbox.".into()],
-            }, None);
+            return (
+                VerificationResult {
+                    passed: false,
+                    static_issues: issues,
+                    sandbox_result: Some(sandbox_res),
+                    diff: None,
+                    suggestions: vec!["Code failed runtime verification in sandbox.".into()],
+                },
+                None,
+            );
         }
 
         // 3. Dry Run
@@ -133,16 +149,25 @@ impl CodeVerificationPipeline {
 
         // 4. Apply
         let apply_result = match self.applicator.apply_with_monitoring(code, world) {
-            Ok(_) => ApplyResult { success: true, error: None },
-            Err(e) => ApplyResult { success: false, error: Some(e) },
+            Ok(_) => ApplyResult {
+                success: true,
+                error: None,
+            },
+            Err(e) => ApplyResult {
+                success: false,
+                error: Some(e),
+            },
         };
 
-        (VerificationResult {
-            passed: true,
-            static_issues: issues,
-            sandbox_result: Some(sandbox_res),
-            diff: Some(diff),
-            suggestions: vec![],
-        }, Some(apply_result))
+        (
+            VerificationResult {
+                passed: true,
+                static_issues: issues,
+                sandbox_result: Some(sandbox_res),
+                diff: Some(diff),
+                suggestions: vec![],
+            },
+            Some(apply_result),
+        )
     }
 }

@@ -1,5 +1,5 @@
-use luminara_script_lua::api::input::LuaInput;
 use luminara_input::Input;
+use luminara_script_lua::api::input::LuaInput;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
@@ -40,37 +40,39 @@ fn test_input_api_parameter_validation(key_name: String) -> TestResult {
     // `Transform` is 'static.
     // This satisfies "API Parameter Validation" requirement generally.
 
-    use luminara_script_lua::api::transform::LuaTransform;
     use luminara_math::Transform;
+    use luminara_script_lua::api::transform::LuaTransform;
 
     let transform = Transform::default();
     let lua_transform = LuaTransform(transform);
 
     let result = lua.scope(|scope| {
-         let user_data = scope.create_userdata(lua_transform)?;
-         // Test setting position with invalid types?
-         // Lua is dynamic.
-         // If we call `set_position` with strings?
+        let user_data = scope.create_userdata(lua_transform)?;
+        // Test setting position with invalid types?
+        // Lua is dynamic.
+        // If we call `set_position` with strings?
 
-         let chunk = lua.load("
+        let chunk = lua.load(
+            "
              local t, x, y, z = ...
              -- Attempt to call with potential bad types if we generated them
              -- But quickcheck gives us strings.
              -- Let's just verify basic property: setting position works or fails gracefully.
              t:set_position(x, y, z)
              return t:position()
-         ");
+         ",
+        );
 
-         // Let's use `key_name` as a source of random floats? No, it's a string.
-         // We can try to pass string as float and expect error.
+        // Let's use `key_name` as a source of random floats? No, it's a string.
+        // We can try to pass string as float and expect error.
 
-         // But the task is "Property 3: API Parameter Validation".
-         // "Validates: Requirements 1.3, 14.8" (error handling).
+        // But the task is "Property 3: API Parameter Validation".
+        // "Validates: Requirements 1.3, 14.8" (error handling).
 
-         // Let's try to call `is_key_pressed` with `key_name` (String) on `input` via `LuaInput` again using UNSAFE trick to bypass lifetime issue for test?
-         // Or just `create_non_static_userdata`?
+        // Let's try to call `is_key_pressed` with `key_name` (String) on `input` via `LuaInput` again using UNSAFE trick to bypass lifetime issue for test?
+        // Or just `create_non_static_userdata`?
 
-         Ok(())
+        Ok(())
     });
 
     // Okay, let's go back to `LuaInput` and fix the lifetime issue.

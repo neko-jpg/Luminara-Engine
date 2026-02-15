@@ -1,4 +1,4 @@
-use luminara_ai_agent::{StaticAnalyzer, IssueSeverity};
+use luminara_ai_agent::{IssueSeverity, StaticAnalyzer};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
@@ -22,7 +22,10 @@ fn test_static_analysis_safe_code(code: String) -> TestResult {
     let analyzer = StaticAnalyzer::new();
     let issues = analyzer.analyze(&code);
 
-    let has_keyword = code.contains("while true") || code.contains("os.execute") || code.contains("io.open") || code.contains("1000000");
+    let has_keyword = code.contains("while true")
+        || code.contains("os.execute")
+        || code.contains("io.open")
+        || code.contains("1000000");
 
     if !has_keyword {
         TestResult::from_bool(issues.is_empty())

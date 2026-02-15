@@ -1,10 +1,10 @@
 // Requirements 15.1-15.8
 // "AgentOrchestrator... roles... decomposition... planning... conflict... messaging"
 
-use crate::timeline::{OperationTimeline, OperationId};
 use crate::intent_resolver::AiIntent;
+use crate::timeline::{OperationId, OperationTimeline};
 use std::collections::HashMap;
-use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AgentRole {
@@ -63,39 +63,81 @@ impl AgentOrchestrator {
             AgentRole::ProjectDirector => vec!["*".into()],
         };
 
-        self.agents.insert(id.clone(), Agent { id, role, permissions });
+        self.agents.insert(
+            id.clone(),
+            Agent {
+                id,
+                role,
+                permissions,
+            },
+        );
     }
 
     pub fn decompose_task(&self, task_description: &str) -> Vec<(AgentRole, String)> {
+        let clean_description = Self::sanitize_input(task_description);
+
         // Mock decomposition logic
         // Real implementation calls LLM.
-        let desc = task_description.to_lowercase();
+        let desc = clean_description.to_lowercase();
         let mut tasks = Vec::new();
 
-        if desc.contains("level") || desc.contains("terrain") || desc.contains("geometry") || desc.contains("spawn") {
-            tasks.push((AgentRole::SceneArchitect, "Layout scene geometry and entities".into()));
+        if desc.contains("level")
+            || desc.contains("terrain")
+            || desc.contains("geometry")
+            || desc.contains("spawn")
+        {
+            tasks.push((
+                AgentRole::SceneArchitect,
+                "Layout scene geometry and entities".into(),
+            ));
         }
 
-        if desc.contains("material") || desc.contains("texture") || desc.contains("lighting") || desc.contains("color") || desc.contains("art") {
-            tasks.push((AgentRole::ArtDirector, "Apply visual style and lighting".into()));
+        if desc.contains("material")
+            || desc.contains("texture")
+            || desc.contains("lighting")
+            || desc.contains("color")
+            || desc.contains("art")
+        {
+            tasks.push((
+                AgentRole::ArtDirector,
+                "Apply visual style and lighting".into(),
+            ));
         }
 
-        if desc.contains("mechanic") || desc.contains("logic") || desc.contains("script") || desc.contains("ai") || desc.contains("behavior") {
-            tasks.push((AgentRole::GameplayProgrammer, "Implement gameplay logic".into()));
+        if desc.contains("mechanic")
+            || desc.contains("logic")
+            || desc.contains("script")
+            || desc.contains("ai")
+            || desc.contains("behavior")
+        {
+            tasks.push((
+                AgentRole::GameplayProgrammer,
+                "Implement gameplay logic".into(),
+            ));
         }
 
-        if desc.contains("test") || desc.contains("verify") || desc.contains("check") || desc.contains("qa") {
+        if desc.contains("test")
+            || desc.contains("verify")
+            || desc.contains("check")
+            || desc.contains("qa")
+        {
             tasks.push((AgentRole::QAEngineer, "Verify implementation".into()));
         }
 
         if tasks.is_empty() {
-             tasks.push((AgentRole::ProjectDirector, "Analyze request and refine requirements".into()));
+            tasks.push((
+                AgentRole::ProjectDirector,
+                "Analyze request and refine requirements".into(),
+            ));
         }
 
         tasks
     }
 
-    pub fn plan_execution(&self, subtasks: Vec<(AgentRole, String)>) -> Vec<Vec<(AgentRole, String)>> {
+    pub fn plan_execution(
+        &self,
+        subtasks: Vec<(AgentRole, String)>,
+    ) -> Vec<Vec<(AgentRole, String)>> {
         // Build dependency graph -> layers
         // Mock: just sequence them in one layer or parallel if different roles?
         // Let's assume independent tasks can run parallel.
@@ -128,7 +170,10 @@ impl AgentOrchestrator {
             for &entity_id in entities {
                 if let Some(other_agent) = touched_entities.get(&entity_id) {
                     if *other_agent != agent_id {
-                        conflicts.push(format!("Conflict: Agent {} and Agent {} are both modifying entity {}", other_agent, agent_id, entity_id));
+                        conflicts.push(format!(
+                            "Conflict: Agent {} and Agent {} are both modifying entity {}",
+                            other_agent, agent_id, entity_id
+                        ));
                     }
                 } else {
                     touched_entities.insert(entity_id, agent_id);
@@ -136,5 +181,13 @@ impl AgentOrchestrator {
             }
         }
         conflicts
+    }
+
+    fn sanitize_input(input: &str) -> String {
+        input
+            .chars()
+            .filter(|c| !c.is_control() || c.is_whitespace())
+            .take(2048)
+            .collect()
     }
 }

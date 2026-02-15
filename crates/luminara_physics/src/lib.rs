@@ -1,16 +1,16 @@
+pub mod camera_shake;
 pub mod components;
 pub mod debug;
+pub mod explosion;
+pub mod interaction;
 pub mod lie_integrator;
 pub mod physics2d;
 pub mod physics3d;
-pub mod interaction;
-pub mod explosion;
-pub mod camera_shake;
 pub mod target_game;
 
 pub use components::*;
-pub use lie_integrator::LiePhysicsIntegrator;
 pub use debug::PhysicsDebugConfig;
+pub use lie_integrator::LiePhysicsIntegrator;
 pub use physics2d::{CollisionEvents2D, Physics2dPlugin, PhysicsWorld2D};
 pub use physics3d::{CollisionEvents, PhysicsPlugin, PhysicsWorld3D};
 pub use target_game::{Target, TargetGameState};

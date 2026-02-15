@@ -1,10 +1,10 @@
-use luminara_core::shared_types::{Resource, ResMut, Res, Query};
-use luminara_render::command::CommandBuffer;
-use luminara_render::GizmoType;
-use luminara_render::command::DrawCommand;
-use luminara_math::Color;
 use crate::components::{Collider, ColliderShape}; // Assuming these exist
 use crate::PhysicsWorld3D;
+use luminara_core::shared_types::{Query, Res, ResMut, Resource};
+use luminara_math::Color;
+use luminara_render::command::CommandBuffer;
+use luminara_render::command::DrawCommand;
+use luminara_render::GizmoType;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PhysicsDebugConfig {
@@ -39,14 +39,16 @@ pub fn physics_debug_render_system(
         let color = config.collider_color;
 
         let gizmo = match &collider.shape {
-            ColliderShape::Box { half_extents } => {
-                GizmoType::Box { half_extents: [half_extents.x, half_extents.y, half_extents.z] }
+            ColliderShape::Box { half_extents } => GizmoType::Box {
+                half_extents: [half_extents.x, half_extents.y, half_extents.z],
             },
-            ColliderShape::Sphere { radius } => {
-                GizmoType::Sphere { radius: *radius }
-            },
-            ColliderShape::Capsule { radius, half_height } => {
-                GizmoType::Capsule { radius: *radius, height: *half_height * 2.0 }
+            ColliderShape::Sphere { radius } => GizmoType::Sphere { radius: *radius },
+            ColliderShape::Capsule {
+                radius,
+                half_height,
+            } => GizmoType::Capsule {
+                radius: *radius,
+                height: *half_height * 2.0,
             },
             _ => continue, // Mesh debug not implemented yet for simplicity
         };

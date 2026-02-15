@@ -74,7 +74,11 @@ pub fn lod_update_system(world: &mut World) {
         let query = Query::<(&Camera, &Transform)>::new(world);
         for (cam, transform) in query.iter() {
             if cam.is_active {
-                pos = Vec3::new(transform.translation.x, transform.translation.y, transform.translation.z);
+                pos = Vec3::new(
+                    transform.translation.x,
+                    transform.translation.y,
+                    transform.translation.z,
+                );
                 break;
             }
         }

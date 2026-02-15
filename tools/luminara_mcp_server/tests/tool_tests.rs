@@ -1,7 +1,7 @@
 use luminara_mcp_server::{CreateEntityTool, McpTool};
-use serde_json::json;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
+use serde_json::json;
 
 #[test]
 fn test_tool_result_structure() {

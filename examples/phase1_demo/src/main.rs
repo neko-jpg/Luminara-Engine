@@ -11,18 +11,20 @@
 //! **Requirements validated:** 10.1, 10.2, 10.3, 10.4, 10.5
 
 use log::info;
+use luminara::asset::AssetServer;
 use luminara::prelude::*;
 use luminara::scene::TypeRegistry;
-use luminara::asset::AssetServer;
 
 mod camera_controller;
-use camera_controller::{CameraController, camera_controller_system, setup_camera_input, CameraAction};
+use camera_controller::{
+    camera_controller_system, setup_camera_input, CameraAction, CameraController,
+};
 
 mod demo_systems;
 use demo_systems::{
-    DemoAction, DemoSettings, setup_demo_input, demo_interaction_system, demo_spawn_system,
-    RotatingObject, rotation_animation_system,
-    FloatingObject, floating_animation_system,
+    demo_interaction_system, demo_spawn_system, floating_animation_system,
+    rotation_animation_system, setup_demo_input, DemoAction, DemoSettings, FloatingObject,
+    RotatingObject,
 };
 
 fn main() {
@@ -141,7 +143,11 @@ fn setup_demo(world: &mut World) {
 }
 
 /// Attach runtime assets (Meshes) and markers that are not serialized
-fn attach_runtime_assets(world: &mut World, scene: &luminara::scene::Scene, asset_server: &AssetServer) {
+fn attach_runtime_assets(
+    world: &mut World,
+    scene: &luminara::scene::Scene,
+    asset_server: &AssetServer,
+) {
     use luminara::render::Mesh;
     use luminara::scene::find_entity_by_name;
 
@@ -171,23 +177,29 @@ fn attach_runtime_assets(world: &mut World, scene: &luminara::scene::Scene, asse
                     let mesh = Mesh::sphere(0.5, 32);
                     let handle = asset_server.add(mesh);
                     world.add_component(entity, handle);
-                    
+
                     // Add floating animation
                     if let Some(transform) = world.get_component::<Transform>(entity) {
-                        world.add_component(entity, FloatingObject {
-                            amplitude: 0.5,
-                            frequency: 1.0,
-                            phase: 0.0,
-                            initial_y: transform.translation.y,
-                        });
+                        world.add_component(
+                            entity,
+                            FloatingObject {
+                                amplitude: 0.5,
+                                frequency: 1.0,
+                                phase: 0.0,
+                                initial_y: transform.translation.y,
+                            },
+                        );
                     }
-                    
+
                     // Add rotation animation
-                    world.add_component(entity, RotatingObject {
-                        axis: Vec3::new(0.0, 1.0, 0.3).normalize(),
-                        speed: 1.0,
-                    });
-                    
+                    world.add_component(
+                        entity,
+                        RotatingObject {
+                            axis: Vec3::new(0.0, 1.0, 0.3).normalize(),
+                            speed: 1.0,
+                        },
+                    );
+
                     info!("Added animated energy core");
                 }
                 _ => {}

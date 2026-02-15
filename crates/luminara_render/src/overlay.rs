@@ -72,13 +72,8 @@ impl OverlayRenderer {
 
     /// Queue a filled rectangle.
     pub fn draw_rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: [f32; 4]) {
-        self.commands.push(OverlayCommand::Rect {
-            x,
-            y,
-            w,
-            h,
-            color,
-        });
+        self.commands
+            .push(OverlayCommand::Rect { x, y, w, h, color });
     }
 
     /// Queue a rectangle with a vertical gradient (top to bottom).
@@ -136,11 +131,16 @@ impl OverlayRenderer {
         scale: f32,
     ) {
         let d = 1.0 * scale; // outline thickness
-        // 8-direction outline
+                             // 8-direction outline
         let offsets: [(f32, f32); 8] = [
-            (-d, -d), (0.0, -d), (d, -d),
-            (-d, 0.0),           (d, 0.0),
-            (-d,  d), (0.0,  d), (d,  d),
+            (-d, -d),
+            (0.0, -d),
+            (d, -d),
+            (-d, 0.0),
+            (d, 0.0),
+            (-d, d),
+            (0.0, d),
+            (d, d),
         ];
         for (ox, oy) in &offsets {
             self.commands.push(OverlayCommand::Text {
@@ -237,11 +237,11 @@ impl OverlayRenderer {
         }
 
         // ── Font texture (128 × 48  R8Unorm) ──────────────────────────
-    // Use sRGB format if surface is sRGB, but for font mask R8Unorm is fine as alpha.
-    // However, if we blend, we need to be careful about color space.
-    // The shader uses `color` uniform which is linear or sRGB?
-    // Ideally UI colors are sRGB and we should convert to Linear in shader if framebuffer is sRGB-aware.
-    // Assuming standard wgpu handling where shader output is written to sRGB view.
+        // Use sRGB format if surface is sRGB, but for font mask R8Unorm is fine as alpha.
+        // However, if we blend, we need to be careful about color space.
+        // The shader uses `color` uniform which is linear or sRGB?
+        // Ideally UI colors are sRGB and we should convert to Linear in shader if framebuffer is sRGB-aware.
+        // Assuming standard wgpu handling where shader output is written to sRGB view.
 
         let font_pixels = build_font_texture_data();
         let font_texture = device.create_texture_with_data(
@@ -365,13 +365,7 @@ impl OverlayRenderer {
 
         for cmd in &self.commands {
             match cmd {
-                OverlayCommand::Rect {
-                    x,
-                    y,
-                    w,
-                    h,
-                    color,
-                } => {
+                OverlayCommand::Rect { x, y, w, h, color } => {
                     let (x0, y0) = px_to_ndc(*x, *y, sw, sh);
                     let (x1, y1) = px_to_ndc(*x + *w, *y + *h, sw, sh);
                     let (u0, v0, u1, v1) = solid_uv();
@@ -388,7 +382,19 @@ impl OverlayRenderer {
                     let (x0, y0) = px_to_ndc(*x, *y, sw, sh);
                     let (x1, y1) = px_to_ndc(*x + *w, *y + *h, sw, sh);
                     let (u0, v0, u1, v1) = solid_uv();
-                    push_gradient_quad(&mut verts, x0, y0, x1, y1, u0, v0, u1, v1, *top_color, *bottom_color);
+                    push_gradient_quad(
+                        &mut verts,
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        u0,
+                        v0,
+                        u1,
+                        v1,
+                        *top_color,
+                        *bottom_color,
+                    );
                 }
                 OverlayCommand::Text {
                     x,

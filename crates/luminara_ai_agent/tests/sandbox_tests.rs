@@ -1,4 +1,4 @@
-use luminara_ai_agent::{ScriptSandbox, SandboxConfig};
+use luminara_ai_agent::{SandboxConfig, ScriptSandbox};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
@@ -17,7 +17,9 @@ fn test_sandbox_fs_restriction() {
     assert!(result.is_err());
 
     let err_msg = result.err().unwrap().to_string();
-    assert!(err_msg.contains("attempt to index a nil value") || err_msg.contains("global 'io' is nil"));
+    assert!(
+        err_msg.contains("attempt to index a nil value") || err_msg.contains("global 'io' is nil")
+    );
 }
 
 #[quickcheck]

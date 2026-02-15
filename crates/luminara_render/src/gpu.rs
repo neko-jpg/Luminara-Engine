@@ -163,5 +163,11 @@ impl GpuContext {
     }
 }
 
+impl Drop for GpuContext {
+    fn drop(&mut self) {
+        self.device.destroy();
+    }
+}
+
 use luminara_core::shared_types::Resource;
 impl Resource for GpuContext {}

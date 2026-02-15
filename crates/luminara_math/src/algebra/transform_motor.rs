@@ -1,5 +1,5 @@
 use crate::algebra::motor::Motor;
-use crate::{Vec3, Quat, Mat4};
+use crate::{Mat4, Quat, Vec3};
 use luminara_core::shared_types::Component;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

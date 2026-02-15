@@ -1,9 +1,9 @@
-use notify::{Watcher, RecommendedWatcher, RecursiveMode, Event, Config, EventKind};
+use crate::{ScriptError, ScriptId};
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::collections::HashMap;
-use crate::{ScriptId, ScriptError};
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub struct HotReloadSystem {
     watcher: RecommendedWatcher,
@@ -29,7 +29,8 @@ impl HotReloadSystem {
     }
 
     pub fn watch(&mut self, path: &Path, script_id: ScriptId) -> Result<(), ScriptError> {
-        self.watcher.watch(path, RecursiveMode::NonRecursive)
+        self.watcher
+            .watch(path, RecursiveMode::NonRecursive)
             .map_err(|e| ScriptError::Runtime(format!("Failed to watch path {:?}: {}", path, e)))?;
 
         self.path_map.insert(path.to_path_buf(), script_id);

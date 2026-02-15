@@ -1,7 +1,7 @@
-use luminara_math::dsl::{MathDesignCommand, MathCommandExecutor, MathCommandOutput};
+use luminara_math::dsl::{MathCommandExecutor, MathCommandOutput, MathDesignCommand};
 use luminara_math::symbolic::SymExpr;
-use std::rc::Rc;
 use proptest::prelude::*;
+use std::rc::Rc;
 
 #[test]
 fn test_trajectory_command() {

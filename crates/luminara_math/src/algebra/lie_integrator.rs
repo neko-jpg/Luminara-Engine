@@ -2,9 +2,9 @@
 //!
 //! Implements Munthe-Kaas RK4 method for rigid body dynamics.
 
-use super::{Bivector, Motor};
-use super::vector::Vector3;
 use super::traits::Scalar;
+use super::vector::Vector3;
+use super::{Bivector, Motor};
 
 /// Compute the Lie bracket [u, v] of two bivectors.
 ///

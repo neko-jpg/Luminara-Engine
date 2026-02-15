@@ -1,8 +1,8 @@
-use luminara_script_lua::api::transform::LuaTransform;
 use luminara_math::Transform;
+use luminara_script_lua::api::transform::LuaTransform;
+use mlua::prelude::*;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
-use mlua::prelude::*;
 
 #[quickcheck]
 fn test_component_api_type_safety(x: f32, y: f32, z: f32) -> TestResult {
@@ -19,7 +19,8 @@ fn test_component_api_type_safety(x: f32, y: f32, z: f32) -> TestResult {
     let result: mlua::Result<bool> = lua.scope(|scope| {
         let user_data = scope.create_userdata(lua_transform)?;
 
-        let chunk = lua.load("
+        let chunk = lua.load(
+            "
             local t, x, y, z = ...
             t:set_position(x, y, z)
             local p_x, p_y, p_z = t:position()
@@ -31,7 +32,8 @@ fn test_component_api_type_safety(x: f32, y: f32, z: f32) -> TestResult {
             local close = math.abs(p_x - x) < 0.001
 
             return close and (status == false)
-        ");
+        ",
+        );
 
         chunk.call::<_, bool>((user_data, x, y, z))
     });

@@ -57,18 +57,18 @@ proptest! {
         (pa, pb, pc) in escalation_trigger_points()
     ) {
         let result = orient2d(pa, pb, pc);
-        
+
         // The result should always be finite (not NaN or Inf)
         assert!(result.is_finite(),
             "orient2d returned non-finite value: result={}, pa={:?}, pb={:?}, pc={:?}",
             result, pa, pb, pc);
-        
+
         // The result should be deterministic (calling again gives same result)
         let result2 = orient2d(pa, pb, pc);
         assert_eq!(result, result2,
             "orient2d not deterministic: result1={}, result2={}, pa={:?}, pb={:?}, pc={:?}",
             result, result2, pa, pb, pc);
-        
+
         // If the points are truly collinear (within numerical precision),
         // the result should be exactly zero. Otherwise, it should have a definite sign.
         // We can't easily test this without knowing the exact arithmetic result,
@@ -83,12 +83,12 @@ proptest! {
         (pa, pb, pc) in small_difference_points()
     ) {
         let result = orient2d(pa, pb, pc);
-        
+
         // The result should be finite
         assert!(result.is_finite(),
             "orient2d returned non-finite value for small differences: result={}, pa={:?}, pb={:?}, pc={:?}",
             result, pa, pb, pc);
-        
+
         // The result should be deterministic
         let result2 = orient2d(pa, pb, pc);
         assert_eq!(result, result2,
@@ -106,7 +106,7 @@ proptest! {
     ) {
         // Call orient2d multiple times
         let results: Vec<f64> = (0..10).map(|_| orient2d(pa, pb, pc)).collect();
-        
+
         // All results should be identical
         for (i, &result) in results.iter().enumerate() {
             assert_eq!(result, results[0],
@@ -127,9 +127,9 @@ proptest! {
         let pa_scaled = [pa[0] * scale, pa[1] * scale];
         let pb_scaled = [pb[0] * scale, pb[1] * scale];
         let pc_scaled = [pc[0] * scale, pc[1] * scale];
-        
+
         let result = orient2d(pa_scaled, pb_scaled, pc_scaled);
-        
+
         // The result should be finite (unless we underflow/overflow to zero/inf)
         // For very extreme scales, we might get zero or inf, which is acceptable
         if scale > 1e-50 && scale < 1e50 {
@@ -150,7 +150,7 @@ mod unit_tests {
         let pa = [0.0, 0.0];
         let pb = [1.0, 1.0];
         let pc = [2.0, 2.0 + 1e-14];
-        
+
         let result = orient2d(pa, pb, pc);
         assert!(result.is_finite());
         // The exact sign depends on the precision, but it should be deterministic
@@ -164,7 +164,7 @@ mod unit_tests {
         let pa = [0.0, 0.0];
         let pb = [1.0, 1.0];
         let pc = [2.0, 2.0 - 1e-14];
-        
+
         let result = orient2d(pa, pb, pc);
         assert!(result.is_finite());
         let result2 = orient2d(pa, pb, pc);
@@ -177,7 +177,7 @@ mod unit_tests {
         let pa = [0.0, 0.0];
         let pb = [1.0, 1.0];
         let pc = [2.0, 2.0];
-        
+
         let result = orient2d(pa, pb, pc);
         assert_eq!(result, 0.0);
     }
@@ -188,7 +188,7 @@ mod unit_tests {
         let pa = [1e10, 1e10];
         let pb = [1e10 + 1.0, 1e10 + 1.0];
         let pc = [1e10 + 2.0, 1e10 + 2.0 + 1e-10];
-        
+
         let result = orient2d(pa, pb, pc);
         assert!(result.is_finite());
         let result2 = orient2d(pa, pb, pc);
@@ -201,7 +201,7 @@ mod unit_tests {
         let pa = [1e-10, 1e-10];
         let pb = [2e-10, 2e-10];
         let pc = [3e-10, 3e-10 + 1e-25];
-        
+
         let result = orient2d(pa, pb, pc);
         assert!(result.is_finite());
         let result2 = orient2d(pa, pb, pc);
@@ -214,7 +214,7 @@ mod unit_tests {
         let pa = [1e-10, 1e10];
         let pb = [2e-10, 2e10];
         let pc = [3e-10, 3e10 + 1e-5];
-        
+
         let result = orient2d(pa, pb, pc);
         assert!(result.is_finite());
         let result2 = orient2d(pa, pb, pc);

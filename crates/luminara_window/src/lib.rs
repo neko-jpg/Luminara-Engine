@@ -33,7 +33,7 @@ impl ApplicationHandler for LuminaraWinitHandler {
                 .app
                 .world
                 .get_resource::<window::WindowDescriptor>()
-                .cloned()
+                .map(|d| d.clone())
                 .unwrap_or_default();
 
             // (4) Use .with_transparent(false) to hint the compositor that the
@@ -68,15 +68,14 @@ impl ApplicationHandler for LuminaraWinitHandler {
         event: winit::event::WindowEvent,
     ) {
         // Dispatch raw winit event to Input resource if it exists
-        if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+        if let Some(mut input) = self.app.world.get_resource_mut::<Input>() {
             input.handle_winit_event(&event);
         }
 
         if let Some(lum_event) = luminara_window_event_from_winit(&event) {
-            self.app
-                .world
-                .get_events_mut::<LuminaraWindowEvent>()
-                .send(lum_event);
+            if let Some(mut events) = self.app.world.get_events_mut::<LuminaraWindowEvent>() {
+                events.send(lum_event);
+            }
         }
 
         match event {
@@ -85,7 +84,7 @@ impl ApplicationHandler for LuminaraWinitHandler {
                 //     On WSLg/Wayland, inner_size() may lag, so we trust the event.
                 // (3) Guard against (0,0) which occurs on minimize and would crash wgpu.
                 if size.width > 0 && size.height > 0 {
-                    if let Some(window) = self.app.world.get_resource_mut::<window::Window>() {
+                    if let Some(mut window) = self.app.world.get_resource_mut::<window::Window>() {
                         window.resize(size.width, size.height);
                     }
                     // Run a full update cycle so window_resize_system picks up
@@ -106,7 +105,7 @@ impl ApplicationHandler for LuminaraWinitHandler {
                 // When window loses focus, release cursor grab for safety
                 // This prevents the cursor from being trapped when Alt+Tab or similar
                 if !focused {
-                    if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                    if let Some(mut input) = self.app.world.get_resource_mut::<Input>() {
                         if input.is_cursor_grabbed() {
                             input.set_cursor_grabbed(false);
                             input.set_cursor_visible(true);
@@ -118,10 +117,9 @@ impl ApplicationHandler for LuminaraWinitHandler {
                 self.app.update();
 
                 // Sync cursor grab / visibility from Input to the winit window
-                if let (Some(input), Some(window)) = (
-                    self.app.world.get_resource::<Input>(),
-                    self.window.as_ref(),
-                ) {
+                if let (Some(input), Some(window)) =
+                    (self.app.world.get_resource::<Input>(), self.window.as_ref())
+                {
                     let want_grabbed = input.is_cursor_grabbed();
                     let want_visible = input.is_cursor_visible();
 
@@ -143,13 +141,14 @@ impl ApplicationHandler for LuminaraWinitHandler {
                         let size = window.inner_size();
                         let cx = size.width as f64 / 2.0;
                         let cy = size.height as f64 / 2.0;
-                        let _ = window.set_cursor_position(winit::dpi::PhysicalPosition::new(cx, cy));
+                        let _ =
+                            window.set_cursor_position(winit::dpi::PhysicalPosition::new(cx, cy));
                     }
                 }
 
                 // Clear per-frame input states (delta, scroll, just_pressed/released)
                 // This prevents mouse delta accumulation that causes camera spinning
-                if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+                if let Some(mut input) = self.app.world.get_resource_mut::<Input>() {
                     input.mouse.center_warp_request = false;
                     input.mouse.clear_just_states();
                     input.keyboard.clear_just_states();
@@ -175,7 +174,7 @@ impl ApplicationHandler for LuminaraWinitHandler {
         // DeviceEvent::MouseMotion provides hardware-level deltas that work
         // correctly even when the cursor is locked/confined.
         if let winit::event::DeviceEvent::MouseMotion { delta } = event {
-            if let Some(input) = self.app.world.get_resource_mut::<Input>() {
+            if let Some(mut input) = self.app.world.get_resource_mut::<Input>() {
                 if input.is_cursor_grabbed() {
                     // Accumulate raw hardware deltas — more reliable than CursorMoved
                     // when the cursor is locked/confined.

@@ -1,7 +1,7 @@
 // Physics Determinism Test
 // Ensures that physics simulations produce identical results across multiple runs
 
-use luminara_math::{Vec3, Quat};
+use luminara_math::{Quat, Vec3};
 
 /// Represents a rigid body in the physics simulation
 #[derive(Debug, Clone, PartialEq)]
@@ -35,16 +35,16 @@ impl RigidBody {
 
     pub fn is_bitwise_equal(&self, other: &RigidBody) -> bool {
         // Check bitwise equality for determinism
-        self.position.x.to_bits() == other.position.x.to_bits() &&
-        self.position.y.to_bits() == other.position.y.to_bits() &&
-        self.position.z.to_bits() == other.position.z.to_bits() &&
-        self.rotation.x.to_bits() == other.rotation.x.to_bits() &&
-        self.rotation.y.to_bits() == other.rotation.y.to_bits() &&
-        self.rotation.z.to_bits() == other.rotation.z.to_bits() &&
-        self.rotation.w.to_bits() == other.rotation.w.to_bits() &&
-        self.velocity.x.to_bits() == other.velocity.x.to_bits() &&
-        self.velocity.y.to_bits() == other.velocity.y.to_bits() &&
-        self.velocity.z.to_bits() == other.velocity.z.to_bits()
+        self.position.x.to_bits() == other.position.x.to_bits()
+            && self.position.y.to_bits() == other.position.y.to_bits()
+            && self.position.z.to_bits() == other.position.z.to_bits()
+            && self.rotation.x.to_bits() == other.rotation.x.to_bits()
+            && self.rotation.y.to_bits() == other.rotation.y.to_bits()
+            && self.rotation.z.to_bits() == other.rotation.z.to_bits()
+            && self.rotation.w.to_bits() == other.rotation.w.to_bits()
+            && self.velocity.x.to_bits() == other.velocity.x.to_bits()
+            && self.velocity.y.to_bits() == other.velocity.y.to_bits()
+            && self.velocity.z.to_bits() == other.velocity.z.to_bits()
     }
 }
 
@@ -123,7 +123,9 @@ fn test_determinism_basic() {
         assert!(
             body1.is_bitwise_equal(body2),
             "Body {} should have identical state across runs (pos1: {:?}, pos2: {:?})",
-            i, body1.position, body2.position
+            i,
+            body1.position,
+            body2.position
         );
     }
 }
@@ -194,7 +196,11 @@ mod determinism_integration_tests {
         let sum1 = a + b;
         let sum2 = a + b;
 
-        assert_eq!(sum1.to_bits(), sum2.to_bits(), "Floating point operations should be deterministic");
+        assert_eq!(
+            sum1.to_bits(),
+            sum2.to_bits(),
+            "Floating point operations should be deterministic"
+        );
 
         // Note: (a + b) might not equal c due to floating point precision
         // But it should be consistent across runs
@@ -268,9 +274,9 @@ mod determinism_integration_tests {
             let actual_pos = world_replay.get_body(0).unwrap().position;
 
             assert!(
-                actual_pos.x.to_bits() == expected_pos.x.to_bits() &&
-                actual_pos.y.to_bits() == expected_pos.y.to_bits() &&
-                actual_pos.z.to_bits() == expected_pos.z.to_bits(),
+                actual_pos.x.to_bits() == expected_pos.x.to_bits()
+                    && actual_pos.y.to_bits() == expected_pos.y.to_bits()
+                    && actual_pos.z.to_bits() == expected_pos.z.to_bits(),
                 "Replay should match original at frame {}",
                 frame
             );

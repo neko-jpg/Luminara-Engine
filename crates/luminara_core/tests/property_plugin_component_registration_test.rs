@@ -494,7 +494,7 @@ fn test_resource_can_be_accessed_after_registration() {
     }
 
     {
-        let resource = app.world.get_resource_mut::<TestResource1>().unwrap();
+        let mut resource = app.world.get_resource_mut::<TestResource1>().unwrap();
         resource.count = 100;
     }
 

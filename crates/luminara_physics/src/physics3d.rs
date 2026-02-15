@@ -6,7 +6,9 @@ use luminara_math::{Quat, Transform, Vec3};
 use rapier3d::prelude::*;
 use std::collections::HashMap;
 
-use crate::components::{Collider, ColliderShape, CollisionEvent, RigidBody, RigidBodyType, PreviousTransform};
+use crate::components::{
+    Collider, ColliderShape, CollisionEvent, PreviousTransform, RigidBody, RigidBodyType,
+};
 
 /// Resource containing the Rapier 3D physics world
 pub struct PhysicsWorld3D {
@@ -84,7 +86,8 @@ impl Plugin for PhysicsPlugin {
         app.world.insert_resource(CollisionEvents::default());
 
         // Register debug config
-        app.world.insert_resource(crate::debug::PhysicsDebugConfig::default());
+        app.world
+            .insert_resource(crate::debug::PhysicsDebugConfig::default());
 
         // Register physics body/collider creation as exclusive systems (need world mutation)
         app.add_system::<ExclusiveMarker>(
@@ -125,7 +128,10 @@ impl Plugin for PhysicsPlugin {
             Res<'static, PhysicsWorld3D>,
             ResMut<'static, luminara_render::command::CommandBuffer>,
             Query<'static, (&Collider, &Transform)>,
-        )>(CoreStage::PostRender, crate::debug::physics_debug_render_system);
+        )>(
+            CoreStage::PostRender,
+            crate::debug::physics_debug_render_system,
+        );
 
         log::info!("PhysicsPlugin (3D) initialized with systems");
     }
@@ -193,7 +199,7 @@ pub fn physics_body_creation_system_exclusive(world: &mut luminara_core::world::
             .build();
 
         {
-            let physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
+            let mut physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
             let body_handle = physics_world.rigid_body_set.insert(rapier_body);
             physics_world.entity_to_body.insert(*entity, body_handle);
             physics_world.body_to_entity.insert(body_handle, *entity);
@@ -252,7 +258,7 @@ pub fn physics_collider_creation_system_exclusive(world: &mut luminara_core::wor
             .build();
 
         {
-            let physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
+            let mut physics_world = world.get_resource_mut::<PhysicsWorld3D>().unwrap();
             // Attach to rigid body if it exists
             let collider_handle =
                 if let Some(&body_handle) = physics_world.entity_to_body.get(entity) {
@@ -320,7 +326,9 @@ pub fn physics_body_creation_system(
 
         // Mark as created
         commands.entity(entity).insert(PhysicsBodyCreated);
-        commands.entity(entity).insert(PreviousTransform(*transform));
+        commands
+            .entity(entity)
+            .insert(PreviousTransform(*transform));
 
         log::debug!("Created 3D physics body for entity {:?}", entity);
     }
@@ -410,14 +418,14 @@ pub fn physics_step_system(
     while physics_world.accumulator >= timestep {
         // Update PreviousTransform before stepping
         for (entity, prev) in query.iter_mut() {
-             if let Some(body_handle) = physics_world.entity_to_body.get(&entity) {
-                 if let Some(body) = physics_world.rigid_body_set.get(*body_handle) {
-                     let pos = body.translation();
-                     let rot = body.rotation();
-                     prev.0.translation = Vec3::new(pos.x, pos.y, pos.z);
-                     prev.0.rotation = Quat::from_xyzw(rot.i, rot.j, rot.k, rot.w);
-                 }
-             }
+            if let Some(body_handle) = physics_world.entity_to_body.get(&entity) {
+                if let Some(body) = physics_world.rigid_body_set.get(*body_handle) {
+                    let pos = body.translation();
+                    let rot = body.rotation();
+                    prev.0.translation = Vec3::new(pos.x, pos.y, pos.z);
+                    prev.0.rotation = Quat::from_xyzw(rot.i, rot.j, rot.k, rot.w);
+                }
+            }
         }
 
         physics_world.accumulator -= timestep;

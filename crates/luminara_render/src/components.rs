@@ -77,7 +77,7 @@ impl Component for PointLight {
 /// Level of Detail component
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lod {
-    pub distances: Vec<f32>, // Distance thresholds for each LOD level
+    pub distances: Vec<f32>,       // Distance thresholds for each LOD level
     pub meshes: Vec<Handle<Mesh>>, // Meshes for each LOD level
 }
 

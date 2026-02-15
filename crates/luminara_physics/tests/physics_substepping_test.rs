@@ -1,6 +1,6 @@
-use luminara_core::{App, CoreStage, AppInterface, Res, ResMut};
 use luminara_core::time::Time;
-use luminara_physics::physics3d::{PhysicsWorld3D, physics_step_system};
+use luminara_core::{App, AppInterface, CoreStage, Res, ResMut};
+use luminara_physics::physics3d::{physics_step_system, PhysicsWorld3D};
 use rapier3d::prelude::*;
 
 fn run_simulation_with_variable_dt(steps: usize, dt_per_step: f32) -> Vector<f32> {
@@ -24,7 +24,13 @@ fn run_simulation_with_variable_dt(steps: usize, dt_per_step: f32) -> Vector<f32
         luminara_core::system::FunctionMarker,
         ResMut<'static, PhysicsWorld3D>,
         Res<'static, Time>,
-        luminara_core::Query<'static, (luminara_core::Entity, &mut luminara_physics::components::PreviousTransform)>
+        luminara_core::Query<
+            'static,
+            (
+                luminara_core::Entity,
+                &mut luminara_physics::components::PreviousTransform,
+            ),
+        >,
     )>(CoreStage::Update, physics_step_system);
 
     // Simulate
@@ -82,6 +88,12 @@ fn test_substepping_determinism() {
     // but for 1.0s total time with these clean fractions, it should match.
 
     let epsilon = 0.0001;
-    assert!((pos1.y - pos2.y).abs() < epsilon, "120FPS vs 60FPS mismatch");
-    assert!((pos1.y - pos3.y).abs() < epsilon, "120FPS vs 30FPS mismatch");
+    assert!(
+        (pos1.y - pos2.y).abs() < epsilon,
+        "120FPS vs 60FPS mismatch"
+    );
+    assert!(
+        (pos1.y - pos3.y).abs() < epsilon,
+        "120FPS vs 30FPS mismatch"
+    );
 }

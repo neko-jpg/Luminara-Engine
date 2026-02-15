@@ -1,8 +1,11 @@
-use luminara::prelude::*;
-use luminara::input::{ActionMap, InputExt, input_map::{ActionBinding, InputSource}};
+use luminara::asset::AssetServer;
 use luminara::input::keyboard::Key;
 use luminara::input::mouse::MouseButton;
-use luminara::asset::AssetServer;
+use luminara::input::{
+    input_map::{ActionBinding, InputSource},
+    ActionMap, InputExt,
+};
+use luminara::prelude::*;
 use luminara::render::{Mesh, OverlayRenderer};
 use rand::Rng;
 
@@ -23,36 +26,66 @@ pub enum DemoAction {
 pub fn setup_demo_input(world: &mut World) {
     let mut map = ActionMap::<DemoAction>::new();
 
-    map.bind(DemoAction::IncreaseGravity, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Plus), InputSource::Key(Key::Equals)],
-    });
-    map.bind(DemoAction::DecreaseGravity, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Minus)],
-    });
-    map.bind(DemoAction::IncreaseTimeScale, ActionBinding {
-        inputs: vec![InputSource::Key(Key::RBracket)],
-    });
-    map.bind(DemoAction::DecreaseTimeScale, ActionBinding {
-        inputs: vec![InputSource::Key(Key::LBracket)],
-    });
-    map.bind(DemoAction::SpawnSphere, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Num1)],
-    });
-    map.bind(DemoAction::SpawnCube, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Num2)],
-    });
-    map.bind(DemoAction::ResetScene, ActionBinding {
-        inputs: vec![InputSource::Key(Key::R)],
-    });
-    map.bind(DemoAction::ToggleDebugGizmos, ActionBinding {
-        inputs: vec![InputSource::Key(Key::G)],
-    });
-    map.bind(DemoAction::ToggleCrosshair, ActionBinding {
-        inputs: vec![InputSource::Key(Key::H)],
-    });
-    map.bind(DemoAction::Shoot, ActionBinding {
-        inputs: vec![InputSource::MouseButton(MouseButton::Left)],
-    });
+    map.bind(
+        DemoAction::IncreaseGravity,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Plus), InputSource::Key(Key::Equals)],
+        },
+    );
+    map.bind(
+        DemoAction::DecreaseGravity,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Minus)],
+        },
+    );
+    map.bind(
+        DemoAction::IncreaseTimeScale,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::RBracket)],
+        },
+    );
+    map.bind(
+        DemoAction::DecreaseTimeScale,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::LBracket)],
+        },
+    );
+    map.bind(
+        DemoAction::SpawnSphere,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Num1)],
+        },
+    );
+    map.bind(
+        DemoAction::SpawnCube,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Num2)],
+        },
+    );
+    map.bind(
+        DemoAction::ResetScene,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::R)],
+        },
+    );
+    map.bind(
+        DemoAction::ToggleDebugGizmos,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::G)],
+        },
+    );
+    map.bind(
+        DemoAction::ToggleCrosshair,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::H)],
+        },
+    );
+    map.bind(
+        DemoAction::Shoot,
+        ActionBinding {
+            inputs: vec![InputSource::MouseButton(MouseButton::Left)],
+        },
+    );
 
     world.insert_resource(map);
 }
@@ -109,7 +142,14 @@ pub fn demo_interaction_system(
     // Debug gizmos toggle
     if InputExt::action_just_pressed(&*input, DemoAction::ToggleDebugGizmos, &map) {
         settings.show_debug_gizmos = !settings.show_debug_gizmos;
-        println!("Debug gizmos: {}", if settings.show_debug_gizmos { "ON" } else { "OFF" });
+        println!(
+            "Debug gizmos: {}",
+            if settings.show_debug_gizmos {
+                "ON"
+            } else {
+                "OFF"
+            }
+        );
     }
 
     // Note: Spawn and reset actions need exclusive world access
@@ -181,12 +221,11 @@ pub fn floating_animation_system(
     }
 }
 
-
 // Exclusive system for spawning objects (needs full world access)
 pub fn demo_spawn_system(world: &mut World) {
     let input = world.resource::<Input>().clone();
     let map = world.resource::<ActionMap<DemoAction>>().clone();
-    
+
     let mut should_spawn_sphere = false;
     let mut should_spawn_cube = false;
     let mut should_reset = false;
@@ -209,26 +248,31 @@ pub fn demo_spawn_system(world: &mut World) {
         settings.spawn_counter += 1;
         let counter = settings.spawn_counter;
         drop(settings);
-        
+
         spawn_dynamic_object_impl(world, ObjectType::Sphere, counter, gravity_scale);
     }
-    
+
     if should_spawn_cube {
         let mut settings = world.resource_mut::<DemoSettings>();
         let gravity_scale = settings.gravity_scale;
         settings.spawn_counter += 1;
         let counter = settings.spawn_counter;
         drop(settings);
-        
+
         spawn_dynamic_object_impl(world, ObjectType::Cube, counter, gravity_scale);
     }
-    
+
     if should_reset {
         reset_dynamic_objects(world);
     }
 }
 
-fn spawn_dynamic_object_impl(world: &mut World, obj_type: ObjectType, counter: u32, gravity_scale: f32) {
+fn spawn_dynamic_object_impl(
+    world: &mut World,
+    obj_type: ObjectType,
+    counter: u32,
+    gravity_scale: f32,
+) {
     let name = format!("Spawned_{:?}_{}", obj_type, counter);
 
     world.resource_scope::<AssetServer, _, _>(|world, asset_server| {
@@ -315,7 +359,7 @@ fn spawn_dynamic_object_impl(world: &mut World, obj_type: ObjectType, counter: u
 fn reset_dynamic_objects(world: &mut World) {
     // Remove all spawned objects
     let mut to_remove = Vec::new();
-    
+
     // Collect entities with SpawnedObject marker
     for entity in world.entities() {
         if world.has_component::<SpawnedObject>(entity) {

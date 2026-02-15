@@ -1,7 +1,7 @@
-use luminara_core::{Component, Plugin, Query, Res, ResMut, App, CoreStage, AppInterface};
-use luminara_core::system::FunctionMarker;
-use luminara_math::{Vec3, Color, Mat4};
 use crate::GpuContext;
+use luminara_core::system::FunctionMarker;
+use luminara_core::{App, AppInterface, Component, CoreStage, Plugin, Query, Res, ResMut};
+use luminara_math::{Color, Mat4, Vec3};
 use wgpu::util::DeviceExt;
 
 #[derive(Clone, Copy, Debug)]
@@ -63,7 +63,14 @@ impl ParticleSystem {
         }
     }
 
-    pub fn spawn(&mut self, position: Vec3, velocity: Vec3, color: Color, size: f32, lifetime: f32) {
+    pub fn spawn(
+        &mut self,
+        position: Vec3,
+        velocity: Vec3,
+        color: Color,
+        size: f32,
+        lifetime: f32,
+    ) {
         if self.particles.len() < self.capacity {
             self.particles.push(Particle {
                 position,
@@ -177,27 +184,38 @@ pub fn particle_render_prepare_system(
         return;
     }
 
-    let instances: Vec<ParticleInstance> = particle_system.particles.iter().map(|p| {
-        let transform = Mat4::from_scale_rotation_translation(
-            Vec3::splat(p.size),
-            luminara_math::Quat::IDENTITY,
-            p.position
-        );
-        let cols = transform.to_cols_array_2d();
-        ParticleInstance {
-            model_matrix_0: cols[0],
-            model_matrix_1: cols[1],
-            model_matrix_2: cols[2],
-            model_matrix_3: cols[3],
-            color: [p.color.r, p.color.g, p.color.b, p.color.a * (p.lifetime / p.max_lifetime)],
-        }
-    }).collect();
+    let instances: Vec<ParticleInstance> = particle_system
+        .particles
+        .iter()
+        .map(|p| {
+            let transform = Mat4::from_scale_rotation_translation(
+                Vec3::splat(p.size),
+                luminara_math::Quat::IDENTITY,
+                p.position,
+            );
+            let cols = transform.to_cols_array_2d();
+            ParticleInstance {
+                model_matrix_0: cols[0],
+                model_matrix_1: cols[1],
+                model_matrix_2: cols[2],
+                model_matrix_3: cols[3],
+                color: [
+                    p.color.r,
+                    p.color.g,
+                    p.color.b,
+                    p.color.a * (p.lifetime / p.max_lifetime),
+                ],
+            }
+        })
+        .collect();
 
-    let buffer = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Particle Instance Buffer"),
-        contents: bytemuck::cast_slice(&instances),
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-    });
+    let buffer = gpu
+        .device
+        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Particle Instance Buffer"),
+            contents: bytemuck::cast_slice(&instances),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
 
     particle_system.instance_buffer = Some(buffer);
 }

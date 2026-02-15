@@ -1,8 +1,8 @@
 //! Advanced visual effects and interactive elements
 
 use luminara::prelude::*;
-use luminara_render::{ParticleEmitter, PointLight};
 use luminara_physics::RigidBodyType;
+use luminara_render::{ParticleEmitter, PointLight};
 
 /// Trail effect component for moving objects
 #[derive(Debug, Clone)]
@@ -155,7 +155,7 @@ pub fn pendulum_system(world: &mut World) {
 
     let gravity = 9.8;
     let mut query = Query::<(&mut Transform, &mut Pendulum)>::new(world);
-    
+
     for (transform, pendulum) in query.iter_mut() {
         // Simple pendulum physics
         let angular_acceleration = -(gravity / pendulum.length) * pendulum.angle.sin();
@@ -167,7 +167,7 @@ pub fn pendulum_system(world: &mut World) {
         let x = pendulum.anchor.x + pendulum.length * pendulum.angle.sin();
         let y = pendulum.anchor.y - pendulum.length * pendulum.angle.cos();
         let z = pendulum.anchor.z;
-        
+
         transform.translation = Vec3::new(x, y, z);
         transform.rotation = Quat::from_rotation_z(pendulum.angle);
     }
@@ -184,15 +184,15 @@ pub fn orbital_motion_system(world: &mut World) {
         .unwrap_or(1.0 / 60.0);
 
     let mut query = Query::<(&mut Transform, &mut OrbitalMotion)>::new(world);
-    
+
     for (transform, orbital) in query.iter_mut() {
         orbital.angle += orbital.speed * dt;
         orbital.height_offset += orbital.vertical_speed * dt;
-        
+
         let x = orbital.center.x + orbital.radius * orbital.angle.cos();
         let z = orbital.center.z + orbital.radius * orbital.angle.sin();
         let y = orbital.center.y + orbital.height_offset.sin() * 2.0;
-        
+
         transform.translation = Vec3::new(x, y, z);
         transform.rotation = Quat::from_rotation_y(orbital.angle);
     }
@@ -209,7 +209,7 @@ pub fn pulsating_light_system(world: &mut World) {
         .unwrap_or(1.0 / 60.0);
 
     let mut query = Query::<(&mut PointLight, &mut PulsatingLight)>::new(world);
-    
+
     for (light, pulse) in query.iter_mut() {
         pulse.phase += pulse.pulse_speed * dt;
         let intensity_mod = (pulse.phase.sin() * 0.5 + 0.5) * pulse.pulse_amount;
@@ -228,15 +228,15 @@ pub fn trail_effect_system(world: &mut World) {
         .unwrap_or(1.0 / 60.0);
 
     let mut spawn_requests = Vec::new();
-    
+
     {
         let mut query = Query::<(Entity, &Transform, &mut TrailEffect)>::new(world);
-        
+
         for (_entity, transform, trail) in query.iter_mut() {
             trail.accumulator += dt;
-            
+
             let distance = (transform.translation - trail.last_position).length();
-            
+
             if trail.accumulator >= 1.0 / trail.spawn_rate && distance > 0.1 {
                 spawn_requests.push((transform.translation, trail.color, trail.lifetime));
                 trail.last_position = transform.translation;
@@ -244,7 +244,7 @@ pub fn trail_effect_system(world: &mut World) {
             }
         }
     }
-    
+
     // Spawn trail particles
     for (pos, color, lifetime) in spawn_requests {
         let particle = world.spawn();
@@ -281,26 +281,31 @@ pub fn magnetic_field_system(world: &mut World) {
     {
         let query = Query::<(&Transform, &MagneticField)>::new(world);
         for (transform, field) in query.iter() {
-            fields.push((transform.translation, field.strength, field.radius, field.attract));
+            fields.push((
+                transform.translation,
+                field.strength,
+                field.radius,
+                field.attract,
+            ));
         }
     }
-    
+
     // Apply forces to dynamic objects
     let mut query = Query::<(&mut Transform, &RigidBody)>::new(world);
     for (transform, rb) in query.iter_mut() {
         if rb.body_type != RigidBodyType::Dynamic {
             continue;
         }
-        
+
         for (field_pos, strength, radius, attract) in &fields {
             let diff = *field_pos - transform.translation;
             let distance = diff.length();
-            
+
             if distance < *radius && distance > 0.1 {
                 let direction = diff.normalize();
                 let force_magnitude = strength / (distance * distance);
                 let force = direction * force_magnitude * if *attract { 1.0 } else { -1.0 };
-                
+
                 transform.translation += force * dt;
             }
         }
@@ -318,10 +323,10 @@ pub fn chain_reaction_system(world: &mut World) {
         .unwrap_or(1.0 / 60.0);
 
     let mut triggers = Vec::new();
-    
+
     {
         let mut query = Query::<(Entity, &Transform, &mut ChainReactionTrigger)>::new(world);
-        
+
         for (_entity, transform, trigger) in query.iter_mut() {
             if trigger.triggered {
                 trigger.delay -= dt;
@@ -331,7 +336,7 @@ pub fn chain_reaction_system(world: &mut World) {
             }
         }
     }
-    
+
     // Apply explosion forces
     for (center, force, radius) in triggers {
         let mut query = Query::<(&mut Transform, &RigidBody)>::new(world);
@@ -339,10 +344,10 @@ pub fn chain_reaction_system(world: &mut World) {
             if rb.body_type != RigidBodyType::Dynamic {
                 continue;
             }
-            
+
             let diff = transform.translation - center;
             let distance = diff.length();
-            
+
             if distance < radius && distance > 0.1 {
                 let direction = diff.normalize();
                 let force_magnitude = force * (1.0 - distance / radius);
@@ -358,10 +363,10 @@ pub fn chain_reaction_system(world: &mut World) {
 
 pub fn domino_system(world: &mut World) {
     let mut fallen_indices = Vec::new();
-    
+
     {
         let query = Query::<(&Transform, &DominoPiece)>::new(world);
-        
+
         for (transform, domino) in query.iter() {
             if !domino.fallen {
                 // Check if tilted enough to be considered fallen
@@ -372,7 +377,7 @@ pub fn domino_system(world: &mut World) {
             }
         }
     }
-    
+
     // Mark fallen dominoes
     if !fallen_indices.is_empty() {
         let mut query = Query::<&mut DominoPiece>::new(world);

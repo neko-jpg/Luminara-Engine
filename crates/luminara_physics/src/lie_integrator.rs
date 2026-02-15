@@ -1,4 +1,4 @@
-use luminara_math::algebra::{Motor, Bivector};
+use luminara_math::algebra::{Bivector, Motor};
 
 pub struct LiePhysicsIntegrator;
 
@@ -9,11 +9,7 @@ impl LiePhysicsIntegrator {
     /// * `motor` - Current orientation/position as a Motor
     /// * `velocity` - Velocity bivector (angular + linear velocity)
     /// * `dt` - Time step
-    pub fn integrate(
-        motor: &Motor<f32>,
-        velocity: &Bivector<f32>,
-        dt: f32,
-    ) -> Motor<f32> {
+    pub fn integrate(motor: &Motor<f32>, velocity: &Bivector<f32>, dt: f32) -> Motor<f32> {
         // Munthe-Kaas integration typically involves computing the update in the Lie algebra
         // and then mapping back to the group via exponential map.
         // Step 1: scale velocity by dt
@@ -36,11 +32,7 @@ impl LiePhysicsIntegrator {
     /// Symplectic Euler step for rigid body
     /// Updates position/orientation based on velocity, then updates velocity based on forces/torques.
     /// This function just handles the kinematic update (integrate position).
-    pub fn step(
-        motor: &mut Motor<f32>,
-        velocity: &Bivector<f32>,
-        dt: f32
-    ) {
+    pub fn step(motor: &mut Motor<f32>, velocity: &Bivector<f32>, dt: f32) {
         *motor = Self::integrate(motor, velocity, dt);
         motor.normalize(); // Prevent drift
     }

@@ -3,35 +3,36 @@
 //! **Validates: Requirements 2.2**
 //! **Property 5: Motor Geometric Product Associativity**
 
-use luminara_math::algebra::Motor;
 use glam::Vec3;
+use luminara_math::algebra::Motor;
 use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
 fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
-        -10.0f32..10.0,  // translation x
-        -10.0f32..10.0,  // translation y
-        -10.0f32..10.0,  // translation z
-        -1.0f32..1.0,    // rotation axis x
-        -1.0f32..1.0,    // rotation axis y
-        -1.0f32..1.0,    // rotation axis z
-        -PI..PI,         // rotation angle
-    ).prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
-        let trans = Vec3::new(tx, ty, tz);
-        let axis = Vec3::new(ax, ay, az);
-        
-        // Handle zero axis case
-        if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans.into())
-        } else {
-            let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
-            let trans_motor = Motor::from_translation(trans.into());
-            trans_motor.geometric_product(&rot)
-        }
-    })
+        -10.0f32..10.0, // translation x
+        -10.0f32..10.0, // translation y
+        -10.0f32..10.0, // translation z
+        -1.0f32..1.0,   // rotation axis x
+        -1.0f32..1.0,   // rotation axis y
+        -1.0f32..1.0,   // rotation axis z
+        -PI..PI,        // rotation angle
+    )
+        .prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
+            let trans = Vec3::new(tx, ty, tz);
+            let axis = Vec3::new(ax, ay, az);
+
+            // Handle zero axis case
+            if axis.length_squared() < 1e-6 {
+                Motor::from_translation(trans.into())
+            } else {
+                let axis_normalized = axis.normalize();
+                let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+                let trans_motor = Motor::from_translation(trans.into());
+                trans_motor.geometric_product(&rot)
+            }
+        })
 }
 
 /// Helper function to check if two motors are approximately equal.
@@ -44,7 +45,7 @@ fn assert_motors_approx_equal(a: &Motor<f32>, b: &Motor<f32>, epsilon: f32) {
     let diff_e02 = (a.e02 - b.e02).abs();
     let diff_e03 = (a.e03 - b.e03).abs();
     let diff_e0123 = (a.e0123 - b.e0123).abs();
-    
+
     assert!(
         diff_s < epsilon &&
         diff_e12 < epsilon &&
@@ -76,10 +77,10 @@ proptest! {
     ) {
         // Compute (M1 * M2) * M3
         let left = m1.geometric_product(&m2).geometric_product(&m3);
-        
+
         // Compute M1 * (M2 * M3)
         let right = m1.geometric_product(&m2.geometric_product(&m3));
-        
+
         // They should be approximately equal
         assert_motors_approx_equal(&left, &right, 1e-4);
     }
@@ -89,7 +90,7 @@ proptest! {
     fn motor_identity_is_neutral(m in motor_strategy()) {
         let left = m.geometric_product(&Motor::IDENTITY);
         let right = Motor::IDENTITY.geometric_product(&m);
-        
+
         assert_motors_approx_equal(&left, &m, 1e-5);
         assert_motors_approx_equal(&right, &m, 1e-5);
     }

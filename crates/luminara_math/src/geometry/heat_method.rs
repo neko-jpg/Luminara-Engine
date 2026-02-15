@@ -2,7 +2,7 @@
 //!
 //! Computes geodesic distances on triangle meshes using the heat equation.
 
-use super::manifold::{TriangleMesh, CholeskySolver};
+use super::manifold::{CholeskySolver, TriangleMesh};
 use super::sparse_matrix::{CsrMatrix, DiagonalMatrix};
 use glam::Vec3;
 
@@ -11,7 +11,9 @@ use glam::Vec3;
 /// Implements the Heat Method (Crane et al. 2013).
 pub fn geodesic_distance_from(mesh: &TriangleMesh, source: usize) -> Option<Vec<f64>> {
     let n = mesh.vertex_count();
-    if source >= n { return None; }
+    if source >= n {
+        return None;
+    }
 
     let positions = &mesh.positions;
 
@@ -31,7 +33,9 @@ pub fn geodesic_distance_from(mesh: &TriangleMesh, source: usize) -> Option<Vec<
         avg_len += p2.distance(p0) as f64;
         edge_count += 3;
     }
-    if edge_count == 0 { return None; }
+    if edge_count == 0 {
+        return None;
+    }
     avg_len /= edge_count as f64;
     let t = avg_len * avg_len;
 
@@ -67,7 +71,9 @@ pub fn geodesic_distance_from(mesh: &TriangleMesh, source: usize) -> Option<Vec<
 
         let n_vec = (p1 - p0).cross(p2 - p0);
         let area2 = n_vec.length(); // 2 * Area
-        if area2 < 1e-12 { continue; }
+        if area2 < 1e-12 {
+            continue;
+        }
         let normal = n_vec / area2;
 
         // Edges opposite to vertices
@@ -76,12 +82,17 @@ pub fn geodesic_distance_from(mesh: &TriangleMesh, source: usize) -> Option<Vec<
         let e_ij = p1 - p0; // opp k
 
         // grad u = (u_i * (N x e_jk) + u_j * (N x e_ki) + u_k * (N x e_ij)) / (2 A)
-        let grad_u = (normal.cross(e_jk) * u[i] as f32 +
-                      normal.cross(e_ki) * u[j] as f32 +
-                      normal.cross(e_ij) * u[k] as f32) / area2;
+        let grad_u = (normal.cross(e_jk) * u[i] as f32
+            + normal.cross(e_ki) * u[j] as f32
+            + normal.cross(e_ij) * u[k] as f32)
+            / area2;
 
         let g_len = grad_u.length();
-        let x_vec = if g_len < 1e-12 { Vec3::ZERO } else { -grad_u / g_len };
+        let x_vec = if g_len < 1e-12 {
+            Vec3::ZERO
+        } else {
+            -grad_u / g_len
+        };
 
         // 5. Compute divergence
         // Contribution to vertex i: 0.5 * cot(theta) ...

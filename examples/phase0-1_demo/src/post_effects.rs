@@ -63,7 +63,7 @@ impl PostEffects {
         // 4. Apply tone mapping (HDR -> LDR)
         // 5. Apply vignette
         // 6. Output to screen
-        
+
         // For now, this is a placeholder that demonstrates the API
         // The actual implementation would be in luminara_render
     }
@@ -98,7 +98,7 @@ impl PostEffects {
         if self.vignette_enabled {
             parts.push("Vignette".to_string());
         }
-        
+
         if parts.is_empty() {
             "None".to_string()
         } else {

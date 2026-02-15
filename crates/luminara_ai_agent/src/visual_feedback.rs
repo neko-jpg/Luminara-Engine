@@ -51,9 +51,9 @@ impl VisualFeedbackSystem {
 
         // Clear to dark blue background
         for i in (0..buffer.len()).step_by(3) {
-            buffer[i] = 10;     // R
-            buffer[i+1] = 10;   // G
-            buffer[i+2] = 50;   // B
+            buffer[i] = 10; // R
+            buffer[i + 1] = 10; // G
+            buffer[i + 2] = 50; // B
         }
 
         // Camera settings for mock view
@@ -78,8 +78,8 @@ impl VisualFeedbackSystem {
                             let idx = ((ny as u32 * width + nx as u32) * 3) as usize;
                             if idx + 2 < buffer.len() {
                                 buffer[idx] = 255;
-                                buffer[idx+1] = 255;
-                                buffer[idx+2] = 255;
+                                buffer[idx + 1] = 255;
+                                buffer[idx + 2] = 255;
                             }
                         }
                     }
@@ -90,18 +90,27 @@ impl VisualFeedbackSystem {
         buffer
     }
 
-    pub fn create_annotated_view(&self, screenshot: &[u8], world: &World, config: AnnotationConfig) -> Vec<u8> {
+    pub fn create_annotated_view(
+        &self,
+        screenshot: &[u8],
+        world: &World,
+        config: AnnotationConfig,
+    ) -> Vec<u8> {
         // Start with the original screenshot
         let mut annotated = screenshot.to_vec();
 
         let len = annotated.len();
-        if len == 0 { return annotated; }
+        if len == 0 {
+            return annotated;
+        }
 
         let pixel_count = len / 3;
         let width = (pixel_count as f64).sqrt() as usize;
         let height = width; // Assume square for simplicity in mock
 
-        if width == 0 { return annotated; }
+        if width == 0 {
+            return annotated;
+        }
 
         let scale = 20.0;
         let offset_x = width as f32 / 2.0;
@@ -116,7 +125,7 @@ impl VisualFeedbackSystem {
                     let py = (pos.z * ppu + offset_y) as i32;
 
                     // Draw a red box around entity (10x10 pixels)
-                    let box_size = 5;
+                    let box_size: i32 = 5;
                     for dy in -box_size..=box_size {
                         for dx in -box_size..=box_size {
                             // Only draw border
@@ -126,9 +135,9 @@ impl VisualFeedbackSystem {
                                 if nx >= 0 && nx < width as i32 && ny >= 0 && ny < height as i32 {
                                     let idx = ((ny as u32 * width as u32 + nx as u32) * 3) as usize;
                                     if idx + 2 < annotated.len() {
-                                        annotated[idx] = 255;   // R
-                                        annotated[idx+1] = 0;   // G
-                                        annotated[idx+2] = 0;   // B
+                                        annotated[idx] = 255; // R
+                                        annotated[idx + 1] = 0; // G
+                                        annotated[idx + 2] = 0; // B
                                     }
                                 }
                             }
@@ -152,7 +161,10 @@ impl VisualFeedbackSystem {
 
     pub fn generate_scene_description(&self, world: &World) -> String {
         let count = world.entities().len();
-        format!("Scene contains {} entities. Entities are located on the XZ plane.", count)
+        format!(
+            "Scene contains {} entities. Entities are located on the XZ plane.",
+            count
+        )
     }
 
     pub fn compress_image(&self, image_data: &[u8], _target_size_reduction: f32) -> Vec<u8> {

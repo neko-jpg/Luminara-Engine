@@ -44,7 +44,7 @@ pub struct GpuTexture {
     pub width: usize,
     pub height: usize,
     pub format: String, // e.g. "R32Float" or "Rg32Float"
-    // Handle to wgpu texture
+                        // Handle to wgpu texture
 }
 
 impl GpuTexture {

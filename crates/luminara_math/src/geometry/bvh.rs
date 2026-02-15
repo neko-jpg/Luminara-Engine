@@ -49,15 +49,24 @@ impl Aabb {
 
     /// Check if the AABB contains a point.
     pub fn contains(&self, p: Vec3) -> bool {
-        p.x >= self.min.x && p.x <= self.max.x &&
-        p.y >= self.min.y && p.y <= self.max.y &&
-        p.z >= self.min.z && p.z <= self.max.z
+        p.x >= self.min.x
+            && p.x <= self.max.x
+            && p.y >= self.min.y
+            && p.y <= self.max.y
+            && p.z >= self.min.z
+            && p.z <= self.max.z
     }
 
     /// Intersect with a ray.
     /// Returns distance to entry point, or None if no intersection.
     /// t_min and t_max define the valid range along the ray.
-    pub fn intersect_ray(&self, origin: Vec3, dir_inv: Vec3, t_min: f32, t_max: f32) -> Option<f32> {
+    pub fn intersect_ray(
+        &self,
+        origin: Vec3,
+        dir_inv: Vec3,
+        t_min: f32,
+        t_max: f32,
+    ) -> Option<f32> {
         let t1 = (self.min - origin) * dir_inv;
         let t2 = (self.max - origin) * dir_inv;
 
@@ -126,7 +135,10 @@ impl<T: Primitive> Bvh<T> {
     pub fn build(primitives: Vec<T>) -> Self {
         if primitives.is_empty() {
             return Self {
-                root: BvhNode::Leaf { aabb: Aabb::empty(), primitives: vec![] },
+                root: BvhNode::Leaf {
+                    aabb: Aabb::empty(),
+                    primitives: vec![],
+                },
                 primitives,
             };
         }
@@ -134,10 +146,7 @@ impl<T: Primitive> Bvh<T> {
         let mut indices: Vec<usize> = (0..primitives.len()).collect();
         let root = Self::build_recursive(&primitives, &mut indices);
 
-        Self {
-            root,
-            primitives,
-        }
+        Self { root, primitives }
     }
 
     fn build_recursive(primitives: &[T], indices: &mut [usize]) -> BvhNode {
@@ -148,7 +157,8 @@ impl<T: Primitive> Bvh<T> {
         }
 
         let count = indices.len();
-        if count <= 4 { // Small enough to be a leaf
+        if count <= 4 {
+            // Small enough to be a leaf
             return BvhNode::Leaf {
                 aabb,
                 primitives: indices.to_vec(),
@@ -170,7 +180,7 @@ impl<T: Primitive> Bvh<T> {
         // If centroids are condensed (point), we can't split
         let extent = centroid_bounds.max - centroid_bounds.min;
         if extent.max_element() < 1e-6 {
-             return BvhNode::Leaf {
+            return BvhNode::Leaf {
                 aabb,
                 primitives: indices.to_vec(),
             };
@@ -179,7 +189,9 @@ impl<T: Primitive> Bvh<T> {
         // Try splitting along each axis
         for axis in 0..3 {
             let axis_len = extent[axis];
-            if axis_len < 1e-6 { continue; }
+            if axis_len < 1e-6 {
+                continue;
+            }
 
             // Bin centroids
             const NUM_BINS: usize = 12;
@@ -222,7 +234,9 @@ impl<T: Primitive> Bvh<T> {
                 let count_left = left_count[i];
                 let count_right = acc_count;
 
-                if count_left == 0 || count_right == 0 { continue; }
+                if count_left == 0 || count_right == 0 {
+                    continue;
+                }
 
                 let area_left = left_area[i];
                 let area_right = acc_aabb.surface_area();
@@ -244,7 +258,7 @@ impl<T: Primitive> Bvh<T> {
 
         // If split is not beneficial, make leaf
         if best_cost >= leaf_cost {
-             return BvhNode::Leaf {
+            return BvhNode::Leaf {
                 aabb,
                 primitives: indices.to_vec(),
             };
@@ -261,8 +275,8 @@ impl<T: Primitive> Bvh<T> {
         });
 
         if split_idx == 0 || split_idx == count {
-             // Fallback if partition failed to split (e.g. all centers same side due to float precision)
-             return BvhNode::Leaf {
+            // Fallback if partition failed to split (e.g. all centers same side due to float precision)
+            return BvhNode::Leaf {
                 aabb,
                 primitives: indices.to_vec(),
             };
@@ -282,11 +296,7 @@ impl<T: Primitive> Bvh<T> {
             )
         };
 
-        BvhNode::Internal {
-            aabb,
-            left,
-            right,
-        }
+        BvhNode::Internal { aabb, left, right }
     }
 
     /// Traverse the BVH and find the nearest intersection.
@@ -295,12 +305,19 @@ impl<T: Primitive> Bvh<T> {
         // TODO: Stack-based optimization
 
         // Precompute dir_inv
-        let dir_inv = Vec3::new(1.0/dir.x, 1.0/dir.y, 1.0/dir.z);
+        let dir_inv = Vec3::new(1.0 / dir.x, 1.0 / dir.y, 1.0 / dir.z);
 
         self.intersect_recursive(&self.root, origin, dir, dir_inv, f32::MAX)
     }
 
-    fn intersect_recursive(&self, node: &BvhNode, origin: Vec3, dir: Vec3, dir_inv: Vec3, mut nearest_t: f32) -> Option<(f32, usize)> {
+    fn intersect_recursive(
+        &self,
+        node: &BvhNode,
+        origin: Vec3,
+        dir: Vec3,
+        dir_inv: Vec3,
+        mut nearest_t: f32,
+    ) -> Option<(f32, usize)> {
         // Check AABB intersection
         let aabb = node.aabb();
         let t_aabb = aabb.intersect_ray(origin, dir_inv, 0.0, nearest_t)?;
@@ -310,7 +327,10 @@ impl<T: Primitive> Bvh<T> {
         }
 
         match node {
-            BvhNode::Leaf { primitives: indices, .. } => {
+            BvhNode::Leaf {
+                primitives: indices,
+                ..
+            } => {
                 let mut hit = None;
                 for &idx in indices {
                     if let Some(t) = self.primitives[idx].intersect(origin, dir) {
@@ -339,7 +359,13 @@ impl<T: Primitive> Bvh<T> {
 
                 // Logic: visit valid ones, closest first.
                 let (first, second) = match (t_left, t_right) {
-                    (Some(tl), Some(tr)) => if tl < tr { (left, right) } else { (right, left) },
+                    (Some(tl), Some(tr)) => {
+                        if tl < tr {
+                            (left, right)
+                        } else {
+                            (right, left)
+                        }
+                    }
                     (Some(_), None) => (left, right), // right won't be visited anyway
                     (None, Some(_)) => (right, left),
                     (None, None) => return None,
@@ -388,6 +414,8 @@ where
         }
         data.swap(l, r);
         l += 1;
-        if r > 0 { r -= 1; } // Check bounds
+        if r > 0 {
+            r -= 1;
+        } // Check bounds
     }
 }

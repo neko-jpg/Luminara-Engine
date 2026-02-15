@@ -1,10 +1,10 @@
 use crate::camera::Camera;
+use crate::command::CommandBuffer;
+use crate::forward_plus::{update_lights_system, ForwardPlusRenderer};
 use crate::gpu::GpuContext;
 use crate::mesh::Mesh;
 use crate::pipeline::PipelineCache;
-use crate::command::CommandBuffer;
 use crate::render_graph::RenderGraph;
-use crate::forward_plus::{ForwardPlusRenderer, update_lights_system};
 use crate::texture::TextureLoader;
 use crate::CameraUniformBuffer;
 use luminara_asset::{AssetServer, Handle};
@@ -118,12 +118,14 @@ impl Plugin for RenderPlugin {
 
 /// Startup system to initialize GpuContext and basic rendering resources
 pub fn setup_gpu_context(world: &mut World) {
-    let window = world.get_resource::<Window>().expect("Window not found");
-    let gpu = match GpuContext::new(window) {
-        Ok(gpu) => gpu,
-        Err(e) => {
-            log::error!("Failed to initialize GPU context: {}", e);
-            return;
+    let gpu = {
+        let window = world.get_resource::<Window>().expect("Window not found");
+        match GpuContext::new(&window) {
+            Ok(gpu) => gpu,
+            Err(e) => {
+                log::error!("Failed to initialize GPU context: {}", e);
+                return;
+            }
         }
     };
 
@@ -172,10 +174,11 @@ pub fn setup_gpu_context(world: &mut World) {
     });
 
     // Initialize Forward+ renderer
-    let forward_plus = world
-        .get_resource_mut::<ForwardPlusRenderer>()
-        .expect("ForwardPlusRenderer not found");
-    forward_plus.initialize(&gpu.device, gpu.surface_config.format);
+    if let Some(mut forward_plus) = world.get_resource_mut::<ForwardPlusRenderer>() {
+        forward_plus.initialize(&gpu.device, gpu.surface_config.format);
+    } else {
+        log::error!("ForwardPlusRenderer not found during GPU setup");
+    }
 
     world.insert_resource(gpu);
 }

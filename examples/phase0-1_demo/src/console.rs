@@ -124,7 +124,7 @@ impl ConsoleCommand for HelpCommand {
 struct ClearCommand;
 impl ConsoleCommand for ClearCommand {
     fn execute(&self, _args: &[&str], world: &mut World) -> Result<String, String> {
-        if let Some(console) = world.get_resource_mut::<Console>() {
+        if let Some(mut console) = world.get_resource_mut::<Console>() {
             console.output.clear();
         }
         Ok("Console cleared".to_string())
@@ -142,11 +142,9 @@ impl ConsoleCommand for SetGravityCommand {
             return Err("Usage: gravity <value>".to_string());
         }
 
-        let gravity: f32 = args[0]
-            .parse()
-            .map_err(|_| "Invalid number")?;
+        let gravity: f32 = args[0].parse().map_err(|_| "Invalid number")?;
 
-        if let Some(physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
+        if let Some(mut physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
             physics_world.gravity = vector![0.0, gravity, 0.0];
             Ok(format!("Gravity set to {}", gravity))
         } else {
@@ -166,15 +164,13 @@ impl ConsoleCommand for SetTimeScaleCommand {
             return Err("Usage: timescale <value>".to_string());
         }
 
-        let scale: f32 = args[0]
-            .parse()
-            .map_err(|_| "Invalid number")?;
+        let scale: f32 = args[0].parse().map_err(|_| "Invalid number")?;
 
         if scale < 0.0 || scale > 10.0 {
             return Err("Time scale must be between 0.0 and 10.0".to_string());
         }
 
-        if let Some(time) = world.get_resource_mut::<Time>() {
+        if let Some(mut time) = world.get_resource_mut::<Time>() {
             time.time_scale = scale;
             Ok(format!("Time scale set to {}", scale))
         } else {
@@ -243,7 +239,7 @@ pub fn console_input_system(world: &mut World) {
         .unwrap_or(false);
 
     if wants_toggle {
-        if let Some(console) = world.get_resource_mut::<Console>() {
+        if let Some(mut console) = world.get_resource_mut::<Console>() {
             console.toggle();
         }
     }
@@ -277,7 +273,7 @@ pub fn console_input_system(world: &mut World) {
             let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
 
             // Add to history
-            if let Some(console) = world.get_resource_mut::<Console>() {
+            if let Some(mut console) = world.get_resource_mut::<Console>() {
                 console.history.push(input_buffer.trim().to_string());
             }
 
@@ -310,30 +306,39 @@ pub fn console_input_system(world: &mut World) {
             // Handle specific commands directly to avoid borrow conflicts
             match cmd_name.as_str() {
                 "help" => {
-                    if let Some(console) = world.get_resource_mut::<Console>() {
-                        let help_text: String = console.commands.iter()
+                    if let Some(mut console) = world.get_resource_mut::<Console>() {
+                        let help_text: String = console
+                            .commands
+                            .iter()
                             .map(|(name, cmd)| format!("  {} - {}", name, cmd.help()))
                             .collect::<Vec<_>>()
                             .join("\n");
-                        console.add_output(&format!("Available commands:\n{}", help_text), [0.3, 1.0, 0.3, 1.0]);
+                        console.add_output(
+                            &format!("Available commands:\n{}", help_text),
+                            [0.3, 1.0, 0.3, 1.0],
+                        );
                     }
                 }
                 "clear" => {
-                    if let Some(console) = world.get_resource_mut::<Console>() {
+                    if let Some(mut console) = world.get_resource_mut::<Console>() {
                         console.output.clear();
                         console.add_output("Console cleared", [0.3, 1.0, 0.3, 1.0]);
                     }
                 }
                 "gravity" => {
                     if let Some(gravity_val) = args.first().and_then(|a| a.parse::<f32>().ok()) {
-                        if let Some(physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
+                        if let Some(mut physics_world) = world.get_resource_mut::<PhysicsWorld3D>()
+                        {
                             physics_world.gravity = vector![0.0, gravity_val, 0.0];
                         }
-                        if let Some(console) = world.get_resource_mut::<Console>() {
-                            console.add_output(&format!("Gravity set to {}", gravity_val), [0.3, 1.0, 0.3, 1.0]);
+                        if let Some(mut console) = world.get_resource_mut::<Console>() {
+                            console.add_output(
+                                &format!("Gravity set to {}", gravity_val),
+                                [0.3, 1.0, 0.3, 1.0],
+                            );
                         }
                     } else {
-                        if let Some(console) = world.get_resource_mut::<Console>() {
+                        if let Some(mut console) = world.get_resource_mut::<Console>() {
                             console.add_output("Usage: gravity <value>", [1.0, 0.3, 0.3, 1.0]);
                         }
                     }
@@ -341,19 +346,25 @@ pub fn console_input_system(world: &mut World) {
                 "timescale" => {
                     if let Some(scale) = args.first().and_then(|a| a.parse::<f32>().ok()) {
                         if scale >= 0.0 && scale <= 10.0 {
-                            if let Some(time) = world.get_resource_mut::<Time>() {
+                            if let Some(mut time) = world.get_resource_mut::<Time>() {
                                 time.time_scale = scale;
                             }
-                            if let Some(console) = world.get_resource_mut::<Console>() {
-                                console.add_output(&format!("Time scale set to {}", scale), [0.3, 1.0, 0.3, 1.0]);
+                            if let Some(mut console) = world.get_resource_mut::<Console>() {
+                                console.add_output(
+                                    &format!("Time scale set to {}", scale),
+                                    [0.3, 1.0, 0.3, 1.0],
+                                );
                             }
                         } else {
-                            if let Some(console) = world.get_resource_mut::<Console>() {
-                                console.add_output("Time scale must be 0.0-10.0", [1.0, 0.3, 0.3, 1.0]);
+                            if let Some(mut console) = world.get_resource_mut::<Console>() {
+                                console.add_output(
+                                    "Time scale must be 0.0-10.0",
+                                    [1.0, 0.3, 0.3, 1.0],
+                                );
                             }
                         }
                     } else {
-                        if let Some(console) = world.get_resource_mut::<Console>() {
+                        if let Some(mut console) = world.get_resource_mut::<Console>() {
                             console.add_output("Usage: timescale <value>", [1.0, 0.3, 0.3, 1.0]);
                         }
                     }
@@ -370,25 +381,31 @@ pub fn console_input_system(world: &mut World) {
                         Vec3::new(0.0, 5.0, 0.0)
                     };
                     let msg = format!("Spawned {} at {:?}", spawn_type, pos);
-                    if let Some(console) = world.get_resource_mut::<Console>() {
+                    if let Some(mut console) = world.get_resource_mut::<Console>() {
                         console.add_output(&msg, [0.3, 1.0, 0.3, 1.0]);
                     }
                 }
                 "list" => {
                     let count = world.entities().len();
-                    if let Some(console) = world.get_resource_mut::<Console>() {
-                        console.add_output(&format!("Total entities: {}", count), [0.3, 1.0, 0.3, 1.0]);
+                    if let Some(mut console) = world.get_resource_mut::<Console>() {
+                        console.add_output(
+                            &format!("Total entities: {}", count),
+                            [0.3, 1.0, 0.3, 1.0],
+                        );
                     }
                 }
                 _ => {
-                    if let Some(console) = world.get_resource_mut::<Console>() {
-                        console.add_output(&format!("Unknown command: {}", cmd_name), [1.0, 0.3, 0.3, 1.0]);
+                    if let Some(mut console) = world.get_resource_mut::<Console>() {
+                        console.add_output(
+                            &format!("Unknown command: {}", cmd_name),
+                            [1.0, 0.3, 0.3, 1.0],
+                        );
                     }
                 }
             }
 
             // Clear input buffer
-            if let Some(console) = world.get_resource_mut::<Console>() {
+            if let Some(mut console) = world.get_resource_mut::<Console>() {
                 console.input_buffer.clear();
             }
         }
@@ -401,7 +418,11 @@ pub fn console_render_system(world: &mut World) {
         if !console.visible {
             return;
         }
-        (console.visible, console.input_buffer.clone(), console.output.clone())
+        (
+            console.visible,
+            console.input_buffer.clone(),
+            console.output.clone(),
+        )
     } else {
         return;
     };
@@ -410,7 +431,7 @@ pub fn console_render_system(world: &mut World) {
         return;
     }
 
-    if let Some(overlay) = world.get_resource_mut::<luminara_render::OverlayRenderer>() {
+    if let Some(mut overlay) = world.get_resource_mut::<luminara_render::OverlayRenderer>() {
         let screen_w = 1440.0f32;
         let screen_h = 900.0f32;
 
@@ -444,6 +465,12 @@ pub fn console_render_system(world: &mut World) {
 
         // Input line
         let input_y = screen_h - 30.0;
-        overlay.draw_text(10.0, input_y, &format!("> {}_", input_buffer), [1.0, 1.0, 1.0, 1.0], 1.0);
+        overlay.draw_text(
+            10.0,
+            input_y,
+            &format!("> {}_", input_buffer),
+            [1.0, 1.0, 1.0, 1.0],
+            1.0,
+        );
     }
 }

@@ -1,8 +1,8 @@
-use clap::{Parser, Subcommand};
 use anyhow::Result;
-use std::path::PathBuf;
-use std::fs;
+use clap::{Parser, Subcommand};
 use luminara_cli::ops;
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "luminara")]
@@ -33,7 +33,7 @@ enum AiCommands {
         name: String,
         #[arg(short, long)]
         output: PathBuf,
-    }
+    },
 }
 
 #[tokio::main]
@@ -42,15 +42,22 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Ai(cmd) => match cmd {
-            AiCommands::Generate { prompt, output, template } => {
-                println!("Generating game from prompt: '{}' using template '{}'", prompt, template);
+            AiCommands::Generate {
+                prompt,
+                output,
+                template,
+            } => {
+                println!(
+                    "Generating game from prompt: '{}' using template '{}'",
+                    prompt, template
+                );
                 generate_project(&output, &template, &prompt).await?;
-            },
+            }
             AiCommands::Scaffold { name, output } => {
                 println!("Scaffolding project '{}' at {:?}", name, output);
                 ops::scaffold_project(&output, &name)?;
             }
-        }
+        },
     }
 
     Ok(())
@@ -65,7 +72,8 @@ async fn generate_project(path: &PathBuf, _template: &str, prompt: &str) -> Resu
     let mut entities = Vec::new();
 
     // Always add Main Camera
-    entities.push(r#"
+    entities.push(
+        r#"
     (
         name: "Main Camera",
         transform: (
@@ -80,10 +88,12 @@ async fn generate_project(path: &PathBuf, _template: &str, prompt: &str) -> Resu
                 far: 1000.0,
             ),
         ]
-    )"#);
+    )"#,
+    );
 
     // Always add Directional Light
-    entities.push(r#"
+    entities.push(
+        r#"
     (
         name: "Sun",
         transform: (
@@ -97,10 +107,16 @@ async fn generate_project(path: &PathBuf, _template: &str, prompt: &str) -> Resu
                 intensity: 1.0,
             ),
         ]
-    )"#);
+    )"#,
+    );
 
-    if prompt_lower.contains("player") || prompt_lower.contains("character") || prompt_lower.contains("fps") || prompt_lower.contains("rpg") {
-        entities.push(r#"
+    if prompt_lower.contains("player")
+        || prompt_lower.contains("character")
+        || prompt_lower.contains("fps")
+        || prompt_lower.contains("rpg")
+    {
+        entities.push(
+            r#"
     (
         name: "Player",
         transform: (
@@ -113,7 +129,8 @@ async fn generate_project(path: &PathBuf, _template: &str, prompt: &str) -> Resu
                 path: "assets/scripts/player.lua",
             ),
         ]
-    )"#);
+    )"#,
+        );
 
         let script_path = path.join("assets/scripts/player.lua");
         let script_content = r#"
@@ -134,7 +151,8 @@ return player
     }
 
     if prompt_lower.contains("enemy") || prompt_lower.contains("monster") {
-        entities.push(r#"
+        entities.push(
+            r#"
     (
         name: "Enemy",
         transform: (
@@ -143,11 +161,13 @@ return player
             scale: (1.0, 1.0, 1.0),
         ),
         components: []
-    )"#);
+    )"#,
+        );
     }
 
     if prompt_lower.contains("cube") || prompt_lower.contains("box") {
-         entities.push(r#"
+        entities.push(
+            r#"
     (
         name: "Cube",
         transform: (
@@ -156,10 +176,15 @@ return player
             scale: (1.0, 1.0, 1.0),
         ),
         components: []
-    )"#);
+    )"#,
+        );
     }
 
-    let scene_content = format!("// Generated from: {}\n(entities: [\n{}\n])", prompt, entities.join(",\n"));
+    let scene_content = format!(
+        "// Generated from: {}\n(entities: [\n{}\n])",
+        prompt,
+        entities.join(",\n")
+    );
     let scene_path = path.join("assets/scenes/main.ron");
     fs::write(scene_path, scene_content)?;
 

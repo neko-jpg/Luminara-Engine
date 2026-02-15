@@ -1,4 +1,7 @@
-use luminara_ai_agent::{SchemaDiscoveryService, schema::{ComponentSchema, FieldSchema}};
+use luminara_ai_agent::{
+    schema::{ComponentSchema, FieldSchema},
+    SchemaDiscoveryService,
+};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
@@ -9,9 +12,10 @@ fn test_schema_detail_progression() {
         name: "TestComp".into(),
         description: "A test component".into(),
         category: "Test".into(),
-        fields: vec![
-            FieldSchema { name: "val".into(), type_name: "f32".into() }
-        ],
+        fields: vec![FieldSchema {
+            name: "val".into(),
+            type_name: "f32".into(),
+        }],
     };
     service.register_schema(schema);
 
@@ -29,7 +33,9 @@ fn test_schema_detail_progression() {
 
 #[quickcheck]
 fn test_schema_completeness(name: String, category: String) -> TestResult {
-    if name.is_empty() || category.is_empty() { return TestResult::discard(); }
+    if name.is_empty() || category.is_empty() {
+        return TestResult::discard();
+    }
 
     let mut service = SchemaDiscoveryService::new();
     let schema = ComponentSchema {

@@ -16,17 +16,13 @@ pub fn differentiate(expr: &Rc<SymExpr>, var: &str) -> Rc<SymExpr> {
                 SymExpr::constant(0.0)
             }
         }
-        SymExpr::Add(lhs, rhs) => {
-            SymExpr::add(differentiate(lhs, var), differentiate(rhs, var))
-        }
-        SymExpr::Sub(lhs, rhs) => {
-            SymExpr::sub(differentiate(lhs, var), differentiate(rhs, var))
-        }
+        SymExpr::Add(lhs, rhs) => SymExpr::add(differentiate(lhs, var), differentiate(rhs, var)),
+        SymExpr::Sub(lhs, rhs) => SymExpr::sub(differentiate(lhs, var), differentiate(rhs, var)),
         SymExpr::Mul(lhs, rhs) => {
             // Product rule: d(uv) = u dv + v du
             SymExpr::add(
                 SymExpr::mul(lhs.clone(), differentiate(rhs, var)),
-                SymExpr::mul(rhs.clone(), differentiate(lhs, var))
+                SymExpr::mul(rhs.clone(), differentiate(lhs, var)),
             )
         }
         SymExpr::Div(lhs, rhs) => {
@@ -34,9 +30,9 @@ pub fn differentiate(expr: &Rc<SymExpr>, var: &str) -> Rc<SymExpr> {
             SymExpr::div(
                 SymExpr::sub(
                     SymExpr::mul(rhs.clone(), differentiate(lhs, var)),
-                    SymExpr::mul(lhs.clone(), differentiate(rhs, var))
+                    SymExpr::mul(lhs.clone(), differentiate(rhs, var)),
                 ),
-                SymExpr::pow(rhs.clone(), SymExpr::constant(2.0))
+                SymExpr::pow(rhs.clone(), SymExpr::constant(2.0)),
             )
         }
         SymExpr::Pow(base, exp) => {
@@ -46,9 +42,9 @@ pub fn differentiate(expr: &Rc<SymExpr>, var: &str) -> Rc<SymExpr> {
                 return SymExpr::mul(
                     SymExpr::mul(
                         SymExpr::constant(c),
-                        SymExpr::pow(base.clone(), SymExpr::constant(c - 1.0))
+                        SymExpr::pow(base.clone(), SymExpr::constant(c - 1.0)),
                     ),
-                    differentiate(base, var)
+                    differentiate(base, var),
                 );
             }
 
@@ -56,49 +52,35 @@ pub fn differentiate(expr: &Rc<SymExpr>, var: &str) -> Rc<SymExpr> {
 
             let term1 = SymExpr::div(
                 SymExpr::mul(exp.clone(), differentiate(base, var)),
-                base.clone()
+                base.clone(),
             );
 
-            let term2 = SymExpr::mul(
-                SymExpr::ln(base.clone()),
-                differentiate(exp, var)
-            );
+            let term2 = SymExpr::mul(SymExpr::ln(base.clone()), differentiate(exp, var));
 
             SymExpr::mul(
                 expr.clone(), // u^v
-                SymExpr::add(term1, term2)
+                SymExpr::add(term1, term2),
             )
         }
-        SymExpr::Neg(inner) => {
-            SymExpr::neg(differentiate(inner, var))
-        }
+        SymExpr::Neg(inner) => SymExpr::neg(differentiate(inner, var)),
         SymExpr::Sin(inner) => {
             // d(sin(u)) = cos(u) du
-            SymExpr::mul(
-                SymExpr::cos(inner.clone()),
-                differentiate(inner, var)
-            )
+            SymExpr::mul(SymExpr::cos(inner.clone()), differentiate(inner, var))
         }
         SymExpr::Cos(inner) => {
             // d(cos(u)) = -sin(u) du
             SymExpr::mul(
                 SymExpr::neg(SymExpr::sin(inner.clone())),
-                differentiate(inner, var)
+                differentiate(inner, var),
             )
         }
         SymExpr::Exp(inner) => {
             // d(exp(u)) = exp(u) du
-            SymExpr::mul(
-                expr.clone(),
-                differentiate(inner, var)
-            )
+            SymExpr::mul(expr.clone(), differentiate(inner, var))
         }
         SymExpr::Ln(inner) => {
             // d(ln(u)) = 1/u du
-            SymExpr::div(
-                differentiate(inner, var),
-                inner.clone()
-            )
+            SymExpr::div(differentiate(inner, var), inner.clone())
         }
     }
 }

@@ -1,5 +1,5 @@
-use luminara_core::{App, AppInterface, Component, CoreStage, Plugin, Query};
 use luminara_core::system::FunctionMarker;
+use luminara_core::{App, AppInterface, Component, CoreStage, Plugin, Query};
 use luminara_math::Vec3;
 #[derive(Debug)]
 pub struct CameraShake {
@@ -68,8 +68,10 @@ pub fn camera_shake_system(
 
             // Pseudo-random offsets
             let offset_x = (time_factor.sin() + (time_factor * 2.5).cos()) * 0.5 * shake.intensity;
-            let offset_y = ((time_factor * 1.3).sin() + (time_factor * 0.7).cos()) * 0.5 * shake.intensity;
-            let offset_z = ((time_factor * 0.5).sin() + (time_factor * 1.9).cos()) * 0.5 * shake.intensity;
+            let offset_y =
+                ((time_factor * 1.3).sin() + (time_factor * 0.7).cos()) * 0.5 * shake.intensity;
+            let offset_z =
+                ((time_factor * 0.5).sin() + (time_factor * 1.9).cos()) * 0.5 * shake.intensity;
 
             transform.translation += Vec3::new(offset_x, offset_y, offset_z);
 

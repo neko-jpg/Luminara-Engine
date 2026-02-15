@@ -1,7 +1,9 @@
-use luminara_math::symbolic::{SymExpr, differentiate, jacobian, simplify, compile_to_wgsl, compile_to_fn};
-use std::rc::Rc;
+use luminara_math::symbolic::{
+    compile_to_fn, compile_to_wgsl, differentiate, jacobian, simplify, SymExpr,
+};
 use proptest::prelude::*;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // Need a simple evaluator to check correctness numerically
 fn evaluate(expr: &SymExpr, vars: &[(&str, f64)]) -> f64 {
@@ -9,7 +11,9 @@ fn evaluate(expr: &SymExpr, vars: &[(&str, f64)]) -> f64 {
         SymExpr::Const(v) => *v,
         SymExpr::Var(name) => {
             for (v_name, val) in vars {
-                if v_name == name { return *val; }
+                if v_name == name {
+                    return *val;
+                }
             }
             panic!("Variable {} not found", name);
         }
@@ -68,7 +72,12 @@ fn test_chain_rule_sin() {
 
     let vars = vec![("x", x_val)];
     let val = evaluate(&diff, &vars);
-    assert!((val - expected).abs() < 1e-5, "Expected {}, got {}", expected, val);
+    assert!(
+        (val - expected).abs() < 1e-5,
+        "Expected {}, got {}",
+        expected,
+        val
+    );
 }
 
 #[test]
@@ -112,10 +121,14 @@ fn numerical_diff(expr: &SymExpr, vars: &[(&str, f64)], var: &str) -> f64 {
     let mut vars_minus = vars.to_vec();
 
     for (v, val) in vars_plus.iter_mut() {
-        if *v == var { *val += h; }
+        if *v == var {
+            *val += h;
+        }
     }
     for (v, val) in vars_minus.iter_mut() {
-        if *v == var { *val -= h; }
+        if *v == var {
+            *val -= h;
+        }
     }
 
     (evaluate(expr, &vars_plus) - evaluate(expr, &vars_minus)) / (2.0 * h)
@@ -142,14 +155,16 @@ fn arb_sym_expr() -> impl Strategy<Value = Rc<SymExpr>> {
     ];
 
     leaf.prop_recursive(
-        4, // depth
+        4,  // depth
         64, // max nodes
         10, // items per collection
-        |inner| prop_oneof![
-            (inner.clone(), inner.clone()).prop_map(|(l, r)| SymExpr::add(l, r)),
-            (inner.clone(), inner.clone()).prop_map(|(l, r)| SymExpr::mul(l, r)),
-            (inner.clone()).prop_map(|e| SymExpr::sin(e)),
-        ]
+        |inner| {
+            prop_oneof![
+                (inner.clone(), inner.clone()).prop_map(|(l, r)| SymExpr::add(l, r)),
+                (inner.clone(), inner.clone()).prop_map(|(l, r)| SymExpr::mul(l, r)),
+                (inner.clone()).prop_map(|e| SymExpr::sin(e)),
+            ]
+        },
     )
 }
 
@@ -223,10 +238,7 @@ fn test_simplification_rules() {
     assert_eq!(simplify(&expr4), SymExpr::constant(5.0));
 
     // Nested: (x + 0) * 1 = x
-    let expr5 = SymExpr::mul(
-        SymExpr::add(x.clone(), zero.clone()),
-        one.clone()
-    );
+    let expr5 = SymExpr::mul(SymExpr::add(x.clone(), zero.clone()), one.clone());
     assert_eq!(simplify(&expr5), x);
 }
 
@@ -236,10 +248,7 @@ fn test_wgsl_codegen() {
     let y = SymExpr::var("y");
 
     // sin(x + y) * 2.0
-    let expr = SymExpr::mul(
-        SymExpr::sin(SymExpr::add(x, y)),
-        SymExpr::constant(2.0)
-    );
+    let expr = SymExpr::mul(SymExpr::sin(SymExpr::add(x, y)), SymExpr::constant(2.0));
 
     let code = compile_to_wgsl(&expr);
     assert_eq!(code, "(sin((x + y)) * 2.0)");
@@ -251,10 +260,7 @@ fn test_rust_codegen_eval() {
     let y = SymExpr::var("y");
 
     // x^2 + y
-    let expr = SymExpr::add(
-        SymExpr::pow(x, SymExpr::constant(2.0)),
-        y
-    );
+    let expr = SymExpr::add(SymExpr::pow(x, SymExpr::constant(2.0)), y);
 
     let func = compile_to_fn(&expr);
     let mut vars = HashMap::new();

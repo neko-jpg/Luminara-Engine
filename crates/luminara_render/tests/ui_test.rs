@@ -1,4 +1,4 @@
-use luminara_render::overlay::{OverlayRenderer, OverlayCommand};
+use luminara_render::overlay::{OverlayCommand, OverlayRenderer};
 
 #[test]
 fn test_ui_coordinate_scaling() {
@@ -17,7 +17,7 @@ fn test_ui_coordinate_scaling() {
             assert_eq!(*x, 11.0);
             assert_eq!(*y, 21.0);
             assert_eq!(color[0], 0.0); // Black shadow
-        },
+        }
         _ => panic!("Expected Text command for shadow"),
     }
 
@@ -27,7 +27,7 @@ fn test_ui_coordinate_scaling() {
             assert_eq!(*x, 10.0);
             assert_eq!(*y, 20.0);
             assert_eq!(color[0], 1.0); // White text
-        },
+        }
         _ => panic!("Expected Text command for main text"),
     }
 

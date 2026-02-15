@@ -541,35 +541,60 @@ pub fn insphere(pa: [f64; 3], pb: [f64; 3], pc: [f64; 3], pd: [f64; 3], pe: [f64
     let dezplus = dez.abs();
 
     // Helper to compute 3x3 permanent using SIMD
-    let perm3 = |a1: f64, a2: f64, a3: f64, b1: f64, b2: f64, b3: f64, f1: f64, f2: f64, f3: f64| {
-        let v1 = f64x4::from([a1, a2, a3, 0.0]);
-        let v2 = f64x4::from([b1, b2, b3, 0.0]);
-        let vf = f64x4::from([f1, f2, f3, 0.0]);
-        ((v1.abs() + v2.abs()) * vf).reduce_add()
-    };
+    let perm3 =
+        |a1: f64, a2: f64, a3: f64, b1: f64, b2: f64, b3: f64, f1: f64, f2: f64, f3: f64| {
+            let v1 = f64x4::from([a1, a2, a3, 0.0]);
+            let v2 = f64x4::from([b1, b2, b3, 0.0]);
+            let vf = f64x4::from([f1, f2, f3, 0.0]);
+            ((v1.abs() + v2.abs()) * vf).reduce_add()
+        };
 
     let p1 = perm3(
-        cex * dey, dex * bey, bex * cey,
-        dex * cey, bex * dey, cex * bey,
-        bezplus, cezplus, dezplus
+        cex * dey,
+        dex * bey,
+        bex * cey,
+        dex * cey,
+        bex * dey,
+        cex * bey,
+        bezplus,
+        cezplus,
+        dezplus,
     );
 
     let p2 = perm3(
-        dex * aey, aex * cey, cex * dey,
-        aex * dey, cex * aey, dex * cey,
-        cezplus, dezplus, aezplus
+        dex * aey,
+        aex * cey,
+        cex * dey,
+        aex * dey,
+        cex * aey,
+        dex * cey,
+        cezplus,
+        dezplus,
+        aezplus,
     );
 
     let p3 = perm3(
-        aex * bey, bex * dey, dex * aey,
-        bex * aey, dex * bey, aex * dey,
-        dezplus, aezplus, bezplus
+        aex * bey,
+        bex * dey,
+        dex * aey,
+        bex * aey,
+        dex * bey,
+        aex * dey,
+        dezplus,
+        aezplus,
+        bezplus,
     );
 
     let p4 = perm3(
-        bex * cey, cex * aey, aex * bey,
-        cex * bey, aex * cey, bex * aey,
-        aezplus, bezplus, cezplus
+        bex * cey,
+        cex * aey,
+        aex * bey,
+        cex * bey,
+        aex * cey,
+        bex * aey,
+        aezplus,
+        bezplus,
+        cezplus,
     );
 
     let permanent = p1 * alift + p2 * blift + p3 * clift + p4 * dlift;

@@ -7,6 +7,7 @@ pub struct EventInstance<E: Event> {
 }
 
 use crate::resource::Resource;
+use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard};
 
 pub struct Events<E: Event> {
     events_current: Vec<EventInstance<E>>,
@@ -47,11 +48,11 @@ impl<E: Event> Events<E> {
 }
 
 pub struct EventWriter<'a, E: Event> {
-    pub(crate) events: &'a mut Events<E>,
+    pub(crate) events: MappedRwLockWriteGuard<'a, Events<E>>,
 }
 
 impl<'a, E: Event> EventWriter<'a, E> {
-    pub fn new(events: &'a mut Events<E>) -> Self {
+    pub fn new(events: MappedRwLockWriteGuard<'a, Events<E>>) -> Self {
         Self { events }
     }
     pub fn send(&mut self, event: E) {
@@ -60,12 +61,12 @@ impl<'a, E: Event> EventWriter<'a, E> {
 }
 
 pub struct EventReader<'a, E: Event> {
-    pub(crate) events: &'a Events<E>,
+    pub(crate) events: MappedRwLockReadGuard<'a, Events<E>>,
     pub(crate) _last_event_count: usize, // Not used in this simple double buffer
 }
 
 impl<'a, E: Event> EventReader<'a, E> {
-    pub fn new(events: &'a Events<E>) -> Self {
+    pub fn new(events: MappedRwLockReadGuard<'a, Events<E>>) -> Self {
         Self {
             events,
             _last_event_count: 0,

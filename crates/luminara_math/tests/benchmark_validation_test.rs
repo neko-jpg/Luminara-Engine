@@ -1,7 +1,7 @@
 // bentch.mdで指摘された検証テスト
 
-use luminara_math::geometry::bvh::{Bvh, Aabb, Primitive};
 use glam::Vec3;
+use luminara_math::geometry::bvh::{Aabb, Bvh, Primitive};
 
 // 2. BVHのアロケーション回数計測用のダミープリミティブ
 #[derive(Clone)]
@@ -40,7 +40,11 @@ fn test_bvh_allocation_count() {
 
     // 構築が成功したことを確認（rootはフィールド）
     // BvhNodeは常に存在するので、プリミティブ数を確認
-    assert_eq!(bvh.primitives.len(), count, "BVH should contain all primitives");
+    assert_eq!(
+        bvh.primitives.len(),
+        count,
+        "BVH should contain all primitives"
+    );
 
     println!("BVH構築完了: {} プリミティブ", count);
     println!("注意: アロケーション回数の詳細計測にはdhatやallocation-counterが必要");
@@ -49,7 +53,7 @@ fn test_bvh_allocation_count() {
 // 3. シンプレクティック積分器のエネルギー保存テスト
 #[cfg(test)]
 mod symplectic_tests {
-    use luminara_math::algebra::{Motor, Bivector, SymplecticEuler, LieGroupIntegrator};
+    use luminara_math::algebra::{Bivector, LieGroupIntegrator, Motor, SymplecticEuler};
 
     #[test]
     fn test_energy_conservation() {
@@ -64,7 +68,8 @@ mod symplectic_tests {
 
         // シンプレクティック積分（位置と速度の両方を更新）
         for _ in 0..steps {
-            let (new_motor, new_velocity) = SymplecticEuler::step(motor, velocity, dt, |_| Bivector::ZERO);
+            let (new_motor, new_velocity) =
+                SymplecticEuler::step(motor, velocity, dt, |_| Bivector::ZERO);
             motor = new_motor;
             velocity = new_velocity;
         }
@@ -99,7 +104,8 @@ mod symplectic_tests {
         let mut m_symplectic = motor;
         let mut v_symplectic = velocity;
         for _ in 0..steps {
-            let (new_m, new_v) = SymplecticEuler::step(m_symplectic, v_symplectic, dt, |_| Bivector::ZERO);
+            let (new_m, new_v) =
+                SymplecticEuler::step(m_symplectic, v_symplectic, dt, |_| Bivector::ZERO);
             m_symplectic = new_m;
             v_symplectic = new_v;
         }

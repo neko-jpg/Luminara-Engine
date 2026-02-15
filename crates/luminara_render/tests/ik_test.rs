@@ -1,5 +1,5 @@
+use luminara_math::{Quat, Vec3};
 use luminara_render::ik::TwoBoneIKSolver;
-use luminara_math::{Vec3, Quat};
 
 #[test]
 fn test_ik_solver_reach() {
@@ -30,7 +30,10 @@ fn test_ik_solver_reach() {
     // q2 angle = 0.
 
     assert!((y1 - y).length() < 0.001, "Bone1 should point along Y");
-    assert!((q2 * Vec3::Y - Vec3::Y).length() < 0.001, "Bone2 should point along Y (relative)");
+    assert!(
+        (q2 * Vec3::Y - Vec3::Y).length() < 0.001,
+        "Bone2 should point along Y (relative)"
+    );
 }
 
 #[test]
