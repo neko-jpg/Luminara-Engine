@@ -229,7 +229,7 @@ pub fn lod_update_system(
     cameras: Query<(&Camera, &Transform)>,
 ) {
     if let Some((_, cam_transform)) = cameras.iter().next() {
-        for (mut renderer, lod, transform) in lod_entities.iter_mut() {
+        for (renderer, lod, transform) in lod_entities.iter_mut() {
             let distance = (transform.translation - cam_transform.translation).length();
             let lod_level = lod
                 .distances

@@ -67,7 +67,7 @@ impl TwoBoneIKSolver {
         // We assume default bone direction is +Y (0, 1, 0)
 
         // 1. Rotate chain to point at target
-        let look_rot = Quat::from_rotation_arc(Vec3::Y, target_dir.normalize());
+        let _look_rot = Quat::from_rotation_arc(Vec3::Y, target_dir.normalize());
 
         // 2. Resolve Pole Vector
         // Current UP vector after look_rot (assuming default UP was Z or X?)

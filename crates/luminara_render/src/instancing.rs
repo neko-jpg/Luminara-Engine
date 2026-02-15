@@ -6,8 +6,6 @@
 //! Target: <500 draw calls for 1000+ objects (Requirement 19.3)
 
 use crate::{Handle, Mesh, PbrMaterial};
-use luminara_asset::{AssetServer, AssetId};
-use luminara_core::shared_types::{Query, Res};
 use luminara_math::Transform;
 use std::collections::HashMap;
 
@@ -18,19 +16,19 @@ pub struct InstanceData {
     /// Model matrix (4x4 = 16 floats = 64 bytes)
     pub model_matrix: [[f32; 4]; 4],
     /// Material properties
-    pub albedo: [f32; 4],           // 16 bytes
-    pub metallic: f32,              // 4 bytes
-    pub roughness: f32,             // 4 bytes
-    pub emissive: [f32; 3],         // 12 bytes
-    pub has_albedo_texture: f32,    // 4 bytes
-    // Total: 64 + 40 = 104 bytes
+    pub albedo: [f32; 4], // 16 bytes
+    pub metallic: f32,      // 4 bytes
+    pub roughness: f32,     // 4 bytes
+    pub emissive: [f32; 3], // 12 bytes
+    pub has_albedo_texture: f32, // 4 bytes
+                            // Total: 64 + 40 = 104 bytes
 }
 
 impl InstanceData {
     /// Create instance data from transform and material
     pub fn new(transform: &Transform, material: &PbrMaterial) -> Self {
         let model_matrix = transform.compute_matrix().to_cols_array_2d();
-        
+
         Self {
             model_matrix,
             albedo: [
@@ -46,7 +44,11 @@ impl InstanceData {
                 material.emissive.g,
                 material.emissive.b,
             ],
-            has_albedo_texture: if material.albedo_texture.is_some() { 1.0 } else { 0.0 },
+            has_albedo_texture: if material.albedo_texture.is_some() {
+                1.0
+            } else {
+                0.0
+            },
         }
     }
 
@@ -145,19 +147,6 @@ struct MaterialSortKey {
     texture_id: Option<u64>,
 }
 
-impl MaterialSortKey {
-    fn from_material(material: &PbrMaterial) -> Self {
-        Self {
-            metallic: (material.metallic * 10000.0) as u32,
-            roughness: (material.roughness * 10000.0) as u32,
-            texture_id: material.albedo_texture.as_ref().map(|h| {
-                // Use handle's internal ID for sorting
-                // This is a simplified approach - in production, use proper handle comparison
-                std::ptr::addr_of!(*h) as u64
-            }),
-        }
-    }
-}
 
 /// Instance batcher - groups objects by mesh for instanced rendering
 pub struct InstanceBatcher {
@@ -180,10 +169,7 @@ impl InstanceBatcher {
     }
 
     /// Prepare instance groups from mesh query
-    pub fn prepare(
-        &mut self,
-        meshes: Query<(&Handle<Mesh>, &Transform, &PbrMaterial)>,
-    ) {
+    pub fn prepare(&mut self, meshes: Query<(&Handle<Mesh>, &Transform, &PbrMaterial)>) {
         self.groups.clear();
         self.total_objects = 0;
 
@@ -192,12 +178,12 @@ impl InstanceBatcher {
 
         for (mesh_handle, transform, material) in meshes.iter() {
             let instance_data = InstanceData::new(transform, material);
-            
+
             groups_map
                 .entry(mesh_handle.clone())
                 .or_insert_with(|| InstanceGroup::new(mesh_handle.clone()))
                 .add_instance(instance_data);
-            
+
             self.total_objects += 1;
         }
 
@@ -336,7 +322,7 @@ impl InstanceBatcherStats {
         println!("Instancing Ratio: {:.2}x", self.instancing_ratio);
         println!("Unique Meshes: {}", self.unique_meshes);
         println!("Avg Instances/Group: {:.2}", self.avg_instances_per_group);
-        
+
         if self.total_draw_calls > 500 {
             println!("⚠️  Draw calls exceed target of 500");
         } else {
@@ -360,7 +346,7 @@ mod tests {
     fn test_instance_group_creation() {
         let mesh_handle = Handle::new(AssetId::new(), 0);
         let mut group = InstanceGroup::new(mesh_handle.clone());
-        
+
         assert_eq!(group.instances.len(), 0);
         assert_eq!(group.mesh, mesh_handle);
     }
@@ -369,7 +355,7 @@ mod tests {
     fn test_instance_batcher_empty() {
         let batcher = InstanceBatcher::new();
         let stats = batcher.stats();
-        
+
         assert_eq!(stats.total_objects, 0);
         assert_eq!(stats.total_draw_calls, 0);
     }

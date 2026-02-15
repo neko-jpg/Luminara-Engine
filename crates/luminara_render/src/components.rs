@@ -1,8 +1,8 @@
 use luminara_asset::{Asset, Handle};
 use luminara_core::Component;
 use luminara_math::Color;
-use serde::{Deserialize, Serialize};
 use luminara_reflect_derive::Reflect;
+use serde::{Deserialize, Serialize};
 
 use crate::{Mesh, Texture};
 

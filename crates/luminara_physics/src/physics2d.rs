@@ -1,9 +1,9 @@
-use luminara_core::{Commands, Component, Entity, Plugin, Query, Res, ResMut, Resource, Without};
+use luminara_core::{Component, Entity, Plugin, Query, Res, ResMut, Resource};
 use luminara_math::{Quat, Transform, Vec3};
 use rapier2d::prelude::*;
 use std::collections::HashMap;
 
-use crate::components::{Collider, ColliderShape, CollisionEvent, RigidBody, RigidBodyType};
+use crate::components::{CollisionEvent, RigidBody};
 
 /// Resource containing the Rapier 2D physics world
 pub struct PhysicsWorld2D {
@@ -100,106 +100,6 @@ impl Component for PhysicsColliderCreated2D {
     }
 }
 
-/// System to create physics bodies for new entities with RigidBody components
-pub fn physics_body_creation_system_2d(
-    mut physics_world: ResMut<PhysicsWorld2D>,
-    query: Query<(Entity, &RigidBody, &Transform), Without<PhysicsBodyCreated2D>>,
-    mut commands: Commands,
-) {
-    for (entity, rigid_body, transform) in query.iter() {
-        // Create Rapier rigid body (2D uses only X and Y)
-        let rapier_body_type = match rigid_body.body_type {
-            RigidBodyType::Dynamic => rapier2d::prelude::RigidBodyType::Dynamic,
-            RigidBodyType::Kinematic => rapier2d::prelude::RigidBodyType::KinematicPositionBased,
-            RigidBodyType::Static => rapier2d::prelude::RigidBodyType::Fixed,
-        };
-
-        // Extract rotation angle from quaternion (Z-axis rotation for 2D)
-        let angle = 2.0 * transform.rotation.w.acos();
-
-        let rapier_body = RigidBodyBuilder::new(rapier_body_type)
-            .translation(vector![transform.translation.x, transform.translation.y])
-            .rotation(angle)
-            .linear_damping(rigid_body.linear_damping)
-            .angular_damping(rigid_body.angular_damping)
-            .gravity_scale(rigid_body.gravity_scale)
-            .build();
-
-        let body_handle = physics_world.rigid_body_set.insert(rapier_body);
-
-        // Store mappings
-        physics_world.entity_to_body.insert(entity, body_handle);
-        physics_world.body_to_entity.insert(body_handle, entity);
-
-        // Mark as created
-        commands.entity(entity).insert(PhysicsBodyCreated2D);
-
-        log::debug!("Created 2D physics body for entity {:?}", entity);
-    }
-}
-
-/// System to create colliders for entities with Collider components
-pub fn physics_collider_creation_system_2d(
-    mut physics_world: ResMut<PhysicsWorld2D>,
-    query: Query<(Entity, &Collider), Without<PhysicsColliderCreated2D>>,
-    mut commands: Commands,
-) {
-    for (entity, collider) in query.iter() {
-        // Create Rapier collider shape (2D)
-        let shape: SharedShape = match &collider.shape {
-            ColliderShape::Box { half_extents } => {
-                SharedShape::cuboid(half_extents.x, half_extents.y)
-            }
-            ColliderShape::Sphere { radius } => SharedShape::ball(*radius),
-            ColliderShape::Capsule {
-                half_height,
-                radius,
-            } => SharedShape::capsule_y(*half_height, *radius),
-            ColliderShape::Mesh {
-                vertices,
-                indices: _,
-            } => {
-                // For 2D, convert 3D mesh to 2D polygon (use X and Y)
-                let vertices: Vec<Point<f32>> = vertices.iter().map(|v| point![v.x, v.y]).collect();
-                SharedShape::convex_hull(&vertices).unwrap_or_else(|| SharedShape::ball(0.5))
-            }
-        };
-
-        let rapier_collider = ColliderBuilder::new(shape)
-            .friction(collider.friction)
-            .restitution(collider.restitution)
-            .sensor(collider.is_sensor)
-            .build();
-
-        // Attach to rigid body if it exists
-        let collider_handle = if let Some(&body_handle) = physics_world.entity_to_body.get(&entity)
-        {
-            let mut rigid_body_set = std::mem::take(&mut physics_world.rigid_body_set);
-            let handle = physics_world.collider_set.insert_with_parent(
-                rapier_collider,
-                body_handle,
-                &mut rigid_body_set,
-            );
-            physics_world.rigid_body_set = rigid_body_set;
-            handle
-        } else {
-            physics_world.collider_set.insert(rapier_collider)
-        };
-
-        // Store mappings
-        physics_world
-            .entity_to_collider
-            .insert(entity, collider_handle);
-        physics_world
-            .collider_to_entity
-            .insert(collider_handle, entity);
-
-        // Mark as created
-        commands.entity(entity).insert(PhysicsColliderCreated2D);
-
-        log::debug!("Created 2D collider for entity {:?}", entity);
-    }
-}
 
 /// System to step the physics simulation
 pub fn physics_step_system_2d(mut physics_world: ResMut<PhysicsWorld2D>) {

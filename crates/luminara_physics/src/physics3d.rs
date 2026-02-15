@@ -1,6 +1,6 @@
 use luminara_core::shared_types::{AppInterface, CoreStage};
 use luminara_core::system::ExclusiveMarker;
-use luminara_core::{Commands, Component, Entity, Plugin, Query, Res, ResMut, Resource, Without};
+use luminara_core::{Component, Entity, Plugin, Query, Res, ResMut, Resource, Without};
 use luminara_math::{Quat, Transform, Vec3};
 use rapier3d::prelude::*;
 use std::collections::HashMap;
@@ -205,8 +205,8 @@ pub fn physics_body_creation_system_exclusive(world: &mut luminara_core::world::
         }
 
         // Mark entity as having a physics body
-        world.add_component(*entity, PhysicsBodyCreated);
-        world.add_component(*entity, PreviousTransform(transform.clone()));
+        let _ = world.add_component(*entity, PhysicsBodyCreated);
+        let _ = world.add_component(*entity, PreviousTransform(transform.clone()));
 
         log::info!(
             "Created 3D physics body for entity {:?} at {:?}",
@@ -281,117 +281,12 @@ pub fn physics_collider_creation_system_exclusive(world: &mut luminara_core::wor
                 .insert(collider_handle, *entity);
         }
 
-        world.add_component(*entity, PhysicsColliderCreated);
+        let _ = world.add_component(*entity, PhysicsColliderCreated);
 
         log::info!("Created 3D collider for entity {:?}", entity);
     }
 }
 
-/// System to create physics bodies for new entities with RigidBody components
-pub fn physics_body_creation_system(
-    mut physics_world: ResMut<PhysicsWorld3D>,
-    query: Query<(Entity, &RigidBody, &Transform), Without<PhysicsBodyCreated>>,
-    mut commands: Commands,
-) {
-    for (entity, rigid_body, transform) in query.iter() {
-        // Create Rapier rigid body
-        let rapier_body_type = match rigid_body.body_type {
-            RigidBodyType::Dynamic => rapier3d::prelude::RigidBodyType::Dynamic,
-            RigidBodyType::Kinematic => rapier3d::prelude::RigidBodyType::KinematicPositionBased,
-            RigidBodyType::Static => rapier3d::prelude::RigidBodyType::Fixed,
-        };
-
-        let rapier_body = RigidBodyBuilder::new(rapier_body_type)
-            .translation(vector![
-                transform.translation.x,
-                transform.translation.y,
-                transform.translation.z
-            ])
-            .rotation(AngVector::new(
-                transform.rotation.x,
-                transform.rotation.y,
-                transform.rotation.z,
-            ))
-            .linear_damping(rigid_body.linear_damping)
-            .angular_damping(rigid_body.angular_damping)
-            .gravity_scale(rigid_body.gravity_scale)
-            .build();
-
-        let body_handle = physics_world.rigid_body_set.insert(rapier_body);
-
-        // Store mappings
-        physics_world.entity_to_body.insert(entity, body_handle);
-        physics_world.body_to_entity.insert(body_handle, entity);
-
-        // Mark as created
-        commands.entity(entity).insert(PhysicsBodyCreated);
-        commands
-            .entity(entity)
-            .insert(PreviousTransform(*transform));
-
-        log::debug!("Created 3D physics body for entity {:?}", entity);
-    }
-}
-
-/// System to create colliders for entities with Collider components
-pub fn physics_collider_creation_system(
-    mut physics_world: ResMut<PhysicsWorld3D>,
-    query: Query<(Entity, &Collider), Without<PhysicsColliderCreated>>,
-    mut commands: Commands,
-) {
-    for (entity, collider) in query.iter() {
-        // Create Rapier collider shape
-        let shape: SharedShape = match &collider.shape {
-            ColliderShape::Box { half_extents } => {
-                SharedShape::cuboid(half_extents.x, half_extents.y, half_extents.z)
-            }
-            ColliderShape::Sphere { radius } => SharedShape::ball(*radius),
-            ColliderShape::Capsule {
-                half_height,
-                radius,
-            } => SharedShape::capsule_y(*half_height, *radius),
-            ColliderShape::Mesh { vertices, indices } => {
-                let vertices: Vec<Point<f32>> =
-                    vertices.iter().map(|v| point![v.x, v.y, v.z]).collect();
-                SharedShape::trimesh(vertices, indices.clone())
-            }
-        };
-
-        let rapier_collider = ColliderBuilder::new(shape)
-            .friction(collider.friction)
-            .restitution(collider.restitution)
-            .sensor(collider.is_sensor)
-            .build();
-
-        // Attach to rigid body if it exists
-        let collider_handle = if let Some(&body_handle) = physics_world.entity_to_body.get(&entity)
-        {
-            let mut rigid_body_set = std::mem::take(&mut physics_world.rigid_body_set);
-            let handle = physics_world.collider_set.insert_with_parent(
-                rapier_collider,
-                body_handle,
-                &mut rigid_body_set,
-            );
-            physics_world.rigid_body_set = rigid_body_set;
-            handle
-        } else {
-            physics_world.collider_set.insert(rapier_collider)
-        };
-
-        // Store mappings
-        physics_world
-            .entity_to_collider
-            .insert(entity, collider_handle);
-        physics_world
-            .collider_to_entity
-            .insert(collider_handle, entity);
-
-        // Mark as created
-        commands.entity(entity).insert(PhysicsColliderCreated);
-
-        log::debug!("Created 3D collider for entity {:?}", entity);
-    }
-}
 
 /// System to step the physics simulation
 pub fn physics_step_system(

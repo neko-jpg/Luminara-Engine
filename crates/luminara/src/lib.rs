@@ -28,6 +28,8 @@ pub use luminara_asset as asset;
 pub use luminara_audio as audio;
 #[cfg(feature = "core")]
 pub use luminara_core as core;
+#[cfg(feature = "db")]
+pub use luminara_db as db;
 #[cfg(feature = "diagnostic")]
 pub use luminara_diagnostic as diagnostic;
 #[cfg(feature = "input")]
@@ -50,5 +52,3 @@ pub use luminara_script_lua as script_lua;
 pub use luminara_script_wasm as script_wasm;
 #[cfg(feature = "window")]
 pub use luminara_window as window;
-#[cfg(feature = "db")]
-pub use luminara_db as db;

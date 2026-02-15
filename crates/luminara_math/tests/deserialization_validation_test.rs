@@ -32,12 +32,13 @@ fn test_vec3_nan_x() {
 
     let err = result.unwrap_err();
     assert_eq!(err.type_name, "Vec3");
-    assert!(matches!(
-        err.kind,
-        ValidationErrorKind::InvalidValue { .. }
-    ));
+    assert!(matches!(err.kind, ValidationErrorKind::InvalidValue { .. }));
     assert!(err.to_string().contains("finite"), "Error message: {}", err);
-    assert!(err.suggestion.contains("division by zero") || err.suggestion.contains("corrupted"), "Suggestion: {}", err.suggestion);
+    assert!(
+        err.suggestion.contains("division by zero") || err.suggestion.contains("corrupted"),
+        "Suggestion: {}",
+        err.suggestion
+    );
 }
 
 #[test]
@@ -83,10 +84,7 @@ fn test_quat_not_normalized() {
 
     let err = result.unwrap_err();
     assert_eq!(err.type_name, "Quat");
-    assert!(matches!(
-        err.kind,
-        ValidationErrorKind::InvalidValue { .. }
-    ));
+    assert!(matches!(err.kind, ValidationErrorKind::InvalidValue { .. }));
     assert!(err.to_string().contains("normalized"));
     assert!(err.suggestion.contains("Normalize"));
 }
@@ -262,7 +260,12 @@ fn test_ron_vec3_valid() {
     let ron_str = ron::to_string(&vec).unwrap();
     // Now deserialize and validate
     let result: Result<Vec3, String> = from_ron_validated(&ron_str);
-    assert!(result.is_ok(), "Failed with RON: {}, error: {:?}", ron_str, result);
+    assert!(
+        result.is_ok(),
+        "Failed with RON: {}, error: {:?}",
+        ron_str,
+        result
+    );
     let deserialized = result.unwrap();
     assert_eq!(deserialized, vec);
 }

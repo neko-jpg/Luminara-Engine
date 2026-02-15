@@ -57,8 +57,7 @@ fn test_versioned_serialization_ron() {
     assert!(ron_str.contains("version"));
 
     // Deserialize
-    let deserialized: Versioned<Vec3> =
-        ron::from_str(&ron_str).expect("Failed to deserialize");
+    let deserialized: Versioned<Vec3> = ron::from_str(&ron_str).expect("Failed to deserialize");
 
     assert_eq!(deserialized.version(), CURRENT_VERSION);
     assert_eq!(deserialized.data, vec);
@@ -477,8 +476,7 @@ fn test_multiple_types_migration() {
     // Migrate all
     let vec_migrated = from_ron_versioned::<Vec3>(&vec_ron).expect("Failed to migrate Vec3");
     let quat_migrated = from_ron_versioned::<Quat>(&quat_ron).expect("Failed to migrate Quat");
-    let color_migrated =
-        from_ron_versioned::<Color>(&color_ron).expect("Failed to migrate Color");
+    let color_migrated = from_ron_versioned::<Color>(&color_ron).expect("Failed to migrate Color");
     let transform_migrated =
         from_ron_versioned::<Transform>(&transform_ron).expect("Failed to migrate Transform");
 

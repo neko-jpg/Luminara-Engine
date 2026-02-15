@@ -7,8 +7,9 @@
 /// **Validates: Requirements 9.2, 9.3**
 /// - Requirement 9.2: WHEN executing commands, THE System SHALL record sufficient state to enable undo
 /// - Requirement 9.3: WHEN undoing commands, THE System SHALL restore the exact previous state
-
-use luminara_core::{CommandError, CommandHistory, CommandResult, Component, Entity, UndoCommand, World};
+use luminara_core::{
+    CommandError, CommandHistory, CommandResult, Component, Entity, UndoCommand, World,
+};
 use proptest::prelude::*;
 
 // ============================================================================
@@ -106,7 +107,7 @@ impl WorldSnapshot {
 
     fn matches(&self, world: &World) -> bool {
         let current = Self::capture(world);
-        
+
         // Check entity count
         if self.entity_count != current.entity_count {
             return false;
@@ -199,7 +200,7 @@ impl UndoCommand for DespawnEntityCommand {
         self.position = world.get_component::<Position>(self.entity).cloned();
         self.velocity = world.get_component::<Velocity>(self.entity).cloned();
         self.health = world.get_component::<Health>(self.entity).cloned();
-        
+
         world.despawn(self.entity);
         Ok(())
     }
@@ -210,7 +211,7 @@ impl UndoCommand for DespawnEntityCommand {
         // For proper undo/redo, we would need to track entity ID remapping.
         // For this test, we'll spawn a new entity and update our reference.
         let new_entity = world.spawn();
-        
+
         // Restore components
         if let Some(pos) = &self.position {
             world.add_component(new_entity, pos.clone())?;
@@ -221,10 +222,10 @@ impl UndoCommand for DespawnEntityCommand {
         if let Some(health) = &self.health {
             world.add_component(new_entity, health.clone())?;
         }
-        
+
         // Update entity reference for potential redo
         self.entity = new_entity;
-        
+
         Ok(())
     }
 
@@ -445,7 +446,7 @@ fn arb_command_for_entity(entity: Entity) -> impl Strategy<Value = Box<dyn UndoC
 fn property_command_undo_round_trip_spawn_entity() {
     // SKIPPED: Due to bug in World::despawn() - entities still appear after despawn
     // TODO: Fix World::despawn() and re-enable this test
-    
+
     // Verify the bug exists
     let mut world = World::new();
     let entity = world.spawn();
@@ -453,7 +454,7 @@ fn property_command_undo_round_trip_spawn_entity() {
     world.despawn(entity);
     // BUG: This assertion fails - entity count is still 1 after despawn
     // assert_eq!(world.entities().len(), 0);
-    
+
     println!("SKIPPED: SpawnEntity undo test due to World::despawn() bug");
     println!("Bug: Despawned entities still appear in world.entities()");
 }
@@ -515,7 +516,7 @@ fn property_command_undo_round_trip_modify_component() {
         // Test modifying Position
         world.add_component(entity, initial_pos.clone()).unwrap();
         let snapshot_before = WorldSnapshot::capture(&world);
-        
+
         let mut cmd = ModifyComponentCommand::new_position(entity, new_pos);
         cmd.execute(&mut world).unwrap();
         assert_ne!(world.get_component::<Position>(entity), Some(&initial_pos));
@@ -528,7 +529,7 @@ fn property_command_undo_round_trip_modify_component() {
         // Test modifying Velocity
         world.add_component(entity, initial_vel.clone()).unwrap();
         let snapshot_before = WorldSnapshot::capture(&world);
-        
+
         let mut cmd = ModifyComponentCommand::new_velocity(entity, new_vel);
         cmd.execute(&mut world).unwrap();
         cmd.undo(&mut world).unwrap();
@@ -540,7 +541,7 @@ fn property_command_undo_round_trip_modify_component() {
         // Test modifying Health
         world.add_component(entity, initial_health.clone()).unwrap();
         let snapshot_before = WorldSnapshot::capture(&world);
-        
+
         let mut cmd = ModifyComponentCommand::new_health(entity, new_health);
         cmd.execute(&mut world).unwrap();
         cmd.undo(&mut world).unwrap();
@@ -560,7 +561,7 @@ fn property_command_undo_round_trip_sequence() {
     )| {
         let mut world = World::new();
         let mut history = CommandHistory::new(100);
-        
+
         // Create initial world state with some entities
         let entities: Vec<Entity> = (0..3).map(|_| world.spawn()).collect();
         for (i, &entity) in entities.iter().enumerate() {
@@ -568,7 +569,7 @@ fn property_command_undo_round_trip_sequence() {
                 world.add_component(entity, positions[i].clone()).unwrap();
             }
         }
-        
+
         let snapshot_before = WorldSnapshot::capture(&world);
 
         // Execute a sequence of commands
@@ -604,17 +605,17 @@ fn property_command_undo_idempotence() {
         let snapshot_initial = WorldSnapshot::capture(&world);
 
         let mut cmd = AddComponentCommand::new_position(entity, pos);
-        
+
         // Execute
         cmd.execute(&mut world).unwrap();
-        
+
         // Undo
         cmd.undo(&mut world).unwrap();
         let snapshot_after_undo = WorldSnapshot::capture(&world);
-        
+
         // Redo
         cmd.execute(&mut world).unwrap();
-        
+
         // Undo again
         cmd.undo(&mut world).unwrap();
         let snapshot_after_second_undo = WorldSnapshot::capture(&world);
@@ -641,7 +642,7 @@ fn property_command_undo_round_trip_multiple_components() {
         world.add_component(entity, pos.clone()).unwrap();
         world.add_component(entity, vel.clone()).unwrap();
         world.add_component(entity, health.clone()).unwrap();
-        
+
         let snapshot_before = WorldSnapshot::capture(&world);
 
         // Modify all components through commands

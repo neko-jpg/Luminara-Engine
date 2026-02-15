@@ -42,13 +42,18 @@ impl_component!(DbDirty);
 // WorldSync module for ECS synchronization
 pub mod world_sync;
 
-pub use world_sync::{WorldSync, SyncStatistics, SyncResult};
+pub use world_sync::{SyncResult, SyncStatistics, WorldSync};
 
 // Registry Logic
 
 pub trait ComponentSerializer: Send + Sync {
     fn serialize(&self, world: &World, entity: Entity) -> Option<serde_json::Value>;
-    fn deserialize(&self, world: &mut World, entity: Entity, data: &serde_json::Value) -> Result<(), crate::error::DbError>;
+    fn deserialize(
+        &self,
+        world: &mut World,
+        entity: Entity,
+        data: &serde_json::Value,
+    ) -> Result<(), crate::error::DbError>;
     fn type_name(&self) -> &'static str;
 }
 
@@ -93,11 +98,15 @@ struct TypedComponentSerializer<T> {
 
 impl<T> Default for TypedComponentSerializer<T> {
     fn default() -> Self {
-        Self { _marker: std::marker::PhantomData }
+        Self {
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
-impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> ComponentSerializer for TypedComponentSerializer<T> {
+impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> ComponentSerializer
+    for TypedComponentSerializer<T>
+{
     fn serialize(&self, world: &World, entity: Entity) -> Option<serde_json::Value> {
         if let Some(comp) = world.get_component::<T>(entity) {
             serde_json::to_value(comp).ok()
@@ -106,9 +115,16 @@ impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> Compone
         }
     }
 
-    fn deserialize(&self, world: &mut World, entity: Entity, data: &serde_json::Value) -> Result<(), crate::error::DbError> {
+    fn deserialize(
+        &self,
+        world: &mut World,
+        entity: Entity,
+        data: &serde_json::Value,
+    ) -> Result<(), crate::error::DbError> {
         let comp: T = serde_json::from_value(data.clone())?;
-        world.add_component(entity, comp).map_err(|_| crate::error::DbError::Other("Failed to add component".into()))?;
+        world
+            .add_component(entity, comp)
+            .map_err(|_| crate::error::DbError::Other("Failed to add component".into()))?;
         Ok(())
     }
 

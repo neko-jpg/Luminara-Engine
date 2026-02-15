@@ -59,9 +59,6 @@ tempfile = "3.10"
 proptest = "1.4"
 env_logger = "0.11"
 
-[[bench]]
-name = "diagnostic_benchmarks"
-harness = false
 
 [lib]
 name = "luminara_diagnostic"

@@ -1,9 +1,7 @@
 use luminara_core::shared_types::{Component, Entity, Resource, World};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use std::any::Any;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 
 /// Trait for type-erased component operations, specifically deserialization and insertion into World.
 pub trait ReflectComponent: Send + Sync + 'static {
@@ -38,7 +36,7 @@ impl<T: Component + DeserializeOwned> ReflectComponent for ComponentRegistration
     fn add_to_entity(&self, world: &mut World, entity: Entity, value: Value) -> Result<(), String> {
         match serde_json::from_value::<T>(value) {
             Ok(component) => {
-                world.add_component(entity, component);
+                let _ = world.add_component(entity, component);
                 Ok(())
             }
             Err(e) => Err(format!(

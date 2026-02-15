@@ -65,21 +65,21 @@
 //! # }
 //! ```
 
-pub mod error;
-pub mod schema;
 pub mod database;
+pub mod error;
+pub mod migration;
 pub mod query;
+pub mod schema;
 pub mod sync;
 pub mod timeline;
-pub mod migration;
 
+pub use database::{EntityHierarchy, EntityWithRelationships, LuminaraDatabase};
 pub use error::{DbError, DbResult};
-pub use schema::{EntityRecord, ComponentRecord, AssetRecord, OperationRecord};
-pub use database::{LuminaraDatabase, EntityHierarchy, EntityWithRelationships};
+pub use migration::{MigrationStatistics, RonMigrationTool};
 pub use query::QueryBuilder;
-pub use sync::{WorldSync, SyncStatistics, SyncResult};
-pub use timeline::{OperationTimeline, BranchInfo, TimelineStatistics};
-pub use migration::{RonMigrationTool, MigrationStatistics};
+pub use schema::{AssetRecord, ComponentRecord, EntityRecord, OperationRecord};
+pub use sync::{SyncResult, SyncStatistics, WorldSync};
+pub use timeline::{BranchInfo, OperationTimeline, TimelineStatistics};
 
 // Re-export RecordId from surrealdb
 pub use surrealdb::RecordId;

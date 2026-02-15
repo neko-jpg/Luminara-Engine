@@ -319,9 +319,7 @@ fn test_string_reflection() {
     assert_eq!(json, serde_json::json!("hello"));
 
     // Test deserialization
-    value
-        .deserialize_json(&serde_json::json!("world"))
-        .unwrap();
+    value.deserialize_json(&serde_json::json!("world")).unwrap();
     assert_eq!(value, "world");
 }
 

@@ -3,6 +3,7 @@ use luminara_core::query::Query;
 use luminara_core::world::World;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Position {
     x: i32,
     y: i32,
@@ -15,7 +16,7 @@ fn bench_spawn_100k() {
     let start = std::time::Instant::now();
     for _ in 0..100_000 {
         let e = world.spawn();
-        world.add_component(e, Position { x: 0, y: 0 });
+        let _ = world.add_component(e, Position { x: 0, y: 0 });
     }
     let elapsed = start.elapsed();
     println!("Spawned 100k entities in {:?}", elapsed);
@@ -28,7 +29,7 @@ fn bench_query_1m() {
     // but here we just want to measure iteration.
     for _ in 0..1_000_000 {
         let e = world.spawn();
-        world.add_component(e, Position { x: 0, y: 0 });
+        let _ = world.add_component(e, Position { x: 0, y: 0 });
     }
 
     let start = std::time::Instant::now();

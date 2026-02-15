@@ -1,7 +1,6 @@
 /// Unit tests for field access and modification functionality
 /// Task 10.4: Implement field access and modification
 /// Requirements: 7.3
-
 use luminara_core::{Reflect, ReflectError};
 
 #[derive(Debug, Clone, PartialEq, Default, Reflect)]
@@ -45,7 +44,10 @@ fn test_get_field_by_name() {
 
     // Get nested struct field
     let transform_field = entity.field("transform").unwrap();
-    let transform_value = transform_field.as_any().downcast_ref::<Transform>().unwrap();
+    let transform_value = transform_field
+        .as_any()
+        .downcast_ref::<Transform>()
+        .unwrap();
     assert_eq!(*transform_value, Transform::default());
 }
 
@@ -110,9 +112,17 @@ fn test_nested_field_access_single_level() {
     let entity = Entity {
         name: String::from("Player"),
         transform: Transform {
-            position: Vec3 { x: 10.0, y: 20.0, z: 30.0 },
+            position: Vec3 {
+                x: 10.0,
+                y: 20.0,
+                z: 30.0,
+            },
             rotation: Vec3::default(),
-            scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            scale: Vec3 {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+            },
         },
         health: 100.0,
     };
@@ -131,9 +141,21 @@ fn test_nested_field_access_multiple_levels() {
     let entity = Entity {
         name: String::from("Player"),
         transform: Transform {
-            position: Vec3 { x: 10.0, y: 20.0, z: 30.0 },
-            rotation: Vec3 { x: 0.0, y: 90.0, z: 0.0 },
-            scale: Vec3 { x: 2.0, y: 2.0, z: 2.0 },
+            position: Vec3 {
+                x: 10.0,
+                y: 20.0,
+                z: 30.0,
+            },
+            rotation: Vec3 {
+                x: 0.0,
+                y: 90.0,
+                z: 0.0,
+            },
+            scale: Vec3 {
+                x: 2.0,
+                y: 2.0,
+                z: 2.0,
+            },
         },
         health: 100.0,
     };
@@ -158,21 +180,33 @@ fn test_modify_nested_field() {
     let mut entity = Entity {
         name: String::from("Player"),
         transform: Transform {
-            position: Vec3 { x: 10.0, y: 20.0, z: 30.0 },
+            position: Vec3 {
+                x: 10.0,
+                y: 20.0,
+                z: 30.0,
+            },
             rotation: Vec3::default(),
-            scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            scale: Vec3 {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+            },
         },
         health: 100.0,
     };
 
     // Modify nested field using path
     let new_x = Box::new(99.0f32);
-    entity.set_field_path("transform.position.x", new_x).unwrap();
+    entity
+        .set_field_path("transform.position.x", new_x)
+        .unwrap();
     assert_eq!(entity.transform.position.x, 99.0);
 
     // Modify another nested field
     let new_scale_y = Box::new(3.0f32);
-    entity.set_field_path("transform.scale.y", new_scale_y).unwrap();
+    entity
+        .set_field_path("transform.scale.y", new_scale_y)
+        .unwrap();
     assert_eq!(entity.transform.scale.y, 3.0);
 }
 
@@ -197,9 +231,17 @@ fn test_mutable_nested_field_access() {
     let mut entity = Entity {
         name: String::from("Player"),
         transform: Transform {
-            position: Vec3 { x: 10.0, y: 20.0, z: 30.0 },
+            position: Vec3 {
+                x: 10.0,
+                y: 20.0,
+                z: 30.0,
+            },
             rotation: Vec3::default(),
-            scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            scale: Vec3 {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+            },
         },
         health: 100.0,
     };
@@ -239,9 +281,17 @@ fn test_complex_nested_structure() {
         entity: Entity {
             name: String::from("Hero"),
             transform: Transform {
-                position: Vec3 { x: 1.0, y: 2.0, z: 3.0 },
+                position: Vec3 {
+                    x: 1.0,
+                    y: 2.0,
+                    z: 3.0,
+                },
                 rotation: Vec3::default(),
-                scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+                scale: Vec3 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                },
             },
             health: 100.0,
         },
@@ -259,7 +309,9 @@ fn test_complex_nested_structure() {
 
     // Modify deeply nested field
     let new_pos_x = Box::new(100.0f32);
-    player.set_field_path("entity.transform.position.x", new_pos_x).unwrap();
+    player
+        .set_field_path("entity.transform.position.x", new_pos_x)
+        .unwrap();
     assert_eq!(player.entity.transform.position.x, 100.0);
 
     // Access and modify inventory
@@ -323,9 +375,17 @@ fn test_type_validation_nested_paths() {
     let mut entity = Entity {
         name: String::from("Player"),
         transform: Transform {
-            position: Vec3 { x: 10.0, y: 20.0, z: 30.0 },
+            position: Vec3 {
+                x: 10.0,
+                y: 20.0,
+                z: 30.0,
+            },
             rotation: Vec3::default(),
-            scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            scale: Vec3 {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+            },
         },
         health: 100.0,
     };

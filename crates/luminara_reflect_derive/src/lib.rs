@@ -5,7 +5,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
+use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
 /// Derive macro for the Reflect trait.
 ///
@@ -29,15 +29,29 @@ pub fn derive_reflect(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let type_name = name.to_string();
-    let full_type_name = format!("{}::{}", std::env::var("CARGO_PKG_NAME").unwrap_or_default(), type_name);
+    let full_type_name = format!(
+        "{}::{}",
+        std::env::var("CARGO_PKG_NAME").unwrap_or_default(),
+        type_name
+    );
 
     let expanded = match &input.data {
-        Data::Struct(data_struct) => {
-            impl_reflect_struct(name, &impl_generics, &ty_generics, where_clause, &full_type_name, &data_struct.fields)
-        }
-        Data::Enum(data_enum) => {
-            impl_reflect_enum(name, &impl_generics, &ty_generics, where_clause, &full_type_name, data_enum)
-        }
+        Data::Struct(data_struct) => impl_reflect_struct(
+            name,
+            &impl_generics,
+            &ty_generics,
+            where_clause,
+            &full_type_name,
+            &data_struct.fields,
+        ),
+        Data::Enum(data_enum) => impl_reflect_enum(
+            name,
+            &impl_generics,
+            &ty_generics,
+            where_clause,
+            &full_type_name,
+            data_enum,
+        ),
         Data::Union(_) => {
             panic!("Reflect cannot be derived for unions");
         }
@@ -54,11 +68,21 @@ fn impl_reflect_struct(
     full_type_name: &str,
     fields: &Fields,
 ) -> proc_macro2::TokenStream {
-    let (field_info_init, field_match, field_mut_match, set_field_match, serialize_fields, deserialize_fields) = match fields {
+    let (
+        field_info_init,
+        field_match,
+        field_mut_match,
+        set_field_match,
+        serialize_fields,
+        deserialize_fields,
+    ) = match fields {
         Fields::Named(fields_named) => {
             let field_names: Vec<_> = fields_named.named.iter().map(|f| &f.ident).collect();
             let field_types: Vec<_> = fields_named.named.iter().map(|f| &f.ty).collect();
-            let field_name_strs: Vec<_> = field_names.iter().map(|n| n.as_ref().unwrap().to_string()).collect();
+            let field_name_strs: Vec<_> = field_names
+                .iter()
+                .map(|n| n.as_ref().unwrap().to_string())
+                .collect();
 
             let field_info = quote! {
                 vec![
@@ -134,11 +158,18 @@ fn impl_reflect_struct(
                 }
             };
 
-            (field_info, field_match, field_mut_match, set_field_match, serialize_fields, deserialize_fields)
+            (
+                field_info,
+                field_match,
+                field_mut_match,
+                set_field_match,
+                serialize_fields,
+                deserialize_fields,
+            )
         }
         Fields::Unnamed(fields_unnamed) => {
             let field_count = fields_unnamed.unnamed.len();
-            let field_indices: Vec<syn::Index> = (0..field_count).map(|i| syn::Index::from(i)).collect();
+            let field_indices: Vec<syn::Index> = (0..field_count).map(syn::Index::from).collect();
             let field_types: Vec<_> = fields_unnamed.unnamed.iter().map(|f| &f.ty).collect();
             let field_index_strs: Vec<_> = (0..field_count).map(|i| i.to_string()).collect();
 
@@ -218,7 +249,14 @@ fn impl_reflect_struct(
                 }
             };
 
-            (field_info, field_match, field_mut_match, set_field_match, serialize_fields, deserialize_fields)
+            (
+                field_info,
+                field_match,
+                field_mut_match,
+                set_field_match,
+                serialize_fields,
+                deserialize_fields,
+            )
         }
         Fields::Unit => {
             let field_info = quote! { vec![] };
@@ -230,7 +268,14 @@ fn impl_reflect_struct(
             let serialize_fields = quote! { serde_json::Value::Null };
             let deserialize_fields = quote! { Ok(()) };
 
-            (field_info, field_match, field_mut_match, set_field_match, serialize_fields, deserialize_fields)
+            (
+                field_info,
+                field_match,
+                field_mut_match,
+                set_field_match,
+                serialize_fields,
+                deserialize_fields,
+            )
         }
     };
 

@@ -1,7 +1,7 @@
 use luminara_core::shared_types::Component;
 use luminara_math::{Color, Mat4};
-use serde::{Deserialize, Serialize};
 use luminara_reflect_derive::Reflect;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Camera {

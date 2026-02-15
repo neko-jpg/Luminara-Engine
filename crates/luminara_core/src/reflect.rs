@@ -112,7 +112,8 @@ pub trait Reflect: Send + Sync + 'static {
         // Navigate to the parent of the final field
         let mut current: &mut dyn Reflect = self;
         for segment in &segments[..segments.len() - 1] {
-            current = current.field_mut(segment)
+            current = current
+                .field_mut(segment)
                 .ok_or_else(|| ReflectError::FieldNotFound(segment.to_string()))?;
         }
 
@@ -138,14 +139,14 @@ pub trait Reflect: Send + Sync + 'static {
     /// Get an element from a collection by index.
     ///
     /// Returns None if this type is not a collection or the index is out of bounds.
-    fn collection_get(&self, index: usize) -> Option<&dyn Reflect> {
+    fn collection_get(&self, _index: usize) -> Option<&dyn Reflect> {
         None
     }
 
     /// Get a mutable element from a collection by index.
     ///
     /// Returns None if this type is not a collection or the index is out of bounds.
-    fn collection_get_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
+    fn collection_get_mut(&mut self, _index: usize) -> Option<&mut dyn Reflect> {
         None
     }
 
@@ -159,14 +160,14 @@ pub trait Reflect: Send + Sync + 'static {
     /// Get a value from a map by key (for HashMap-like collections).
     ///
     /// Returns None if this type is not a map or the key doesn't exist.
-    fn map_get(&self, key: &str) -> Option<&dyn Reflect> {
+    fn map_get(&self, _key: &str) -> Option<&dyn Reflect> {
         None
     }
 
     /// Get a mutable value from a map by key (for HashMap-like collections).
     ///
     /// Returns None if this type is not a map or the key doesn't exist.
-    fn map_get_mut(&mut self, key: &str) -> Option<&mut dyn Reflect> {
+    fn map_get_mut(&mut self, _key: &str) -> Option<&mut dyn Reflect> {
         None
     }
 
@@ -285,8 +286,7 @@ impl ReflectRegistry {
         let type_info = instance.type_info().clone();
 
         self.types.insert(type_id, type_info.clone());
-        self.type_names
-            .insert(type_info.type_name.clone(), type_id);
+        self.type_names.insert(type_info.type_name.clone(), type_id);
         self.constructors
             .insert(type_id, Box::new(|| Box::new(T::default())));
     }
@@ -371,7 +371,11 @@ macro_rules! impl_reflect_primitive {
                 None
             }
 
-            fn set_field(&mut self, name: &str, _value: Box<dyn Reflect>) -> Result<(), ReflectError> {
+            fn set_field(
+                &mut self,
+                name: &str,
+                _value: Box<dyn Reflect>,
+            ) -> Result<(), ReflectError> {
                 Err(ReflectError::FieldNotFound(name.to_string()))
             }
 
@@ -557,7 +561,7 @@ impl<T: Reflect + Clone> Reflect for Vec<T> {
     fn deserialize_json(&mut self, value: &serde_json::Value) -> Result<(), ReflectError> {
         if let serde_json::Value::Array(arr) = value {
             self.clear();
-            for item in arr {
+            if let Some(_item) = arr.first() {
                 // For now, we can't deserialize without knowing how to construct T
                 return Err(ReflectError::DeserializationError(
                     "Cannot deserialize Vec without type information".to_string(),
@@ -960,7 +964,6 @@ impl Reflect for glam::Quat {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -996,9 +999,7 @@ mod tests {
         assert_eq!(json, serde_json::json!("hello"));
 
         // Test deserialization
-        value
-            .deserialize_json(&serde_json::json!("world"))
-            .unwrap();
+        value.deserialize_json(&serde_json::json!("world")).unwrap();
         assert_eq!(value, "world");
     }
 

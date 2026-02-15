@@ -67,11 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify migration
     println!("Verifying migration...");
-    
+
     // Read and parse the scene file again for verification
     let content = std::fs::read_to_string(scene_path)?;
     let scene: luminara_db::migration::Scene = ron::from_str(&content)?;
-    
+
     let is_valid = tool.verify_migration(&scene).await?;
 
     if is_valid {
@@ -94,7 +94,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Sample Entities ===");
     let entities = db.query_entities("SELECT * FROM entity LIMIT 5").await?;
     for entity in entities {
-        println!("- {} (tags: {:?})", 
+        println!(
+            "- {} (tags: {:?})",
             entity.name.unwrap_or_else(|| "Unnamed".to_string()),
             entity.tags
         );

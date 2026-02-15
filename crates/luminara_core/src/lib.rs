@@ -34,12 +34,12 @@ pub use app::App;
 pub use atomic_command::AtomicCommand;
 pub use bundle::Bundle;
 pub use command_dependencies::{CommandId, DependencyGraph, DependentCommand};
+#[cfg(feature = "math")]
+pub use commands::ModifyTransformCommand;
 pub use commands::{
     AddComponentCommand, DestroyEntityCommand, ModifyComponentCommand, RemoveComponentCommand,
     SpawnEntityCommand,
 };
-#[cfg(feature = "math")]
-pub use commands::ModifyTransformCommand;
 pub use component::Component;
 pub use entity::Entity;
 pub use error::WorldError;

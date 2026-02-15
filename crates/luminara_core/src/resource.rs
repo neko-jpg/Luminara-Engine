@@ -29,13 +29,13 @@ impl ResourceMap {
             .insert(TypeId::of::<R>(), RwLock::new(Box::new(resource)));
     }
 
-    pub fn get<R: Resource>(&self) -> Option<MappedRwLockReadGuard<R>> {
+    pub fn get<R: Resource>(&self) -> Option<MappedRwLockReadGuard<'_, R>> {
         self.resources.get(&TypeId::of::<R>()).map(|lock| {
             RwLockReadGuard::map(lock.read(), |boxed| boxed.downcast_ref::<R>().unwrap())
         })
     }
 
-    pub fn get_mut<R: Resource>(&self) -> Option<MappedRwLockWriteGuard<R>> {
+    pub fn get_mut<R: Resource>(&self) -> Option<MappedRwLockWriteGuard<'_, R>> {
         self.resources.get(&TypeId::of::<R>()).map(|lock| {
             RwLockWriteGuard::map(lock.write(), |boxed| boxed.downcast_mut::<R>().unwrap())
         })

@@ -163,10 +163,10 @@ impl Scene {
     }
 
     /// Create a Scene from a World, capturing all entities with their hierarchies
-    /// 
+    ///
     /// This function serializes the entire entity hierarchy, preserving parent-child
     /// relationships and all component data.
-    /// 
+    ///
     /// Requirements: 8.5, 8.6
     pub fn from_world(world: &World) -> Self {
         let mut entity_map = HashMap::new();
@@ -174,7 +174,9 @@ impl Scene {
 
         // First pass: identify all entities and their hierarchy relationships
         for entity in world.entities() {
-            let has_parent = world.get_component::<crate::hierarchy::Parent>(entity).is_some();
+            let has_parent = world
+                .get_component::<crate::hierarchy::Parent>(entity)
+                .is_some();
             if !has_parent {
                 root_entities.push(entity);
             }
@@ -255,15 +257,11 @@ impl Scene {
     }
 
     /// Load only specific entities by name from the scene
-    /// 
+    ///
     /// This supports partial loading by allowing selective entity instantiation.
-    /// 
+    ///
     /// Requirements: 8.7
-    pub fn spawn_entities_by_name(
-        &self,
-        world: &mut World,
-        entity_names: &[&str],
-    ) -> Vec<Entity> {
+    pub fn spawn_entities_by_name(&self, world: &mut World, entity_names: &[&str]) -> Vec<Entity> {
         let registry = world.remove_resource::<TypeRegistry>();
         let mut id_map = HashMap::new();
         let mut spawned_entities = Vec::new();
@@ -318,14 +316,8 @@ impl Scene {
         }
 
         // Spawn the entity using the existing logic
-        let entity = self.spawn_entity_recursive(
-            world,
-            registry,
-            data,
-            parent,
-            id_map,
-            spawned_entities,
-        );
+        let entity =
+            self.spawn_entity_recursive(world, registry, data, parent, id_map, spawned_entities);
 
         Some(entity)
     }
@@ -373,7 +365,7 @@ impl Scene {
         }
 
         // Always add Name component
-        world.add_component(entity, Name::new(&data.name));
+        let _ = world.add_component(entity, Name::new(&data.name));
 
         // Always add Tag component if tags exist
         if !data.tags.is_empty() {
@@ -381,7 +373,7 @@ impl Scene {
             for tag_str in &data.tags {
                 tag.insert(tag_str);
             }
-            world.add_component(entity, tag);
+            let _ = world.add_component(entity, tag);
         }
 
         // Handle hierarchy
@@ -396,7 +388,7 @@ impl Scene {
                 if let Ok(transform) =
                     serde_json::from_value::<luminara_math::Transform>(value.clone())
                 {
-                    world.add_component(entity, transform);
+                    let _ = world.add_component(entity, transform);
                 }
                 continue;
             }

@@ -158,7 +158,7 @@ proptest! {
                 duration_ms,
                 target_ms
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -223,7 +223,7 @@ proptest! {
                 duration_ms,
                 target_ms
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -278,7 +278,7 @@ proptest! {
                     "exceeded_target flag should be false when duration <= 16ms"
                 );
             }
-            
+
             Ok(())
         });
         result.unwrap();
@@ -349,7 +349,7 @@ proptest! {
                 expected_slow_syncs,
                 "slow_syncs should count syncs exceeding 16ms"
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -404,7 +404,7 @@ proptest! {
                 entity_count,
                 duration_ms
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -468,7 +468,7 @@ proptest! {
                 duration_ms,
                 target_ms
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -526,7 +526,7 @@ proptest! {
                 duration_ms,
                 target_ms
             );
-            
+
             Ok(())
         });
         result.unwrap();
@@ -598,8 +598,11 @@ async fn test_large_batch_sync_latency() {
     let duration_ms = duration.as_secs_f64() * 1000.0;
 
     // Large batch might exceed 16ms, but should still be reasonable
-    println!("Large batch ({} entities) sync took {:.2}ms", entity_count, duration_ms);
-    
+    println!(
+        "Large batch ({} entities) sync took {:.2}ms",
+        entity_count, duration_ms
+    );
+
     // We allow up to 100ms for large batches (this is a stress test)
     assert!(
         duration_ms <= 100.0,
@@ -626,9 +629,13 @@ async fn test_mixed_operations_latency() {
 
     // Update existing entities
     for i in 0..5 {
-        sync.sync_entity(i, Some(format!("Updated{}", i)), vec!["updated".to_string()])
-            .await
-            .unwrap();
+        sync.sync_entity(
+            i,
+            Some(format!("Updated{}", i)),
+            vec!["updated".to_string()],
+        )
+        .await
+        .unwrap();
     }
 
     // Create new entities
@@ -647,7 +654,7 @@ async fn test_mixed_operations_latency() {
     let duration_ms = duration.as_secs_f64() * 1000.0;
 
     println!("Mixed operations sync took {:.2}ms", duration_ms);
-    
+
     // Mixed operations should complete in reasonable time
     assert!(
         duration_ms <= 50.0,

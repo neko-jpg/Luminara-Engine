@@ -565,7 +565,7 @@ impl Reflect for Mesh {
         })
     }
 
-    fn field(&self, name: &str) -> Option<&dyn Reflect> {
+    fn field(&self, _name: &str) -> Option<&dyn Reflect> {
         // We don't expose the actual vertex/index data through reflection
         // Only metadata
         None
@@ -575,8 +575,14 @@ impl Reflect for Mesh {
         None
     }
 
-    fn set_field(&mut self, name: &str, _value: Box<dyn Reflect>) -> Result<(), luminara_core::ReflectError> {
-        Err(luminara_core::ReflectError::CannotSetField(name.to_string()))
+    fn set_field(
+        &mut self,
+        name: &str,
+        _value: Box<dyn Reflect>,
+    ) -> Result<(), luminara_core::ReflectError> {
+        Err(luminara_core::ReflectError::CannotSetField(
+            name.to_string(),
+        ))
     }
 
     fn clone_value(&self) -> Box<dyn Reflect> {
@@ -598,7 +604,10 @@ impl Reflect for Mesh {
         })
     }
 
-    fn deserialize_json(&mut self, _value: &serde_json::Value) -> Result<(), luminara_core::ReflectError> {
+    fn deserialize_json(
+        &mut self,
+        _value: &serde_json::Value,
+    ) -> Result<(), luminara_core::ReflectError> {
         Err(luminara_core::ReflectError::DeserializationError(
             "Mesh deserialization not supported through reflection".to_string(),
         ))

@@ -205,7 +205,9 @@ impl DependencyGraph {
 
         for &id in self.commands.keys() {
             if !visited.contains(&id) {
-                if let Some(cycle) = self.dfs_cycle_detection(id, &mut visited, &mut rec_stack, &mut path) {
+                if let Some(cycle) =
+                    self.dfs_cycle_detection(id, &mut visited, &mut rec_stack, &mut path)
+                {
                     return Some(cycle);
                 }
             }
@@ -275,7 +277,7 @@ impl DependencyGraph {
             in_degree.insert(id, 0);
         }
         for command in self.commands.values() {
-            for &dep in command.dependencies() {
+            for &_dep in command.dependencies() {
                 *in_degree.get_mut(&command.id()).unwrap() += 1;
             }
         }
@@ -408,7 +410,10 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
+        let cmd = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
         let id = graph.add_command(cmd);
 
         assert_eq!(id, 0);
@@ -422,8 +427,14 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -441,13 +452,19 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
+        let cmd = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
         let id = graph.add_command(cmd);
 
         // Cannot depend on itself
         let result = graph.add_dependency(id, id);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("cannot depend on itself"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("cannot depend on itself"));
     }
 
     #[test]
@@ -456,8 +473,14 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -467,7 +490,10 @@ mod tests {
         let result = graph.add_dependency(id1, id2);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("circular dependency"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("circular dependency"));
     }
 
     #[test]
@@ -476,9 +502,18 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
-        let cmd3 = Box::new(AddComponentCommand::new(entity, Position { x: 5.0, y: 6.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
+        let cmd3 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 5.0, y: 6.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -490,7 +525,10 @@ mod tests {
         let result = graph.add_dependency(id1, id3);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("circular dependency"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("circular dependency"));
     }
 
     #[test]
@@ -499,8 +537,14 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -517,9 +561,18 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
-        let cmd3 = Box::new(AddComponentCommand::new(entity, Position { x: 5.0, y: 6.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
+        let cmd3 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 5.0, y: 6.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -539,10 +592,22 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
-        let cmd3 = Box::new(AddComponentCommand::new(entity, Position { x: 5.0, y: 6.0 }));
-        let cmd4 = Box::new(AddComponentCommand::new(entity, Position { x: 7.0, y: 8.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
+        let cmd3 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 5.0, y: 6.0 },
+        ));
+        let cmd4 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 7.0, y: 8.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -557,7 +622,7 @@ mod tests {
         graph.add_dependency(id4, id3).unwrap();
 
         let order = graph.topological_sort().unwrap();
-        
+
         // Verify cmd1 comes first
         assert_eq!(order[0], id1);
         // Verify cmd4 comes last
@@ -576,8 +641,14 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
 
         let id1 = graph.add_command(cmd1);
         let id2 = graph.add_command(cmd2);
@@ -601,13 +672,19 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
+        let cmd = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
         let id = graph.add_command(cmd);
 
         // Try to add dependency with invalid ID
         let result = graph.add_dependency(id, 999);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid dependency"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid dependency"));
     }
 
     #[test]
@@ -616,8 +693,14 @@ mod tests {
         let mut world = World::new();
         let entity = world.spawn();
 
-        let cmd1 = Box::new(AddComponentCommand::new(entity, Position { x: 1.0, y: 2.0 }));
-        let cmd2 = Box::new(AddComponentCommand::new(entity, Position { x: 3.0, y: 4.0 }));
+        let cmd1 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 1.0, y: 2.0 },
+        ));
+        let cmd2 = Box::new(AddComponentCommand::new(
+            entity,
+            Position { x: 3.0, y: 4.0 },
+        ));
 
         graph.add_command(cmd1);
         graph.add_command(cmd2);

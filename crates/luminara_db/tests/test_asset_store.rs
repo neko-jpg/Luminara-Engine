@@ -1,6 +1,6 @@
 use luminara_db::prelude::*;
-use uuid::Uuid;
 use surrealdb::sql::Uuid as DbUuid;
+use uuid::Uuid;
 
 #[tokio::test]
 #[ignore = "Fails with 'missing field type' serialization error in embedded mode, despite passing json serialization test"]
