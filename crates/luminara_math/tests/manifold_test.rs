@@ -1,5 +1,5 @@
-use luminara_math::geometry::{TriangleMesh, geodesic_distance_from};
 use glam::Vec3;
+use luminara_math::geometry::{geodesic_distance_from, TriangleMesh};
 use proptest::prelude::*;
 
 fn generate_grid_mesh(w: usize, h: usize) -> TriangleMesh {
@@ -12,12 +12,12 @@ fn generate_grid_mesh(w: usize, h: usize) -> TriangleMesh {
         }
     }
 
-    for y in 0..h-1 {
-        for x in 0..w-1 {
-            let i0 = y*w + x;
-            let i1 = y*w + x + 1;
-            let i2 = (y+1)*w + x;
-            let i3 = (y+1)*w + x + 1;
+    for y in 0..h - 1 {
+        for x in 0..w - 1 {
+            let i0 = y * w + x;
+            let i1 = y * w + x + 1;
+            let i2 = (y + 1) * w + x;
+            let i3 = (y + 1) * w + x + 1;
             // Two triangles
             indices.push([i0, i1, i2]);
             indices.push([i1, i3, i2]);
@@ -47,7 +47,7 @@ fn test_laplacian_properties() {
 fn test_heat_method_plane() {
     let size = 20;
     let mesh = generate_grid_mesh(size, size);
-    let center = (size/2) * size + (size/2);
+    let center = (size / 2) * size + (size / 2);
 
     if let Some(dists) = geodesic_distance_from(&mesh, center) {
         let p_center = mesh.positions[center];
@@ -59,7 +59,13 @@ fn test_heat_method_plane() {
             // On boundary, heat method has bias (Neumann).
             // Inner vertices should be accurate.
             if true_dist < (size as f64) * 0.3 {
-                assert!((true_dist - calc_dist).abs() < 0.5, "Dist mismatch at {}: true {}, calc {}", i, true_dist, calc_dist);
+                assert!(
+                    (true_dist - calc_dist).abs() < 0.5,
+                    "Dist mismatch at {}: true {}, calc {}",
+                    i,
+                    true_dist,
+                    calc_dist
+                );
             }
         }
     } else {

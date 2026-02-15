@@ -77,7 +77,7 @@ fn test_world_events() {
         assert_eq!(current.len(), 2);
     }
 
-    world.get_events_mut::<MyEvent>().update();
+    world.get_events_mut::<MyEvent>().unwrap().update();
 
     {
         let events = world.get_events::<MyEvent>().unwrap();

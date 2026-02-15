@@ -55,16 +55,16 @@ proptest! {
     #[test]
     fn prop_two_sum_exactness(a in finite_f64_strategy(), b in finite_f64_strategy()) {
         let (sum, error) = two_sum(a, b);
-        
+
         // The sum and error should be finite
         prop_assert!(sum.is_finite(), "Sum should be finite");
         prop_assert!(error.is_finite(), "Error should be finite");
-        
+
         // The key property: s + e should equal a + b exactly
         // We verify this by checking that the difference is within machine epsilon
         let reconstructed = sum + error;
         let direct = a + b;
-        
+
         // For most cases, these should be exactly equal
         // In edge cases with extreme values, we allow a small tolerance
         let tolerance = if a.abs() > 1e100 || b.abs() > 1e100 {
@@ -72,7 +72,7 @@ proptest! {
         } else {
             0.0
         };
-        
+
         prop_assert!(
             (reconstructed - direct).abs() <= tolerance,
             "two_sum should be exact: a={}, b={}, sum={}, error={}, reconstructed={}, direct={}",
@@ -90,10 +90,10 @@ proptest! {
     fn prop_two_sum_commutative(a in finite_f64_strategy(), b in finite_f64_strategy()) {
         let (sum1, error1) = two_sum(a, b);
         let (sum2, error2) = two_sum(b, a);
-        
+
         let result1 = sum1 + error1;
         let result2 = sum2 + error2;
-        
+
         prop_assert!(
             (result1 - result2).abs() <= f64::EPSILON * result1.abs().max(result2.abs()),
             "two_sum should be commutative: a={}, b={}, result1={}, result2={}",
@@ -111,16 +111,16 @@ proptest! {
     #[test]
     fn prop_two_product_exactness(a in finite_f64_strategy(), b in finite_f64_strategy()) {
         let (product, error) = two_product(a, b);
-        
+
         // The product and error should be finite (unless the result overflows/underflows)
         if (a * b).is_finite() {
             prop_assert!(product.is_finite(), "Product should be finite");
             prop_assert!(error.is_finite(), "Error should be finite");
-            
+
             // The key property: p + e should equal a * b exactly
             let reconstructed = product + error;
             let direct = a * b;
-            
+
             // For products, we need to be more careful with tolerance
             // The error term can be very small compared to the product
             let tolerance = if product.abs() > 1e-100 {
@@ -128,7 +128,7 @@ proptest! {
             } else {
                 1e-30 // For very small products
             };
-            
+
             prop_assert!(
                 (reconstructed - direct).abs() <= tolerance,
                 "two_product should be exact: a={}, b={}, product={}, error={}, reconstructed={}, direct={}",
@@ -147,17 +147,17 @@ proptest! {
     fn prop_two_product_commutative(a in finite_f64_strategy(), b in finite_f64_strategy()) {
         let (product1, error1) = two_product(a, b);
         let (product2, error2) = two_product(b, a);
-        
+
         if (a * b).is_finite() {
             let result1 = product1 + error1;
             let result2 = product2 + error2;
-            
+
             let tolerance = if result1.abs() > 1e-100 {
                 f64::EPSILON * result1.abs().max(result2.abs()) * 10.0
             } else {
                 1e-30
             };
-            
+
             prop_assert!(
                 (result1 - result2).abs() <= tolerance,
                 "two_product should be commutative: a={}, b={}, result1={}, result2={}",
@@ -174,7 +174,7 @@ proptest! {
     #[test]
     fn prop_two_sum_zero_identity(a in finite_f64_strategy()) {
         let (sum, error) = two_sum(a, 0.0);
-        
+
         prop_assert_eq!(sum, a, "two_sum(a, 0) should produce sum = a");
         prop_assert_eq!(error, 0.0, "two_sum(a, 0) should produce error = 0");
     }
@@ -187,7 +187,7 @@ proptest! {
     #[test]
     fn prop_two_product_zero(a in finite_f64_strategy()) {
         let (product, error) = two_product(a, 0.0);
-        
+
         prop_assert_eq!(product, 0.0, "two_product(a, 0) should produce product = 0");
         prop_assert_eq!(error, 0.0, "two_product(a, 0) should produce error = 0");
     }
@@ -200,7 +200,7 @@ proptest! {
     #[test]
     fn prop_two_product_one_identity(a in finite_f64_strategy()) {
         let (product, error) = two_product(a, 1.0);
-        
+
         prop_assert_eq!(product, a, "two_product(a, 1) should produce product = a");
         prop_assert_eq!(error, 0.0, "two_product(a, 1) should produce error = 0");
     }
@@ -222,16 +222,16 @@ proptest! {
         let (s2, e2) = two_sum(s1, c);
         let (s_err1, e_err1) = two_sum(e1, e2);
         let result1 = s2 + s_err1 + e_err1;
-        
+
         // Compute a + (b + c) with error tracking
         let (s3, e3) = two_sum(b, c);
         let (s4, e4) = two_sum(a, s3);
         let (s_err2, e_err2) = two_sum(e3, e4);
         let result2 = s4 + s_err2 + e_err2;
-        
+
         // The exact results should be very close
         let tolerance = f64::EPSILON * result1.abs().max(result2.abs()) * 100.0;
-        
+
         prop_assert!(
             (result1 - result2).abs() <= tolerance,
             "Error tracking should preserve associativity: a={}, b={}, c={}, result1={}, result2={}",
@@ -248,14 +248,14 @@ proptest! {
     #[test]
     fn prop_two_sum_cancellation(a in finite_f64_strategy()) {
         let (sum, error) = two_sum(a, -a);
-        
+
         // The sum should be zero or very close to zero
         prop_assert!(
             sum.abs() <= f64::EPSILON * a.abs(),
             "two_sum(a, -a) should produce sum ≈ 0: a={}, sum={}, error={}",
             a, sum, error
         );
-        
+
         // The error should also be zero or very close to zero
         prop_assert!(
             error.abs() <= f64::EPSILON * a.abs(),
@@ -275,7 +275,7 @@ proptest! {
         if a != 0.0 && b != 0.0 && (a * b).is_finite() {
             let (product, _error) = two_product(a, b);
             let direct = a * b;
-            
+
             prop_assert_eq!(
                 product.signum(),
                 direct.signum(),
@@ -300,7 +300,7 @@ mod edge_cases {
         let a = 1.0;
         let b = f64::EPSILON;
         let (sum, error) = two_sum(a, b);
-        
+
         // When adding 1.0 + epsilon, the sum becomes the next representable float
         // The error term should be zero because the addition is exact
         assert_eq!(sum, 1.0 + f64::EPSILON);
@@ -313,7 +313,7 @@ mod edge_cases {
         let a = 1e100;
         let b = 1.0;
         let (sum, error) = two_sum(a, b);
-        
+
         // The small value should be captured in the error term
         assert_eq!(sum, 1e100);
         assert_eq!(error, 1.0);
@@ -324,7 +324,7 @@ mod edge_cases {
         // **Validates: Requirements 1.7**
         let sqrt2 = 2.0_f64.sqrt();
         let (product, error) = two_product(sqrt2, sqrt2);
-        
+
         // sqrt(2) * sqrt(2) = 2, but there will be rounding error
         let reconstructed = product + error;
         assert!((reconstructed - 2.0).abs() < 1e-15);
@@ -336,7 +336,7 @@ mod edge_cases {
         let a = 1.5;
         let b = -1.0;
         let (sum, error) = two_sum(a, b);
-        
+
         assert_eq!(sum, 0.5);
         assert_eq!(error, 0.0);
     }
@@ -347,7 +347,7 @@ mod edge_cases {
         let a = -3.5;
         let b = -2.5;
         let (product, error) = two_product(a, b);
-        
+
         assert_eq!(product, 8.75);
         assert_eq!(error, 0.0); // Exact multiplication
     }
@@ -358,7 +358,7 @@ mod edge_cases {
         let a = f64::MIN_POSITIVE / 2.0; // Denormal number
         let b = f64::MIN_POSITIVE / 2.0;
         let (sum, error) = two_sum(a, b);
-        
+
         // Should handle denormal numbers gracefully
         assert!(sum.is_finite());
         assert!(error.is_finite());

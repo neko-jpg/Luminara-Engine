@@ -3,38 +3,39 @@
 //! **Validates: Requirements 2.7**
 //! **Property 7: Motor Inverse Property**
 
-use luminara_math::algebra::Motor;
 use glam::Vec3;
+use luminara_math::algebra::Motor;
 use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
 fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
-        -10.0f32..10.0,  // translation x
-        -10.0f32..10.0,  // translation y
-        -10.0f32..10.0,  // translation z
-        -1.0f32..1.0,    // rotation axis x
-        -1.0f32..1.0,    // rotation axis y
-        -1.0f32..1.0,    // rotation axis z
-        -PI..PI,         // rotation angle
-    ).prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
-        let trans = Vec3::new(tx, ty, tz);
-        let axis = Vec3::new(ax, ay, az);
-        
-        // Handle zero axis case
-        if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans.into())
-        } else {
-            let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
-            let trans_motor = Motor::from_translation(trans.into());
-            let mut motor = trans_motor.geometric_product(&rot);
-            // Normalize to ensure it's a valid motor
-            motor.normalize();
-            motor
-        }
-    })
+        -10.0f32..10.0, // translation x
+        -10.0f32..10.0, // translation y
+        -10.0f32..10.0, // translation z
+        -1.0f32..1.0,   // rotation axis x
+        -1.0f32..1.0,   // rotation axis y
+        -1.0f32..1.0,   // rotation axis z
+        -PI..PI,        // rotation angle
+    )
+        .prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
+            let trans = Vec3::new(tx, ty, tz);
+            let axis = Vec3::new(ax, ay, az);
+
+            // Handle zero axis case
+            if axis.length_squared() < 1e-6 {
+                Motor::from_translation(trans.into())
+            } else {
+                let axis_normalized = axis.normalize();
+                let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+                let trans_motor = Motor::from_translation(trans.into());
+                let mut motor = trans_motor.geometric_product(&rot);
+                // Normalize to ensure it's a valid motor
+                motor.normalize();
+                motor
+            }
+        })
 }
 
 /// Helper function to check if two motors are approximately equal.
@@ -47,7 +48,7 @@ fn assert_motors_approx_equal(a: &Motor<f32>, b: &Motor<f32>, epsilon: f32) {
     let diff_e02 = (a.e02 - b.e02).abs();
     let diff_e03 = (a.e03 - b.e03).abs();
     let diff_e0123 = (a.e0123 - b.e0123).abs();
-    
+
     assert!(
         diff_s < epsilon &&
         diff_e12 < epsilon &&
@@ -79,10 +80,10 @@ proptest! {
     fn motor_times_inverse_equals_identity(motor in motor_strategy()) {
         // Compute the inverse (reverse for normalized motors)
         let motor_inverse = motor.reverse();
-        
+
         // Compute M * M^-1
         let result = motor.geometric_product(&motor_inverse);
-        
+
         // The result should be approximately the identity motor
         assert_motors_approx_equal(&result, &Motor::IDENTITY, 1e-4);
     }
@@ -92,10 +93,10 @@ proptest! {
     fn inverse_times_motor_equals_identity(motor in motor_strategy()) {
         // Compute the inverse (reverse for normalized motors)
         let motor_inverse = motor.reverse();
-        
+
         // Compute M^-1 * M
         let result = motor_inverse.geometric_product(&motor);
-        
+
         // The result should be approximately the identity motor
         assert_motors_approx_equal(&result, &Motor::IDENTITY, 1e-4);
     }
@@ -109,9 +110,9 @@ proptest! {
     ) {
         let motor = Motor::from_translation(Vec3::new(tx, ty, tz).into());
         let motor_inverse = motor.reverse();
-        
+
         let result = motor.geometric_product(&motor_inverse);
-        
+
         assert_motors_approx_equal(&result, &Motor::IDENTITY, 1e-5);
     }
 
@@ -124,20 +125,20 @@ proptest! {
         angle in -PI..PI,
     ) {
         let axis = Vec3::new(ax, ay, az);
-        
+
         // Skip if axis is too small
         prop_assume!(axis.length_squared() > 1e-6);
-        
+
         let motor = Motor::from_axis_angle(axis.normalize().into(), angle);
         let motor_inverse = motor.reverse();
-        
+
         let result = motor.geometric_product(&motor_inverse);
-        
+
         assert_motors_approx_equal(&result, &Motor::IDENTITY, 1e-5);
     }
 
     /// Test that applying a motor and its inverse to a point returns the original point.
-    /// 
+    ///
     /// This test verifies that the composition M^-1 * M applied to a point via the
     /// sandwich product returns the identity transformation.
     #[test]
@@ -149,13 +150,13 @@ proptest! {
     ) {
         let point = Vec3::new(px, py, pz);
         let motor_inverse = motor.reverse();
-        
+
         // Compose M^-1 * M to get identity
         let identity_motor = motor_inverse.geometric_product(&motor);
-        
+
         // Apply the composed motor to the point
         let result = identity_motor.transform_point(point.into());
-        
+
         // Should get back the original point (since identity_motor ≈ I)
         let diff = (Vec3::from(result) - point).length();
         assert!(

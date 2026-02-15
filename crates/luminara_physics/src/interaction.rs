@@ -1,9 +1,9 @@
-use luminara_core::{CoreStage, Plugin, Query, Res, ResMut, Resource, AppInterface, Entity};
 use luminara_core::system::FunctionMarker;
+use luminara_core::{AppInterface, CoreStage, Entity, Plugin, Query, Res, ResMut, Resource};
 use luminara_input::{Input, MouseButton};
 use luminara_math::{Vec2, Vec3};
 use luminara_render::camera::Camera;
-use luminara_render::{Gizmos, CommandBuffer};
+use luminara_render::{CommandBuffer, Gizmos};
 use luminara_scene::GlobalTransform;
 use luminara_window::Window;
 use rapier3d::prelude::*;
@@ -87,7 +87,8 @@ pub fn mouse_interaction_system(
     let window_size = Vec2::new(window.width as f32, window.height as f32);
 
     // 3. Compute Ray
-    let (ray_origin, ray_dir) = screen_to_world_ray(mouse_pos, window_size, camera, camera_transform);
+    let (ray_origin, ray_dir) =
+        screen_to_world_ray(mouse_pos, window_size, camera, camera_transform);
 
     // Draw ray for debug
     Gizmos::line(
@@ -131,7 +132,8 @@ pub fn mouse_interaction_system(
                                 // Calculate local anchor point
                                 let hit_point = ray.point_at(toi);
                                 let body_transform = body.position();
-                                grab_state.local_anchor = body_transform.inverse_transform_point(&hit_point);
+                                grab_state.local_anchor =
+                                    body_transform.inverse_transform_point(&hit_point);
 
                                 grab_state.velocity_history.clear();
 
@@ -155,7 +157,11 @@ pub fn mouse_interaction_system(
                     let current_point = body.position().transform_point(&grab_state.local_anchor);
 
                     // Spring force: F = k * (Target - Current) - c * Velocity
-                    let diff = vector![target_point.x - current_point.x, target_point.y - current_point.y, target_point.z - current_point.z];
+                    let diff = vector![
+                        target_point.x - current_point.x,
+                        target_point.y - current_point.y,
+                        target_point.z - current_point.z
+                    ];
                     let velocity = *body.linvel();
 
                     let force = diff * config.grab_force - velocity * config.drag_damping;
@@ -181,11 +187,11 @@ pub fn mouse_interaction_system(
         if let Some(entity) = grab_state.grabbed_entity {
             if let Some(&body_handle) = physics_world.entity_to_body.get(&entity) {
                 if let Some(body) = physics_world.rigid_body_set.get_mut(body_handle) {
-                     // Apply throw impulse if needed, but the spring force already accelerated it.
-                     // Often we want an extra boost.
-                     let vel = *body.linvel();
-                     body.apply_impulse(vel * config.throw_multiplier, true);
-                     log::info!("Released entity {:?} with velocity {:?}", entity, vel);
+                    // Apply throw impulse if needed, but the spring force already accelerated it.
+                    // Often we want an extra boost.
+                    let vel = *body.linvel();
+                    body.apply_impulse(vel * config.throw_multiplier, true);
+                    log::info!("Released entity {:?} with velocity {:?}", entity, vel);
                 }
             }
         }

@@ -68,7 +68,7 @@ impl SceneManager {
     pub fn load_current_scene(&mut self, world: &mut World) -> Result<(), String> {
         let scene_def = self.current_scene();
         let path = std::path::Path::new(&scene_def.file_path);
-        
+
         // Try to load the scene
         match luminara_scene::Scene::load_from_file(path) {
             Ok(scene) => {
@@ -77,9 +77,7 @@ impl SceneManager {
                 scene.spawn_into(world);
                 Ok(())
             }
-            Err(e) => {
-                Err(format!("Failed to load scene '{}': {}", scene_def.name, e))
-            }
+            Err(e) => Err(format!("Failed to load scene '{}': {}", scene_def.name, e)),
         }
     }
 }

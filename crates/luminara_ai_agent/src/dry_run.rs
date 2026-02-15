@@ -1,5 +1,5 @@
-use luminara_core::world::World;
 use luminara_core::entity::Entity;
+use luminara_core::world::World;
 use std::collections::HashMap;
 
 // Requirements 8.4, 8.5, 8.6, 8.7
@@ -8,7 +8,9 @@ use std::collections::HashMap;
 pub struct DryRunner;
 
 impl DryRunner {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     pub fn dry_run(&self, code: &str, world: &World) -> DiffPreview {
         // Execute code in a way that doesn't commit to world?

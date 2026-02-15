@@ -1,13 +1,13 @@
 use luminara_core::{Component, Entity};
-use luminara_math::{Vec3, Quat};
+use luminara_math::{Quat, Vec3};
 
 pub struct TwoBoneIK {
-    pub target: Entity, // Entity to track
+    pub target: Entity,              // Entity to track
     pub pole_target: Option<Entity>, // Entity for pole vector (elbow direction)
-    pub bone1: Entity, // Upper arm / Thigh
-    pub bone2: Entity, // Lower arm / Calf
-    pub end_effector: Entity, // Hand / Foot
-    pub chain_length: f32, // Precomputed sum of bone lengths
+    pub bone1: Entity,               // Upper arm / Thigh
+    pub bone2: Entity,               // Lower arm / Calf
+    pub end_effector: Entity,        // Hand / Foot
+    pub chain_length: f32,           // Precomputed sum of bone lengths
     pub iterations: usize,
 }
 
@@ -51,14 +51,16 @@ impl TwoBoneIKSolver {
         // cos(C) = (a^2 + b^2 - c^2) / 2ab
         // angle_at_elbow (internal) = acos((b1^2 + b2^2 - dist^2) / (2 * b1 * b2))
 
-        let cos_elbow = (bone1_len * bone1_len + bone2_len * bone2_len - clamped_dist * clamped_dist)
-                        / (2.0 * bone1_len * bone2_len);
+        let cos_elbow = (bone1_len * bone1_len + bone2_len * bone2_len
+            - clamped_dist * clamped_dist)
+            / (2.0 * bone1_len * bone2_len);
         let angle_elbow = cos_elbow.clamp(-1.0, 1.0).acos();
 
         // cos(A) = (b^2 + c^2 - a^2) / (2bc)
         // angle_at_shoulder_offset = acos((b1^2 + dist^2 - b2^2) / (2 * b1 * dist))
-        let cos_shoulder = (bone1_len * bone1_len + clamped_dist * clamped_dist - bone2_len * bone2_len)
-                           / (2.0 * bone1_len * clamped_dist);
+        let cos_shoulder = (bone1_len * bone1_len + clamped_dist * clamped_dist
+            - bone2_len * bone2_len)
+            / (2.0 * bone1_len * clamped_dist);
         let angle_shoulder = cos_shoulder.clamp(-1.0, 1.0).acos();
 
         // Construct Basis
@@ -75,7 +77,11 @@ impl TwoBoneIKSolver {
         // If target and pole are collinear, pick arbitrary normal
         let plane_normal = if plane_normal.length_squared() < 0.001 {
             // Find arbitrary perpendicular
-            let v = if target_dir.normalize().dot(Vec3::Y).abs() > 0.99 { Vec3::X } else { Vec3::Y };
+            let v = if target_dir.normalize().dot(Vec3::Y).abs() > 0.99 {
+                Vec3::X
+            } else {
+                Vec3::Y
+            };
             target_dir.cross(v).normalize()
         } else {
             plane_normal
@@ -104,7 +110,9 @@ impl TwoBoneIKSolver {
         // Local Z -> Plane Normal (Hinge Axis)
         // Local X -> In Plane Perpendicular
 
-        let basis_rot = Quat::from_mat3(&luminara_math::glam::Mat3::from_cols(x_axis, y_axis, z_axis));
+        let basis_rot = Quat::from_mat3(&luminara_math::glam::Mat3::from_cols(
+            x_axis, y_axis, z_axis,
+        ));
 
         // Now apply the shoulder offset angle.
         // Bone 1 rotates *away* from the target vector by `angle_shoulder`.

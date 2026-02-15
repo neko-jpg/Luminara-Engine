@@ -51,10 +51,10 @@ mod tests {
     fn test_epsilon_value() {
         // Verify that EPSILON is the machine epsilon for f64
         assert_eq!(EPSILON, 2.220446049250313e-16);
-        
+
         // Verify the property: 1.0 + EPSILON != 1.0
         assert_ne!(1.0 + EPSILON, 1.0);
-        
+
         // Verify that EPSILON/2 is too small to distinguish
         assert_eq!(1.0 + EPSILON / 2.0, 1.0);
     }

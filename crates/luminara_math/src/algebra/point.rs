@@ -4,9 +4,8 @@
 //! Points are dual to planes.
 //! P = w*e123 + x*e032 + y*e013 + z*e021
 
-use super::vector::Vector3;
 use super::traits::Scalar;
-
+use super::vector::Vector3;
 
 use glam::Vec3;
 
@@ -23,7 +22,12 @@ pub struct Point<T> {
 impl<T: Scalar> Point<T> {
     /// Create a new point from coordinates.
     pub fn new(x: T, y: T, z: T) -> Self {
-        Self { x, y, z, w: T::one() }
+        Self {
+            x,
+            y,
+            z,
+            w: T::one(),
+        }
     }
 
     /// Create a new point with homogeneous coordinate.
@@ -56,8 +60,7 @@ impl<T: Scalar> Point<T> {
 
 // Interop
 impl Point<f32> {
-
     pub fn to_vec3(&self) -> Vec3 {
-         Vec3::from(self.to_vector3())
+        Vec3::from(self.to_vector3())
     }
 }

@@ -1,10 +1,12 @@
-use luminara_ai_agent::context_engine::{WorldDigestEngine, AttentionEstimator};
+use luminara_ai_agent::context_engine::{AttentionEstimator, WorldDigestEngine};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
 #[quickcheck]
 fn test_relevance_prioritization(query: String, entity_name: String) -> TestResult {
-    if entity_name.is_empty() { return TestResult::discard(); }
+    if entity_name.is_empty() {
+        return TestResult::discard();
+    }
 
     let estimator = AttentionEstimator::default();
     let score = estimator.estimate_relevance(&query, &entity_name);

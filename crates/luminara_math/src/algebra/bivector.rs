@@ -3,7 +3,7 @@
 //! Represents elements of the Lie algebra se(3) in PGA representation.
 //! A Bivector represents infinitesimal rotations and translations in 3D space.
 
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Mul, Sub};
 
 /// A bivector in PGA(3,0,1) representing an element of the Lie algebra se(3).
 ///
@@ -102,7 +102,8 @@ impl<T: Copy + Mul<Output = T>> Bivector<T> {
     /// This is the sum of squares of all components.
     #[inline]
     pub fn norm_squared(&self) -> T
-    where T: Add<Output=T> + Mul<Output=T>
+    where
+        T: Add<Output = T> + Mul<Output = T>,
     {
         self.e12 * self.e12
             + self.e13 * self.e13

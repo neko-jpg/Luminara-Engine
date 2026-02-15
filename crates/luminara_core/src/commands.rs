@@ -125,7 +125,12 @@ struct DespawnCommand {
 }
 impl Command for DespawnCommand {
     fn apply(self: Box<Self>, world: &mut World) {
-        world.despawn(self.entity);
+        if !world.despawn(self.entity) {
+            log::warn!(
+                "Failed to despawn entity {:?} (already despawned?)",
+                self.entity
+            );
+        }
     }
 }
 
@@ -135,7 +140,9 @@ struct InsertCommand<T: Component> {
 }
 impl<T: Component> Command for InsertCommand<T> {
     fn apply(self: Box<Self>, world: &mut World) {
-        world.add_component(self.entity, self.component);
+        if let Err(e) = world.add_component(self.entity, self.component) {
+            log::error!("Failed to insert component: {}", e);
+        }
     }
 }
 
@@ -146,7 +153,13 @@ impl<T: Component> Command for SpawnAndInsertCommand<T> {
     fn apply(self: Box<Self>, world: &mut World) {
         let entity = world.spawn();
         if let Some(c) = self.component {
-            world.add_component(entity, c);
+            if let Err(e) = world.add_component(entity, c) {
+                log::error!(
+                    "Failed to insert component on spawned entity {:?}: {}",
+                    entity,
+                    e
+                );
+            }
         }
     }
 }
@@ -156,7 +169,9 @@ struct SpawnBundleCommand<B: Bundle> {
 }
 impl<B: Bundle> Command for SpawnBundleCommand<B> {
     fn apply(self: Box<Self>, world: &mut World) {
-        world.spawn_bundle(self.bundle);
+        if let Err(e) = world.spawn_bundle(self.bundle) {
+            log::error!("Failed to spawn bundle: {}", e);
+        }
     }
 }
 
@@ -166,7 +181,9 @@ struct InsertBundleCommand<B: Bundle> {
 }
 impl<B: Bundle> Command for InsertBundleCommand<B> {
     fn apply(self: Box<Self>, world: &mut World) {
-        world.add_bundle(self.entity, self.bundle);
+        if let Err(e) = world.add_bundle(self.entity, self.bundle) {
+            log::error!("Failed to add bundle to entity {:?}: {}", self.entity, e);
+        }
     }
 }
 
@@ -176,6 +193,13 @@ struct RemoveComponentCommand<T: Component> {
 }
 impl<T: Component> Command for RemoveComponentCommand<T> {
     fn apply(self: Box<Self>, world: &mut World) {
-        world.remove_component::<T>(self.entity);
+        if let Err(e) = world.remove_component::<T>(self.entity) {
+            // EntityNotFound is common for delayed remove, maybe warn or debug
+            log::debug!(
+                "Failed to remove component from entity {:?}: {}",
+                self.entity,
+                e
+            );
+        }
     }
 }

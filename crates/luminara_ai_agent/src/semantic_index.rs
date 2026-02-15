@@ -1,8 +1,8 @@
 // Requirements 5.6
 // "Implement SemanticIndex... local embedding model... HNSW vector store... entity-to-text"
 
-use luminara_core::world::World;
 use luminara_core::entity::Entity;
+use luminara_core::world::World;
 use std::collections::HashMap;
 
 // We need a vector store. For MVP, simple linear scan or lightweight crate.
@@ -52,7 +52,9 @@ impl SemanticIndex {
         // Normalize
         let mag: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
         if mag > 0.0 {
-            for x in &mut vec { *x /= mag; }
+            for x in &mut vec {
+                *x /= mag;
+            }
         }
         vec
     }
@@ -60,7 +62,9 @@ impl SemanticIndex {
     pub fn search(&self, query: &str, limit: usize) -> Vec<(u64, f32)> {
         let query_vec = self.generate_embedding(query);
 
-        let mut scores: Vec<(u64, f32)> = self.entity_vectors.iter()
+        let mut scores: Vec<(u64, f32)> = self
+            .entity_vectors
+            .iter()
             .map(|(&id, vec)| {
                 // Cosine similarity
                 let score: f32 = vec.iter().zip(&query_vec).map(|(a, b)| a * b).sum();

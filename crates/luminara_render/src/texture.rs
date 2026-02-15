@@ -51,7 +51,11 @@ impl luminara_asset::AssetLoader for TextureLoader {
         &["png", "jpg", "jpeg", "hdr"]
     }
 
-    fn load(&self, bytes: &[u8], _path: &std::path::Path) -> Result<Self::Asset, luminara_asset::AssetLoadError> {
+    fn load(
+        &self,
+        bytes: &[u8],
+        _path: &std::path::Path,
+    ) -> Result<Self::Asset, luminara_asset::AssetLoadError> {
         Texture::from_bytes(bytes).map_err(|e| luminara_asset::AssetLoadError::Parse(e.to_string()))
     }
 }

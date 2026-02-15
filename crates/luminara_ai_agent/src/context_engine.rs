@@ -1,7 +1,7 @@
 // Requirements 5.1, 5.2, 5.5
 
-use crate::semantic_index::SemanticIndex;
 use crate::schema::SchemaDiscoveryService;
+use crate::semantic_index::SemanticIndex;
 use luminara_core::world::World;
 
 pub struct AiContextEngine {
@@ -69,7 +69,10 @@ impl WorldDigestEngine {
         let entity_count = world.entities().len();
         let component_types = "Transform, Mesh, Material";
 
-        format!("World Summary:\nEntities: {}\nComponents: {}\n", entity_count, component_types)
+        format!(
+            "World Summary:\nEntities: {}\nComponents: {}\n",
+            entity_count, component_types
+        )
     }
 
     pub fn generate_l1_catalog(&self, _world: &World) -> String {

@@ -1,7 +1,7 @@
-use luminara_input::{ActionMap, InputAction, InputExt, Input};
 use luminara_input::input_map::{ActionBinding, InputSource};
 use luminara_input::keyboard::Key;
 use luminara_input::mouse::MouseButton;
+use luminara_input::{ActionMap, Input, InputAction, InputExt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum TestAction {
@@ -16,14 +16,20 @@ fn test_action_mapping_consistency() {
     let mut map = ActionMap::<TestAction>::new();
 
     // Bind Jump to Space
-    map.bind(TestAction::Jump, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Space)],
-    });
+    map.bind(
+        TestAction::Jump,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Space)],
+        },
+    );
 
     // Bind Fire to Mouse Left
-    map.bind(TestAction::Fire, ActionBinding {
-        inputs: vec![InputSource::MouseButton(MouseButton::Left)],
-    });
+    map.bind(
+        TestAction::Fire,
+        ActionBinding {
+            inputs: vec![InputSource::MouseButton(MouseButton::Left)],
+        },
+    );
 
     let mut input = Input::default();
 

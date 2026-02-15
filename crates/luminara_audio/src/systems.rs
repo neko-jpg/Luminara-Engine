@@ -43,45 +43,73 @@ pub fn audio_system(world: &mut World) {
         world.insert_resource(AudioPlayback::default());
     }
 
-    // Get audio manager
-    let audio_manager = world.get_resource::<KiraAudioManager>();
-    if audio_manager.is_none() {
+    // Check if audio manager exists without holding the lock
+    if world.get_resource::<KiraAudioManager>().is_none() {
         return;
     }
 
     // Initialize spatial scene if needed
     {
-        let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
-        let audio_manager = world.get_resource_mut::<KiraAudioManager>().unwrap();
+        // We need to access both resources. To avoid deadlocks or multiple mutable borrows,
+        // we should access them sequentially if possible, or ensure we don't hold one while waiting for another
+        // if the other thread does the reverse.
+        // Since we are single-threaded here (exclusive system access to world), we just need to satisfy the borrow checker.
 
-        if playback.spatial_scene.is_none() {
-            match audio_manager
-                .0
-                .add_spatial_scene(SpatialSceneSettings::default())
-            {
-                Ok(scene) => {
-                    playback.spatial_scene = Some(scene);
-                    info!("Initialized spatial audio scene");
-                }
-                Err(e) => {
-                    error!("Failed to create spatial scene: {}", e);
+        // Scope the mutable access to check/init spatial scene
+        let mut needs_init = false;
+        if let Some(playback) = world.get_resource::<AudioPlayback>() {
+            if playback.spatial_scene.is_none() {
+                needs_init = true;
+            }
+        }
+
+        if needs_init {
+            // Now we need both mutable to init
+            if let Some(mut playback) = world.get_resource_mut::<AudioPlayback>() {
+                if let Some(mut audio_manager) = world.get_resource_mut::<KiraAudioManager>() {
+                    if playback.spatial_scene.is_none() {
+                        match audio_manager
+                            .0
+                            .add_spatial_scene(SpatialSceneSettings::default())
+                        {
+                            Ok(scene) => {
+                                playback.spatial_scene = Some(scene);
+                                info!("Initialized spatial audio scene");
+                            }
+                            Err(e) => {
+                                error!("Failed to create spatial scene: {}", e);
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Initialize listener if needed and there's an AudioListener component
-        if playback.listener.is_none() {
-            if let Some(scene) = &mut playback.spatial_scene {
-                // Convert Vec3 and Quat to mint types for kira
-                let pos: [f32; 3] = Vec3::ZERO.into();
-                let rot: [f32; 4] = Quat::IDENTITY.into();
-                match scene.add_listener(pos, rot, ListenerSettings::default()) {
-                    Ok(listener) => {
-                        playback.listener = Some(listener);
-                        info!("Initialized audio listener");
-                    }
-                    Err(e) => {
-                        error!("Failed to create listener: {}", e);
+        // Listener init
+        let mut needs_listener = false;
+        if let Some(playback) = world.get_resource::<AudioPlayback>() {
+            if playback.listener.is_none() && playback.spatial_scene.is_some() {
+                needs_listener = true;
+            }
+        }
+
+        if needs_listener {
+            if let Some(mut playback) = world.get_resource_mut::<AudioPlayback>() {
+                // We need to extract the scene handle to call add_listener, but add_listener is a method on SpatialSceneHandle?
+                // Wait, SpatialSceneHandle in kira might be cloneable or we access it via mutable reference.
+                // The original code was: scene.add_listener(...)
+
+                if let Some(scene) = &mut playback.spatial_scene {
+                    let pos: [f32; 3] = Vec3::ZERO.into();
+                    let rot: [f32; 4] = Quat::IDENTITY.into();
+                    match scene.add_listener(pos, rot, ListenerSettings::default()) {
+                        Ok(listener) => {
+                            playback.listener = Some(listener);
+                            info!("Initialized audio listener");
+                        }
+                        Err(e) => {
+                            error!("Failed to create listener: {}", e);
+                        }
                     }
                 }
             }
@@ -115,7 +143,7 @@ fn update_listener_position(world: &mut World) {
     };
 
     if let Some((_, transform)) = listener_query.first() {
-        let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
+        let mut playback = world.get_resource_mut::<AudioPlayback>().unwrap();
 
         if let Some(listener) = &mut playback.listener {
             let pos: [f32; 3] = transform.0.translation.into();
@@ -146,7 +174,7 @@ fn update_spatial_audio(world: &mut World) {
             .collect()
     };
 
-    let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
+    let mut playback = world.get_resource_mut::<AudioPlayback>().unwrap();
 
     for (entity, source, transform) in sources {
         if source.spatial {
@@ -184,7 +212,7 @@ pub fn play_audio(world: &mut World, entity: Entity) {
 
 /// Helper function to pause an audio source
 pub fn pause_audio(world: &mut World, entity: Entity) {
-    let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
+    let mut playback = world.get_resource_mut::<AudioPlayback>().unwrap();
 
     if let Some(sound) = playback.sounds.get_mut(&entity) {
         sound.pause(Tween::default());
@@ -193,7 +221,7 @@ pub fn pause_audio(world: &mut World, entity: Entity) {
 
 /// Helper function to resume an audio source
 pub fn resume_audio(world: &mut World, entity: Entity) {
-    let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
+    let mut playback = world.get_resource_mut::<AudioPlayback>().unwrap();
 
     if let Some(sound) = playback.sounds.get_mut(&entity) {
         sound.resume(Tween::default());
@@ -202,7 +230,7 @@ pub fn resume_audio(world: &mut World, entity: Entity) {
 
 /// Helper function to stop an audio source
 pub fn stop_audio(world: &mut World, entity: Entity) {
-    let playback = world.get_resource_mut::<AudioPlayback>().unwrap();
+    let mut playback = world.get_resource_mut::<AudioPlayback>().unwrap();
 
     if let Some(mut sound) = playback.sounds.remove(&entity) {
         sound.stop(Tween::default());

@@ -45,7 +45,7 @@ fn debug_associativity_failure() {
     // Compute (m1 * m2) * m3
     let m1_m2 = m1.geometric_product(&m2);
     println!("m1 * m2 = {:?}", m1_m2);
-    
+
     let left = m1_m2.geometric_product(&m3);
     println!("(m1 * m2) * m3 = {:?}", left);
     println!("  e03 component: {}", left.e03);
@@ -54,7 +54,7 @@ fn debug_associativity_failure() {
     // Compute m1 * (m2 * m3)
     let m2_m3 = m2.geometric_product(&m3);
     println!("m2 * m3 = {:?}", m2_m3);
-    
+
     let right = m1.geometric_product(&m2_m3);
     println!("m1 * (m2 * m3) = {:?}", right);
     println!("  e03 component: {}", right.e03);
@@ -62,7 +62,7 @@ fn debug_associativity_failure() {
 
     let diff = (left.e03 - right.e03).abs();
     println!("Difference in e03: {}", diff);
-    
+
     // This should be small for associativity
     assert!(diff < 1e-4, "Associativity violated: difference = {}", diff);
 }

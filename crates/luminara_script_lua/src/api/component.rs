@@ -1,6 +1,6 @@
-use mlua::prelude::*;
-use luminara_core::world::World;
 use crate::api::world::LuaWorld;
+use luminara_core::world::World;
+use mlua::prelude::*;
 
 // "Component: get/set with type safety"
 // This is hard in Lua since it's dynamic.
@@ -36,7 +36,7 @@ pub struct LuaComponentAPI;
 
 impl LuaUserData for LuaComponentAPI {
     fn add_methods<'lua, M: LuaUserDataMethods<'lua, Self>>(methods: &mut M) {
-         methods.add_method("get", |lua, _this, (world_ud, entity_id, comp_name): (LuaUserDataRef<LuaWorld>, u64, String)| {
+        methods.add_method("get", |lua, _this, (world_ud, entity_id, comp_name): (LuaUserDataRef<LuaWorld>, u64, String)| {
              // Access world from UserData
              // This requires `LuaWorld` to be accessible here.
              // And we need to match `comp_name`.

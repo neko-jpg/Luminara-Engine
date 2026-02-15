@@ -1,18 +1,21 @@
 use luminara_script_lua::LuaScriptRuntime;
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
-use std::io::Write;
 use std::fs;
+use std::io::Write;
 
 #[quickcheck]
 fn test_hot_reload_state_preservation(initial_val: i32, new_val_ignore: i32) -> TestResult {
     let _ = new_val_ignore; // Unused
 
     // Script v1: sets x = initial_val
-    let script_v1 = format!(r#"
+    let script_v1 = format!(
+        r#"
         local module = {{ x = {} }}
         return module
-    "#, initial_val);
+    "#,
+        initial_val
+    );
 
     let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
     write!(temp_file, "{}", script_v1).unwrap();
@@ -48,16 +51,22 @@ fn test_hot_reload_state_preservation(initial_val: i32, new_val_ignore: i32) -> 
     // I'll assume the implementation is correct if I can verify it via `on_update` hook?
     // Let's add `on_update` that copies `x` to global `_G.test_x`.
 
-    let script_v1_hook = format!(r#"
+    let script_v1_hook = format!(
+        r#"
         local module = {{ x = {} }}
         function module.on_update()
             _G.test_x = module.x
         end
         return module
-    "#, initial_val);
+    "#,
+        initial_val
+    );
 
     temp_file.as_file().set_len(0).unwrap();
-    temp_file.as_file().write_all(script_v1_hook.as_bytes()).unwrap();
+    temp_file
+        .as_file()
+        .write_all(script_v1_hook.as_bytes())
+        .unwrap();
 
     // Reload? No, we need to load it first.
     // Wait, I overwrote the file before loading?
@@ -96,7 +105,11 @@ fn test_hot_reload_state_preservation(initial_val: i32, new_val_ignore: i32) -> 
     // We need to write to the SAME path.
     // `temp_file` auto-deletes on drop. We keep it open.
     // Truncate and write.
-    let mut file = fs::OpenOptions::new().write(true).truncate(true).open(&path).unwrap();
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)
+        .unwrap();
     write!(file, "{}", script_v2).unwrap();
 
     // Trigger reload
@@ -112,11 +125,14 @@ fn test_hot_reload_state_preservation(initial_val: i32, new_val_ignore: i32) -> 
 
 #[quickcheck]
 fn test_hot_reload_fallback(initial_val: i32) -> TestResult {
-    let script_v1 = format!(r#"
+    let script_v1 = format!(
+        r#"
         local module = {{ x = {} }}
         function module.get_x() return module.x end
         return module
-    "#, initial_val);
+    "#,
+        initial_val
+    );
 
     let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
     write!(temp_file, "{}", script_v1).unwrap();
@@ -133,7 +149,11 @@ fn test_hot_reload_fallback(initial_val: i32) -> TestResult {
     // Create broken script v2
     let script_v2 = "return { syntax error here";
 
-    let mut file = fs::OpenOptions::new().write(true).truncate(true).open(&path).unwrap();
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)
+        .unwrap();
     write!(file, "{}", script_v2).unwrap();
 
     // Trigger reload - should fail but return Err, NOT panic, and keep old state.

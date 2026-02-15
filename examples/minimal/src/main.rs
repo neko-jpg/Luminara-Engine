@@ -45,5 +45,7 @@ fn setup(world: &mut World) {
     // world.add_component(tri, Mesh::triangle()); // Error: Mesh is not Component
     // world.add_component(tri, Transform::default());
 
-    log::info!("Luminara minimal example: setup complete (Mesh spawning disabled pending migration)");
+    log::info!(
+        "Luminara minimal example: setup complete (Mesh spawning disabled pending migration)"
+    );
 }

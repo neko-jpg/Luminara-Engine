@@ -54,12 +54,11 @@ impl FrameBuffer {
                 let pixel1 = self.get_pixel(x, y);
                 let pixel2 = other.get_pixel(x, y);
 
-                let diff = (
-                    (pixel1[0] as f32 - pixel2[0] as f32).abs() +
-                    (pixel1[1] as f32 - pixel2[1] as f32).abs() +
-                    (pixel1[2] as f32 - pixel2[2] as f32).abs() +
-                    (pixel1[3] as f32 - pixel2[3] as f32).abs()
-                ) / (255.0 * 4.0);
+                let diff = ((pixel1[0] as f32 - pixel2[0] as f32).abs()
+                    + (pixel1[1] as f32 - pixel2[1] as f32).abs()
+                    + (pixel1[2] as f32 - pixel2[2] as f32).abs()
+                    + (pixel1[3] as f32 - pixel2[3] as f32).abs())
+                    / (255.0 * 4.0);
 
                 total_diff += diff;
             }
@@ -133,7 +132,11 @@ fn test_screenshot_comparison_different() {
     let frame2 = render_test_scene("pbr_spheres");
 
     let (is_match, diff) = frame1.compare(&frame2, 0.01);
-    assert!(!is_match, "Different renders should not match (diff: {})", diff);
+    assert!(
+        !is_match,
+        "Different renders should not match (diff: {})",
+        diff
+    );
 }
 
 #[test]
@@ -206,7 +209,7 @@ mod visual_regression_integration_tests {
     fn test_shader_optimization_safety() {
         // Simulate testing that shader optimizations don't break rendering
         let before_optimization = render_test_scene("pbr_spheres");
-        
+
         // In a real scenario, we would apply shader optimizations here
         // For now, we just render again
         let after_optimization = render_test_scene("pbr_spheres");
@@ -265,7 +268,10 @@ mod visual_regression_integration_tests {
         }
 
         let (is_match, diff) = frame1.compare(&frame2, 0.0);
-        assert_eq!(diff, 0.0, "Pixel-perfect comparison should have zero difference");
+        assert_eq!(
+            diff, 0.0,
+            "Pixel-perfect comparison should have zero difference"
+        );
         assert!(is_match, "Identical frames should match perfectly");
     }
 }

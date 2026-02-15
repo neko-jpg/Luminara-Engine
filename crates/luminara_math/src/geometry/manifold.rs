@@ -2,8 +2,8 @@
 //!
 //! Provides cotangent Laplacian, mass matrix, and discrete exterior calculus.
 
-use glam::Vec3;
 use super::sparse_matrix::{CsrMatrix, DiagonalMatrix};
+use glam::Vec3;
 use sprs::TriMat;
 use std::collections::BTreeSet;
 
@@ -73,7 +73,9 @@ impl TriangleMesh {
             trimat.add_triplet(i, i, diag[i]);
         }
 
-        CsrMatrix { inner: trimat.to_csr() }
+        CsrMatrix {
+            inner: trimat.to_csr(),
+        }
     }
 
     /// Build the lumped mass matrix (diagonal).
@@ -107,8 +109,12 @@ impl TriangleMesh {
         for tri in &self.indices {
             for k in 0..3 {
                 let u = tri[k];
-                let v = tri[(k+1)%3];
-                if u < v { edges.insert((u, v)); } else { edges.insert((v, u)); }
+                let v = tri[(k + 1) % 3];
+                if u < v {
+                    edges.insert((u, v));
+                } else {
+                    edges.insert((v, u));
+                }
             }
         }
 
@@ -120,7 +126,9 @@ impl TriangleMesh {
             trimat.add_triplet(idx, v, 1.0);
         }
 
-        CsrMatrix { inner: trimat.to_csr() }
+        CsrMatrix {
+            inner: trimat.to_csr(),
+        }
     }
 
     /// Build the Hodge star operator *0: 0-forms -> 2-forms (dual 0-forms).
@@ -179,9 +187,12 @@ impl CholeskySolver {
         let mut p = r.clone();
         let mut rsold = dot(&r, &r);
 
-        if rsold < 1e-20 { return x; }
+        if rsold < 1e-20 {
+            return x;
+        }
 
-        for _ in 0..n { // Max iterations = dim
+        for _ in 0..n {
+            // Max iterations = dim
             // Matrix-vector multiplication A*p
             let mut ap = vec![0.0; n];
             for (row_idx, row) in self.mat.inner.outer_iterator().enumerate() {
@@ -200,7 +211,9 @@ impl CholeskySolver {
             }
 
             let rsnew = dot(&r, &r);
-            if rsnew < 1e-20 { break; }
+            if rsnew < 1e-20 {
+                break;
+            }
 
             let beta = rsnew / rsold;
             for i in 0..n {

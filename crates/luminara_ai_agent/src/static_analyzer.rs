@@ -75,8 +75,9 @@ impl StaticAnalyzer {
 
             // "Undefined variable" - hard without AST.
             // "Resource exhaustion" - "for i=1,1000000"
-            if line.contains("1000000") { // Very naive heuristic
-                 issues.push(StaticIssue {
+            if line.contains("1000000") {
+                // Very naive heuristic
+                issues.push(StaticIssue {
                     severity: IssueSeverity::Warning,
                     message: "Large loop iteration count detected.".into(),
                     line: line_num,

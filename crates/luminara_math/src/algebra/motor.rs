@@ -6,9 +6,8 @@
 //! efficient composition through the geometric product.
 
 use super::bivector::Bivector;
-use super::vector::Vector3;
 use super::traits::Scalar;
-
+use super::vector::Vector3;
 
 use glam::{Quat, Vec3};
 
@@ -60,16 +59,7 @@ impl Motor<f32> {
 impl<T: Scalar> Motor<T> {
     /// Create a new motor from individual components.
     #[inline]
-    pub fn new(
-        s: T,
-        e12: T,
-        e13: T,
-        e23: T,
-        e01: T,
-        e02: T,
-        e03: T,
-        e0123: T,
-    ) -> Self {
+    pub fn new(s: T, e12: T, e13: T, e23: T, e01: T, e02: T, e03: T, e0123: T) -> Self {
         Self {
             s,
             e12,
@@ -146,11 +136,11 @@ impl<T: Scalar> Motor<T> {
     }
 
     /// Compute the geometric product of two motors.
-    /// 
+    ///
     /// This is the fundamental composition operation for motors.
     /// The result represents the combined transformation of applying
     /// `self` followed by `other`.
-    /// 
+    ///
     /// Optimized with explicit FMA-friendly patterns for compiler auto-vectorization.
     #[inline(always)]
     pub fn geometric_product(&self, other: &Motor<T>) -> Motor<T> {
@@ -162,10 +152,23 @@ impl<T: Scalar> Motor<T> {
             e12: a.s * b.e12 + a.e12 * b.s - a.e13 * b.e23 + a.e23 * b.e13,
             e13: a.s * b.e13 + a.e13 * b.s + a.e12 * b.e23 - a.e23 * b.e12,
             e23: a.s * b.e23 + a.e23 * b.s - a.e12 * b.e13 + a.e13 * b.e12,
-            e01: a.s * b.e01 + a.e01 * b.s + a.e12 * b.e02 - a.e02 * b.e12 + a.e13 * b.e03 - a.e03 * b.e13 - a.e23 * b.e0123 - a.e0123 * b.e23,
-            e02: a.s * b.e02 + a.e02 * b.s - a.e12 * b.e01 + a.e01 * b.e12 + a.e23 * b.e03 - a.e03 * b.e23 + a.e13 * b.e0123 + a.e0123 * b.e13,
-            e03: a.s * b.e03 + a.e03 * b.s - a.e13 * b.e01 + a.e01 * b.e13 - a.e23 * b.e02 + a.e02 * b.e23 - a.e12 * b.e0123 - a.e0123 * b.e12,
-            e0123: a.s * b.e0123 + a.e0123 * b.s + a.e01 * b.e23 + a.e23 * b.e01 - a.e02 * b.e13 - a.e13 * b.e02 + a.e03 * b.e12 + a.e12 * b.e03,
+            e01: a.s * b.e01 + a.e01 * b.s + a.e12 * b.e02 - a.e02 * b.e12 + a.e13 * b.e03
+                - a.e03 * b.e13
+                - a.e23 * b.e0123
+                - a.e0123 * b.e23,
+            e02: a.s * b.e02 + a.e02 * b.s - a.e12 * b.e01 + a.e01 * b.e12 + a.e23 * b.e03
+                - a.e03 * b.e23
+                + a.e13 * b.e0123
+                + a.e0123 * b.e13,
+            e03: a.s * b.e03 + a.e03 * b.s - a.e13 * b.e01 + a.e01 * b.e13 - a.e23 * b.e02
+                + a.e02 * b.e23
+                - a.e12 * b.e0123
+                - a.e0123 * b.e12,
+            e0123: a.s * b.e0123 + a.e0123 * b.s + a.e01 * b.e23 + a.e23 * b.e01
+                - a.e02 * b.e13
+                - a.e13 * b.e02
+                + a.e03 * b.e12
+                + a.e12 * b.e03,
         }
     }
 
@@ -196,17 +199,20 @@ impl<T: Scalar> Motor<T> {
         let two_e13 = two * self.e13;
         let two_e23 = two * self.e23;
 
-        let rx = x * (self.s * self.s + self.e23 * self.e23 - self.e13 * self.e13 - self.e12 * self.e12)
+        let rx = x
+            * (self.s * self.s + self.e23 * self.e23 - self.e13 * self.e13 - self.e12 * self.e12)
             + y * (two_e23 * self.e13 - two_s * self.e12)
             + z * (two_e23 * self.e12 + two_s * self.e13);
 
         let ry = x * (two_e23 * self.e13 + two_s * self.e12)
-            + y * (self.s * self.s - self.e23 * self.e23 + self.e13 * self.e13 - self.e12 * self.e12)
+            + y * (self.s * self.s - self.e23 * self.e23 + self.e13 * self.e13
+                - self.e12 * self.e12)
             + z * (two_e13 * self.e12 - two_s * self.e23);
 
         let rz = x * (two_e23 * self.e12 - two_s * self.e13)
             + y * (two_e13 * self.e12 + two_s * self.e23)
-            + z * (self.s * self.s - self.e23 * self.e23 - self.e13 * self.e13 + self.e12 * self.e12);
+            + z * (self.s * self.s - self.e23 * self.e23 - self.e13 * self.e13
+                + self.e12 * self.e12);
 
         Vector3::new(
             rx + two * self.e01,
@@ -227,7 +233,7 @@ impl<T: Scalar> Motor<T> {
         // Since T is generic, let's assume T::zero() is exact zero.
         // If we want epsilon, we need it in Scalar trait.
         // For now, let's assume we can compute it.
-        
+
         let rotation_magnitude = rotation_magnitude_sq.sqrt();
 
         // Check for small angle (singularity at 0)
@@ -289,28 +295,25 @@ impl<T: Scalar> Motor<T> {
     }
 
     pub fn normalize(&mut self) {
-        let norm_sq = self.s * self.s 
-            + self.e12 * self.e12 
-            + self.e13 * self.e13 
-            + self.e23 * self.e23;
-        
+        let norm_sq =
+            self.s * self.s + self.e12 * self.e12 + self.e13 * self.e13 + self.e23 * self.e23;
+
         if norm_sq != T::zero() {
-             let inv_norm = T::one() / norm_sq.sqrt();
-             self.s *= inv_norm;
-             self.e12 *= inv_norm;
-             self.e13 *= inv_norm;
-             self.e23 *= inv_norm;
-             self.e01 *= inv_norm;
-             self.e02 *= inv_norm;
-             self.e03 *= inv_norm;
-             self.e0123 *= inv_norm;
+            let inv_norm = T::one() / norm_sq.sqrt();
+            self.s *= inv_norm;
+            self.e12 *= inv_norm;
+            self.e13 *= inv_norm;
+            self.e23 *= inv_norm;
+            self.e01 *= inv_norm;
+            self.e02 *= inv_norm;
+            self.e03 *= inv_norm;
+            self.e0123 *= inv_norm;
         }
     }
 }
 
 // Interop with f32 / glam
 impl Motor<f32> {
-
     pub fn from_rotation_translation_glam(rot: Quat, trans: Vec3) -> Self {
         // Implementation using f32 specific conversion
         let rot_motor = Self {
@@ -350,7 +353,7 @@ impl Motor<f32> {
     /// SIMD-optimized geometric product using AVX2 (x86_64 only).
     #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
     /// SIMD-optimized geometric product for f32 motors using AVX2.
-    /// 
+    ///
     /// This implementation uses 256-bit SIMD registers to compute the geometric
     /// product approximately 2x faster than the scalar version.
     #[inline]
@@ -359,66 +362,76 @@ impl Motor<f32> {
         #[cfg(target_arch = "x86_64")]
         unsafe {
             use std::arch::x86_64::*;
-            
+
             // Load both motors into SIMD registers (8 f32 values each)
             let a = _mm256_loadu_ps(&self.s as *const f32);
             let b = _mm256_loadu_ps(&other.s as *const f32);
-            
+
             // Extract individual components via shuffles for the geometric product
             // This is a simplified version - full implementation would use FMA instructions
-            
+
             // For now, use optimized scalar with explicit SIMD hints
             // A full SIMD implementation requires careful arrangement of the 64 multiplications
             let result = self.geometric_product(other);
             result
         }
-        
+
         #[cfg(not(target_arch = "x86_64"))]
         {
             self.geometric_product(other)
         }
     }
-    
+
     /// Optimized geometric product that allows compiler auto-vectorization.
-    /// 
+    ///
     /// This version is structured to help LLVM's auto-vectorizer generate
     /// efficient SIMD code even without explicit intrinsics.
     #[inline]
     pub fn geometric_product_optimized(&self, other: &Motor<f32>) -> Motor<f32> {
         let a = self;
         let b = other;
-        
+
         // Group operations to encourage SIMD generation
         // Scalar component
         let s = a.s * b.s - a.e12 * b.e12 - a.e13 * b.e13 - a.e23 * b.e23;
-        
+
         // Rotational bivector (can be computed in parallel)
         let e12 = a.s * b.e12 + a.e12 * b.s - a.e13 * b.e23 + a.e23 * b.e13;
         let e13 = a.s * b.e13 + a.e13 * b.s + a.e12 * b.e23 - a.e23 * b.e12;
         let e23 = a.s * b.e23 + a.e23 * b.s - a.e12 * b.e13 + a.e13 * b.e12;
-        
+
         // Translational bivector (can be computed in parallel)
-        let e01 = a.s * b.e01 + a.e01 * b.s 
-                + a.e12 * b.e02 - a.e02 * b.e12 
-                + a.e13 * b.e03 - a.e03 * b.e13
-                - a.e23 * b.e0123 - a.e0123 * b.e23;
-                
-        let e02 = a.s * b.e02 + a.e02 * b.s 
-                - a.e12 * b.e01 + a.e01 * b.e12 
-                + a.e23 * b.e03 - a.e03 * b.e23
-                + a.e13 * b.e0123 + a.e0123 * b.e13;
-                
-        let e03 = a.s * b.e03 + a.e03 * b.s 
-                - a.e13 * b.e01 + a.e01 * b.e13 
-                - a.e23 * b.e02 + a.e02 * b.e23
-                - a.e12 * b.e0123 - a.e0123 * b.e12;
-        
+        let e01 = a.s * b.e01 + a.e01 * b.s + a.e12 * b.e02 - a.e02 * b.e12 + a.e13 * b.e03
+            - a.e03 * b.e13
+            - a.e23 * b.e0123
+            - a.e0123 * b.e23;
+
+        let e02 = a.s * b.e02 + a.e02 * b.s - a.e12 * b.e01 + a.e01 * b.e12 + a.e23 * b.e03
+            - a.e03 * b.e23
+            + a.e13 * b.e0123
+            + a.e0123 * b.e13;
+
+        let e03 = a.s * b.e03 + a.e03 * b.s - a.e13 * b.e01 + a.e01 * b.e13 - a.e23 * b.e02
+            + a.e02 * b.e23
+            - a.e12 * b.e0123
+            - a.e0123 * b.e12;
+
         // Pseudoscalar
-        let e0123 = a.s * b.e0123 + a.e0123 * b.s 
-                  + a.e01 * b.e23 + a.e23 * b.e01
-                  - a.e02 * b.e13 - a.e13 * b.e02 
-                  + a.e03 * b.e12 + a.e12 * b.e03;
-        
-        Motor { s, e12, e13, e23, e01, e02, e03, e0123 }
+        let e0123 = a.s * b.e0123 + a.e0123 * b.s + a.e01 * b.e23 + a.e23 * b.e01
+            - a.e02 * b.e13
+            - a.e13 * b.e02
+            + a.e03 * b.e12
+            + a.e12 * b.e03;
+
+        Motor {
+            s,
+            e12,
+            e13,
+            e23,
+            e01,
+            e02,
+            e03,
+            e0123,
+        }
     }
 }

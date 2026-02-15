@@ -1,6 +1,6 @@
-use luminara_render::{DrawCommand, Mesh, PbrMaterial};
-use luminara_asset::{Handle, AssetId};
+use luminara_asset::{AssetId, Handle};
 use luminara_math::Mat4;
+use luminara_render::{DrawCommand, Mesh, PbrMaterial};
 
 #[test]
 fn test_draw_command_creation() {
@@ -11,7 +11,11 @@ fn test_draw_command_creation() {
     let cmd = Mesh::draw(mesh_handle.clone(), mat_handle.clone(), transform);
 
     match cmd {
-        DrawCommand::DrawMesh { mesh, material, transform: t } => {
+        DrawCommand::DrawMesh {
+            mesh,
+            material,
+            transform: t,
+        } => {
             assert_eq!(mesh, mesh_handle);
             assert_eq!(material, mat_handle);
             assert_eq!(t, transform);

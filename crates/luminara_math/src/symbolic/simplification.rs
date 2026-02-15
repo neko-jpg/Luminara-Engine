@@ -18,7 +18,8 @@ pub fn simplify(expr: &Rc<SymExpr>) -> Rc<SymExpr> {
                 (SymExpr::Const(c), _) if *c == 0.0 => r_s,
                 (_, SymExpr::Const(c)) if *c == 0.0 => l_s,
                 _ => {
-                    if l_s == r_s { // x + x = 2x
+                    if l_s == r_s {
+                        // x + x = 2x
                         SymExpr::mul(SymExpr::constant(2.0), l_s)
                     } else {
                         SymExpr::add(l_s, r_s)

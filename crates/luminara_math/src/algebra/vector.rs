@@ -2,8 +2,8 @@
 //!
 //! Provides a generic Vector3 struct to support scalar types other than f32 (e.g., f64, Dual numbers).
 
-use std::ops::{Add, Sub, Mul, Div, Neg};
 use super::traits::Scalar;
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(C)]
@@ -117,10 +117,13 @@ impl<T: Copy + Neg<Output = T>> Neg for Vector3<T> {
 
 impl From<glam::Vec3> for Vector3<f32> {
     fn from(v: glam::Vec3) -> Self {
-        Self { x: v.x, y: v.y, z: v.z }
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
     }
 }
-
 
 impl From<Vector3<f32>> for glam::Vec3 {
     fn from(v: Vector3<f32>) -> Self {

@@ -1,9 +1,11 @@
-use luminara_render::animation_system::{AnimationPlayer, animation_system};
-use luminara_render::animation::{AnimationClip, AnimationChannel, AnimationPath, AnimationOutput, SkinnedMesh};
-use luminara_math::{Vec3, Quat, Transform};
 use luminara_asset::{AssetServer, Handle};
-use luminara_core::{App, CoreStage, World, Resource};
 use luminara_core::time::Time;
+use luminara_core::{App, CoreStage, Resource, World};
+use luminara_math::{Quat, Transform, Vec3};
+use luminara_render::animation::{
+    AnimationChannel, AnimationClip, AnimationOutput, AnimationPath, SkinnedMesh,
+};
+use luminara_render::animation_system::{animation_system, AnimationPlayer};
 
 // Mock AssetServer for test (difficult without infrastructure)
 // Instead, we will test the interpolation math logic directly by simulating the system logic in test.
@@ -26,8 +28,8 @@ fn test_animation_interpolation_logic() {
         k += 1;
     }
 
-    let t = (time - inputs[k]) / (inputs[k+1] - inputs[k]);
-    let result = values[k].lerp(values[k+1], t);
+    let t = (time - inputs[k]) / (inputs[k + 1] - inputs[k]);
+    let result = values[k].lerp(values[k + 1], t);
 
     assert_eq!(result, Vec3::new(5.0, 0.0, 0.0));
 
@@ -37,8 +39,8 @@ fn test_animation_interpolation_logic() {
     while k < inputs.len() - 1 && inputs[k + 1] < time {
         k += 1;
     }
-    let t = (time - inputs[k]) / (inputs[k+1] - inputs[k]);
-    let result = values[k].lerp(values[k+1], t);
+    let t = (time - inputs[k]) / (inputs[k + 1] - inputs[k]);
+    let result = values[k].lerp(values[k + 1], t);
 
     assert_eq!(result, Vec3::new(5.0, 0.0, 0.0));
 }

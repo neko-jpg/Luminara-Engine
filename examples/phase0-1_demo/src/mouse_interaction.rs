@@ -2,7 +2,7 @@
 
 use luminara::prelude::*;
 use luminara_physics::physics3d::PhysicsWorld3D;
-use rapier3d::prelude::{nalgebra, Ray, QueryFilter};
+use rapier3d::prelude::{nalgebra, QueryFilter, Ray};
 
 /// Component marking an object as grabbed by the mouse
 #[derive(Debug, Clone)]
@@ -105,8 +105,13 @@ pub fn mouse_interaction_system(world: &mut World) {
                 -yaw.sin() * pitch.cos(),
                 pitch.sin(),
                 -yaw.cos() * pitch.cos(),
-            ).normalize();
-            cam_pos = Vec3::new(transform.translation.x, transform.translation.y, transform.translation.z);
+            )
+            .normalize();
+            cam_pos = Vec3::new(
+                transform.translation.x,
+                transform.translation.y,
+                transform.translation.z,
+            );
             break;
         }
         (cam_pos, cam_dir)
@@ -141,7 +146,8 @@ pub fn mouse_interaction_system(world: &mut World) {
                                 if let Some(body) = physics_world.rigid_body_set.get(body_handle) {
                                     if body.is_dynamic() {
                                         let hit_point = ray.point_at(toi);
-                                        let hit_vec3 = Vec3::new(hit_point.x, hit_point.y, hit_point.z);
+                                        let hit_vec3 =
+                                            Vec3::new(hit_point.x, hit_point.y, hit_point.z);
                                         result = Some((*entity, toi, hit_vec3));
                                     }
                                 }
@@ -159,7 +165,8 @@ pub fn mouse_interaction_system(world: &mut World) {
 
         // Second pass: apply grab (mutable borrow of world)
         if let Some((entity, toi, hit_vec3)) = grab_info {
-            let local_anchor = world.get_component::<Transform>(entity)
+            let local_anchor = world
+                .get_component::<Transform>(entity)
                 .map(|t| hit_vec3 - t.translation)
                 .unwrap_or(Vec3::ZERO);
 
@@ -173,7 +180,8 @@ pub fn mouse_interaction_system(world: &mut World) {
                 },
             );
 
-            let elapsed = world.get_resource::<Time>()
+            let elapsed = world
+                .get_resource::<Time>()
                 .map(|t| t.elapsed_seconds())
                 .unwrap_or(0.0);
 
@@ -192,7 +200,7 @@ pub fn mouse_interaction_system(world: &mut World) {
         if let Some(state) = world.get_resource::<MouseInteractionState>() {
             if let Some(entity) = state.grabbed_entity {
                 let throw_velocity = state.calculate_throw_velocity(dt);
-                
+
                 // Apply throw velocity to the physics body
                 if let Some(physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
                     // Find the body handle for this entity
@@ -200,7 +208,8 @@ pub fn mouse_interaction_system(world: &mut World) {
                         if *ent == entity {
                             if let Some(body) = physics_world.rigid_body_set.get_mut(*body_handle) {
                                 let impulse = throw_velocity * body.mass() * 0.5; // Scale factor
-                                let impulse_vec = nalgebra::Vector3::new(impulse.x, impulse.y, impulse.z);
+                                let impulse_vec =
+                                    nalgebra::Vector3::new(impulse.x, impulse.y, impulse.z);
                                 body.apply_impulse(impulse_vec, true);
                                 println!("Threw entity with velocity: {:?}", throw_velocity);
                             }
@@ -224,11 +233,13 @@ pub fn mouse_interaction_system(world: &mut World) {
         if let Some(state) = world.get_resource::<MouseInteractionState>() {
             if let Some(entity) = state.grabbed_entity {
                 // Calculate target position based on mouse ray
-                let target_pos = camera_pos + camera_dir * {
-                    world.get_component::<MouseGrabbed>(entity)
-                        .map(|g| g.grab_distance)
-                        .unwrap_or(10.0)
-                };
+                let target_pos = camera_pos
+                    + camera_dir * {
+                        world
+                            .get_component::<MouseGrabbed>(entity)
+                            .map(|g| g.grab_distance)
+                            .unwrap_or(10.0)
+                    };
 
                 // Record position for throw velocity calculation
                 if let Some(state) = world.get_resource_mut::<MouseInteractionState>() {
@@ -246,13 +257,21 @@ pub fn mouse_interaction_system(world: &mut World) {
                     if let Some(physics_world) = world.get_resource_mut::<PhysicsWorld3D>() {
                         for (body_handle, ent) in &physics_world.body_to_entity {
                             if *ent == entity {
-                                if let Some(body) = physics_world.rigid_body_set.get_mut(*body_handle) {
+                                if let Some(body) =
+                                    physics_world.rigid_body_set.get_mut(*body_handle)
+                                {
                                     let spring_force = displacement * grabbed.spring_stiffness;
                                     let velocity = body.linvel();
-                                    let damping_force = -Vec3::new(velocity.x, velocity.y, velocity.z) * grabbed.damping;
-                                    
+                                    let damping_force =
+                                        -Vec3::new(velocity.x, velocity.y, velocity.z)
+                                            * grabbed.damping;
+
                                     let total_force = spring_force + damping_force;
-                                    let force_vec = nalgebra::Vector3::new(total_force.x, total_force.y, total_force.z);
+                                    let force_vec = nalgebra::Vector3::new(
+                                        total_force.x,
+                                        total_force.y,
+                                        total_force.z,
+                                    );
                                     body.add_force(force_vec, true);
                                 }
                                 break;

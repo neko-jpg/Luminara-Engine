@@ -1,6 +1,6 @@
-use luminara_render::{Sprite, SpriteBatcher, Texture, ZOrder};
-use luminara_asset::{Handle, AssetId};
+use luminara_asset::{AssetId, Handle};
 use luminara_math::{Mat4, Vec3};
+use luminara_render::{Sprite, SpriteBatcher, Texture, ZOrder};
 
 #[test]
 fn test_instancing_batch_logic() {
@@ -10,7 +10,10 @@ fn test_instancing_batch_logic() {
 
     // Add 10 sprites
     let transforms = vec![Mat4::IDENTITY; 10];
-    let items: Vec<_> = transforms.iter().map(|t| (&sprite, t, None::<&ZOrder>)).collect();
+    let items: Vec<_> = transforms
+        .iter()
+        .map(|t| (&sprite, t, None::<&ZOrder>))
+        .collect();
 
     batcher.prepare(items);
 

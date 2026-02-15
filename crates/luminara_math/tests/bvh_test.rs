@@ -1,5 +1,5 @@
-use luminara_math::geometry::{Bvh, Aabb, Primitive};
 use glam::Vec3;
+use luminara_math::geometry::{Aabb, Bvh, Primitive};
 use proptest::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -22,14 +22,20 @@ impl Primitive for Sphere {
         let a = ray_dir.length_squared();
         let b = 2.0 * oc.dot(ray_dir);
         let c = oc.length_squared() - self.radius * self.radius;
-        let discriminant = b*b - 4.0*a*c;
-        if discriminant < 0.0 { return None; }
+        let discriminant = b * b - 4.0 * a * c;
+        if discriminant < 0.0 {
+            return None;
+        }
         let sqrt_d = discriminant.sqrt();
-        let t1 = (-b - sqrt_d) / (2.0*a);
-        let t2 = (-b + sqrt_d) / (2.0*a);
+        let t1 = (-b - sqrt_d) / (2.0 * a);
+        let t2 = (-b + sqrt_d) / (2.0 * a);
 
-        if t1 > 1e-4 { return Some(t1); } // epsilon for self-intersection
-        if t2 > 1e-4 { return Some(t2); }
+        if t1 > 1e-4 {
+            return Some(t1);
+        } // epsilon for self-intersection
+        if t2 > 1e-4 {
+            return Some(t2);
+        }
         None
     }
 }
@@ -116,7 +122,11 @@ fn test_bvh_empty() {
 
 #[test]
 fn test_bvh_single() {
-    let s = Sphere { center: Vec3::new(5.0, 0.0, 0.0), radius: 1.0, id: 0 };
+    let s = Sphere {
+        center: Vec3::new(5.0, 0.0, 0.0),
+        radius: 1.0,
+        id: 0,
+    };
     let bvh = Bvh::build(vec![s]);
 
     let hit = bvh.intersect_ray(Vec3::ZERO, Vec3::X);
@@ -129,7 +139,11 @@ fn test_bvh_single() {
 #[test]
 fn test_degenerate_aabb() {
     // Sphere with radius 0 (point)
-    let s = Sphere { center: Vec3::new(5.0, 0.0, 0.0), radius: 0.0, id: 0 };
+    let s = Sphere {
+        center: Vec3::new(5.0, 0.0, 0.0),
+        radius: 0.0,
+        id: 0,
+    };
     let bvh = Bvh::build(vec![s]);
 
     // Ray hitting the point exactly is hard with float precision.

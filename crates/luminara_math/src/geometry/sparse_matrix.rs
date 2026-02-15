@@ -12,7 +12,8 @@ pub struct CsrMatrix<T> {
 }
 
 impl<T> CsrMatrix<T>
-where T: Copy + Clone + Default + PartialEq + Add<Output = T>
+where
+    T: Copy + Clone + Default + PartialEq + Add<Output = T>,
 {
     /// Create a CSR matrix from triplets (row, col, value).
     pub fn from_triplets(rows: usize, cols: usize, triplets: &[(usize, usize, T)]) -> Self {
@@ -33,7 +34,11 @@ where T: Copy + Clone + Default + PartialEq + Add<Output = T>
     /// Get non-zero elements of a row.
     pub fn row(&self, row_idx: usize) -> Option<Vec<(usize, T)>> {
         self.inner.outer_view(row_idx).map(|view| {
-            view.indices().iter().cloned().zip(view.data().iter().cloned()).collect()
+            view.indices()
+                .iter()
+                .cloned()
+                .zip(view.data().iter().cloned())
+                .collect()
         })
     }
 }

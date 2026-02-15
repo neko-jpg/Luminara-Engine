@@ -1,4 +1,4 @@
-use luminara_ai_agent::{DryRunner, CodeApplicator};
+use luminara_ai_agent::{CodeApplicator, DryRunner};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 

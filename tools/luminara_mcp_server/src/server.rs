@@ -1,9 +1,9 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 #[derive(Error, Debug)]
 pub enum McpError {
@@ -40,13 +40,17 @@ impl LuminaraMcpServer {
     pub fn handle_request(&self, request: McpRequest) -> McpResponse {
         match request.method.as_str() {
             "list_tools" => {
-                let tools = self.tools.values().map(|t| ToolDescription {
-                    name: t.name().to_string(),
-                    description: t.description().to_string(),
-                    input_schema: t.input_schema(),
-                }).collect::<Vec<_>>();
+                let tools = self
+                    .tools
+                    .values()
+                    .map(|t| ToolDescription {
+                        name: t.name().to_string(),
+                        description: t.description().to_string(),
+                        input_schema: t.input_schema(),
+                    })
+                    .collect::<Vec<_>>();
                 McpResponse::success(request.id, serde_json::to_value(tools).unwrap())
-            },
+            }
             "call_tool" => {
                 // Parse params
                 if let Some(params) = request.params {
@@ -64,7 +68,7 @@ impl LuminaraMcpServer {
                 } else {
                     McpResponse::error(request.id, -32602, "Missing params".into())
                 }
-            },
+            }
             _ => McpResponse::error(request.id, -32601, "Method not found".into()),
         }
     }
@@ -101,7 +105,11 @@ impl McpResponse {
             jsonrpc: "2.0".into(),
             id,
             result: None,
-            error: Some(McpErrorResponse { code, message, data: None }),
+            error: Some(McpErrorResponse {
+                code,
+                message,
+                data: None,
+            }),
         }
     }
 }

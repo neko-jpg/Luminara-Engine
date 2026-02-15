@@ -1,4 +1,4 @@
-use luminara_ai_agent::{AgentOrchestrator, AgentRole, AgentMessage};
+use luminara_ai_agent::{AgentMessage, AgentOrchestrator, AgentRole};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
@@ -15,16 +15,15 @@ fn test_task_decomposition() {
     let tasks = orchestrator.decompose_task("Create a level with mountains");
 
     assert!(tasks.len() > 0);
-    assert!(tasks.iter().any(|(role, _)| *role == AgentRole::SceneArchitect));
+    assert!(tasks
+        .iter()
+        .any(|(role, _)| *role == AgentRole::SceneArchitect));
 }
 
 #[test]
 fn test_conflict_detection() {
     let orchestrator = AgentOrchestrator::new();
-    let ops = vec![
-        ("agent1".to_string(), 1),
-        ("agent2".to_string(), 2),
-    ];
+    let ops = vec![("agent1".to_string(), 1), ("agent2".to_string(), 2)];
     let conflicts = orchestrator.detect_conflicts(&ops);
     assert!(!conflicts.is_empty());
 }

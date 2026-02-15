@@ -1,10 +1,16 @@
-use luminara_math::algebra::DualQuat;
 use glam::{Quat, Vec3};
+use luminara_math::algebra::DualQuat;
 use proptest::prelude::*;
 
 fn assert_vec3_eq(a: Vec3, b: Vec3, epsilon: f32) {
     let diff = (a - b).abs();
-    assert!(diff.x < epsilon && diff.y < epsilon && diff.z < epsilon, "Vec3 mismatch: {:?} != {:?} (epsilon {})", a, b, epsilon);
+    assert!(
+        diff.x < epsilon && diff.y < epsilon && diff.z < epsilon,
+        "Vec3 mismatch: {:?} != {:?} (epsilon {})",
+        a,
+        b,
+        epsilon
+    );
 }
 
 // Helper to generate random dual quat

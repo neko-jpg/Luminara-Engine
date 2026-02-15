@@ -89,7 +89,7 @@ mod tests {
         let a = 1.0;
         let b = 1e-16;
         let (sum, error) = two_sum(a, b);
-        
+
         // The sum and error should exactly represent a + b
         // Note: Due to floating-point representation, we need to be careful here
         assert_eq!(sum, 1.0); // The sum rounds to 1.0
@@ -101,7 +101,7 @@ mod tests {
         let a = 1e100;
         let b = 1e100;
         let (sum, error) = two_sum(a, b);
-        
+
         assert_eq!(sum, 2e100);
         assert_eq!(error, 0.0); // No error for exact representable sum
     }
@@ -111,7 +111,7 @@ mod tests {
         let a = 1.0;
         let b = -1.0;
         let (sum, error) = two_sum(a, b);
-        
+
         assert_eq!(sum, 0.0);
         assert_eq!(error, 0.0);
     }
@@ -122,7 +122,7 @@ mod tests {
         let a = 1.0;
         let b = 1e-20;
         let (sum, error) = two_sum(a, b);
-        
+
         // The sum should be 1.0 (b is too small to affect it)
         assert_eq!(sum, 1.0);
         // The error should capture the lost b
@@ -134,10 +134,10 @@ mod tests {
         // two_sum should be commutative in terms of the exact result
         let a = 1.0 + 1e-15;
         let b = 1e-16;
-        
+
         let (sum1, error1) = two_sum(a, b);
         let (sum2, error2) = two_sum(b, a);
-        
+
         // The exact values should be the same
         assert_eq!(sum1 + error1, sum2 + error2);
     }
@@ -148,11 +148,11 @@ mod tests {
         let a = 1.0 + 1e-10;
         let b = 1.0 + 1e-10;
         let (product, error) = two_product(a, b);
-        
+
         // The product and error should exactly represent a * b
         let exact = a * b;
         let reconstructed = product + error;
-        
+
         // The difference should be within machine precision
         assert!((reconstructed - exact).abs() < 1e-30);
     }
@@ -162,7 +162,7 @@ mod tests {
         let a = 2.0;
         let b = 3.0;
         let (product, error) = two_product(a, b);
-        
+
         assert_eq!(product, 6.0);
         assert_eq!(error, 0.0); // Exact multiplication
     }
@@ -172,11 +172,14 @@ mod tests {
         let a = 1e-100;
         let b = 1e-100;
         let (product, error) = two_product(a, b);
-        
+
         // The product might underflow to subnormal or zero
         // Just verify that the result is close to the expected value
         let expected = a * b;
-        assert!((product - expected).abs() <= expected * 1e-15 || (product == 0.0 && expected < f64::MIN_POSITIVE));
+        assert!(
+            (product - expected).abs() <= expected * 1e-15
+                || (product == 0.0 && expected < f64::MIN_POSITIVE)
+        );
         // Error should be very small or zero
         assert!(error.abs() <= expected * 1e-10 || error == 0.0);
     }
@@ -187,11 +190,11 @@ mod tests {
         let a = 1.0 + f64::EPSILON;
         let b = 1.0 + f64::EPSILON;
         let (product, error) = two_product(a, b);
-        
+
         // Verify that product + error equals a * b exactly
         let exact = a * b;
         let reconstructed = product + error;
-        
+
         // Should be exact or very close
         assert!((reconstructed - exact).abs() < 1e-30);
     }
@@ -201,7 +204,7 @@ mod tests {
         let a = 1.0;
         let b = 0.0;
         let (product, error) = two_product(a, b);
-        
+
         assert_eq!(product, 0.0);
         assert_eq!(error, 0.0);
     }
@@ -211,7 +214,7 @@ mod tests {
         let a = -1.5;
         let b = 2.5;
         let (product, error) = two_product(a, b);
-        
+
         assert_eq!(product, -3.75);
         assert_eq!(error, 0.0); // Exact multiplication
     }
@@ -223,7 +226,7 @@ mod tests {
         let a = 1.0;
         let b = 1e-16;
         let c = 1e-16;
-        
+
         // With two_sum, we can track the exact result
         // First way: (a + b) + c
         let (s1, e1) = two_sum(a, b);
@@ -231,14 +234,14 @@ mod tests {
         // To get the exact result, we need to sum all the error terms properly
         let (s_err, e_err) = two_sum(e1, e2);
         let exact1 = s2 + s_err + e_err;
-        
+
         // Second way: a + (b + c)
         let (s3, e3) = two_sum(b, c);
         let (s4, e4) = two_sum(a, s3);
         // Again, sum all error terms properly
         let (s_err2, e_err2) = two_sum(e3, e4);
         let exact2 = s4 + s_err2 + e_err2;
-        
+
         // The exact results should be very close (within floating-point precision)
         assert!((exact1 - exact2).abs() < 1e-30);
     }
@@ -282,7 +285,7 @@ mod tests {
         let e1 = Expansion::from_f64(1.0);
         let e2 = Expansion::from_f64(1e-16);
         let sum = e1.add(&e2);
-        
+
         // The expansion should maintain both values
         assert!(sum.len() >= 1);
         // The estimate should be close to the exact sum
@@ -374,19 +377,19 @@ mod tests {
         let a = 1.0;
         let b = 1e-16;
         let c = 1e-16;
-        
+
         // Using expansions
         let ea = Expansion::from_f64(a);
         let eb = Expansion::from_f64(b);
         let ec = Expansion::from_f64(c);
-        
+
         let sum1 = ea.add(&eb);
         let sum2 = sum1.add(&ec);
-        
+
         // The expansion should maintain all three values
         let expected = a + b + c;
         let result = sum2.estimate();
-        
+
         // The expansion maintains precision, but estimate() sums terms which may lose precision
         // We should check that the expansion has the right structure instead
         assert!(sum2.len() >= 1);
@@ -401,11 +404,11 @@ mod tests {
         let e3 = Expansion::from_f64(3.0);
         let e4 = Expansion::from_f64(4.0);
         let e5 = Expansion::from_f64(5.0);
-        
+
         let sum = e2.add(&e3);
         let product = sum.mul(&e4);
         let result = product.sub(&e5);
-        
+
         assert_eq!(result.estimate(), 15.0);
     }
 
@@ -415,7 +418,7 @@ mod tests {
         let e1 = Expansion::from_f64(1e-100);
         let e2 = Expansion::from_f64(1e-100);
         let sum = e1.add(&e2);
-        
+
         // Should be approximately 2e-100
         let expected = 2e-100;
         let result = sum.estimate();

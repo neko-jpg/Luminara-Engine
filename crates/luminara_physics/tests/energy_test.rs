@@ -1,6 +1,6 @@
-use luminara_physics::LiePhysicsIntegrator;
-use luminara_math::algebra::{Motor, Bivector};
 use luminara_math::algebra::vector::Vector3;
+use luminara_math::algebra::{Bivector, Motor};
+use luminara_physics::LiePhysicsIntegrator;
 
 #[test]
 fn test_lie_integration_constant_velocity() {
@@ -9,9 +9,9 @@ fn test_lie_integration_constant_velocity() {
     // Constant velocity: 1 rad/s around Y axis
     let velocity = Bivector::new(
         0.0, 0.0, 0.0, // e12, e13, e23 (rotation xy, xz, yz -> z, y, x)
-                       // e12=Z, e13=Y, e23=X? No.
-                       // e12=Z, e13=-Y, e23=X.
-                       // Rot Y axis: e13
+        // e12=Z, e13=Y, e23=X? No.
+        // e12=Z, e13=-Y, e23=X.
+        // Rot Y axis: e13
         0.0, 1.0, 0.0, // e13 = 1.0
     );
     // Bivector::new arguments: e12, e13, e23, e01, e02, e03
@@ -55,6 +55,7 @@ fn test_energy_conservation() {
     }
 
     // Check normalization (Motor::normalize() is called in step, verifying it works)
-    let norm_sq = motor.s*motor.s + motor.e12*motor.e12 + motor.e13*motor.e13 + motor.e23*motor.e23;
+    let norm_sq =
+        motor.s * motor.s + motor.e12 * motor.e12 + motor.e13 * motor.e13 + motor.e23 * motor.e23;
     assert!((norm_sq - 1.0).abs() < 0.0001);
 }

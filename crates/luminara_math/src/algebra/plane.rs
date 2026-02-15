@@ -3,9 +3,8 @@
 //! Represents a plane in 3D space using the odd subalgebra (1-vectors) of PGA.
 //! P = nx*e1 + ny*e2 + nz*e3 + d*e0
 
-use super::vector::Vector3;
 use super::traits::Scalar;
-
+use super::vector::Vector3;
 
 use glam::Vec3;
 
@@ -38,7 +37,8 @@ impl<T: Scalar> Plane<T> {
     /// Normalize the plane equation.
     pub fn normalize(&mut self) {
         let mag = (self.nx * self.nx + self.ny * self.ny + self.nz * self.nz).sqrt();
-        if mag > T::zero() { // Check if not too small
+        if mag > T::zero() {
+            // Check if not too small
             let inv_mag = T::one() / mag;
             self.nx *= inv_mag;
             self.ny *= inv_mag;
@@ -50,7 +50,6 @@ impl<T: Scalar> Plane<T> {
 
 // Interop
 impl Plane<f32> {
-
     pub fn from_normal_dist_glam(normal: Vec3, dist: f32) -> Self {
         Self {
             nx: normal.x,

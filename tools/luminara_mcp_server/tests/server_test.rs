@@ -1,16 +1,22 @@
-use luminara_mcp_server::{LuminaraMcpServer, McpTool, McpError, McpRequest};
-use serde_json::{json, Value};
+use luminara_mcp_server::{LuminaraMcpServer, McpError, McpRequest, McpTool};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
+use serde_json::{json, Value};
 
 struct EchoTool;
 impl McpTool for EchoTool {
-    fn name(&self) -> &str { "echo" }
-    fn description(&self) -> &str { "Echoes input" }
+    fn name(&self) -> &str {
+        "echo"
+    }
+    fn description(&self) -> &str {
+        "Echoes input"
+    }
     fn call(&self, params: Value) -> Result<Value, McpError> {
         Ok(params)
     }
-    fn input_schema(&self) -> Value { json!({}) }
+    fn input_schema(&self) -> Value {
+        json!({})
+    }
 }
 
 #[test]
@@ -43,7 +49,9 @@ fn test_mcp_request_handling() {
 
 #[quickcheck]
 fn test_mcp_invalid_tool_name(name: String) -> TestResult {
-    if name == "echo" { return TestResult::discard(); }
+    if name == "echo" {
+        return TestResult::discard();
+    }
 
     let mut server = LuminaraMcpServer::new();
     server.register_tool(Box::new(EchoTool));

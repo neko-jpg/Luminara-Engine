@@ -1,4 +1,4 @@
-use luminara_script_wasm::{WasmScriptRuntime, ResourceLimits};
+use luminara_script_wasm::{ResourceLimits, WasmScriptRuntime};
 use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 

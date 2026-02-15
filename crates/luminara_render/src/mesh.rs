@@ -1,9 +1,9 @@
+use crate::command::DrawCommand;
+use crate::PbrMaterial;
 use bytemuck::{Pod, Zeroable};
 use luminara_asset::{Asset, Handle};
 use luminara_math::{Mat4, Vec3};
 use wgpu;
-use crate::command::DrawCommand;
-use crate::PbrMaterial;
 
 /// Axis-Aligned Bounding Box for mesh culling
 #[derive(Debug, Clone, Copy)]
@@ -371,26 +371,26 @@ impl Mesh {
         if !self.vertices.is_empty() {
             let mut vb = self.vertex_buffer.write().unwrap();
             if vb.is_none() {
-                *vb = Some(device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
+                *vb = Some(
+                    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Vertex Buffer"),
                         contents: bytemuck::cast_slice(&self.vertices),
                         usage: wgpu::BufferUsages::VERTEX,
-                    },
-                ));
+                    }),
+                );
             }
         }
 
         if !self.indices.is_empty() {
             let mut ib = self.index_buffer.write().unwrap();
             if ib.is_none() {
-                *ib = Some(device.create_buffer_init(
-                    &wgpu::util::BufferInitDescriptor {
+                *ib = Some(
+                    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Index Buffer"),
                         contents: bytemuck::cast_slice(&self.indices),
                         usage: wgpu::BufferUsages::INDEX,
-                    },
-                ));
+                    }),
+                );
             }
         }
     }

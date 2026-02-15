@@ -1,7 +1,7 @@
-use crate::server::{McpTool, McpError};
-use serde_json::{json, Value};
-use luminara_core::world::World;
+use crate::server::{McpError, McpTool};
 use luminara_core::shared_types::Entity;
+use luminara_core::world::World;
+use serde_json::{json, Value};
 // We need access to engine/world to implement these.
 // Since `McpTool` trait methods take `&self` and `Value`, we need to inject World context.
 // But `McpTool` is boxed. We can inject World into the Tool struct when creating it?
@@ -18,12 +18,18 @@ pub struct CreateEntityTool {
 }
 
 impl CreateEntityTool {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 impl McpTool for CreateEntityTool {
-    fn name(&self) -> &str { "scene.create_entity" }
-    fn description(&self) -> &str { "Creates a new entity" }
+    fn name(&self) -> &str {
+        "scene.create_entity"
+    }
+    fn description(&self) -> &str {
+        "Creates a new entity"
+    }
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",
@@ -42,8 +48,12 @@ impl McpTool for CreateEntityTool {
 
 pub struct ModifyComponentTool;
 impl McpTool for ModifyComponentTool {
-    fn name(&self) -> &str { "scene.modify_component" }
-    fn description(&self) -> &str { "Modifies a component" }
+    fn name(&self) -> &str {
+        "scene.modify_component"
+    }
+    fn description(&self) -> &str {
+        "Modifies a component"
+    }
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",
@@ -62,8 +72,12 @@ impl McpTool for ModifyComponentTool {
 
 pub struct QueryEntitiesTool;
 impl McpTool for QueryEntitiesTool {
-    fn name(&self) -> &str { "scene.query_entities" }
-    fn description(&self) -> &str { "Queries entities" }
+    fn name(&self) -> &str {
+        "scene.query_entities"
+    }
+    fn description(&self) -> &str {
+        "Queries entities"
+    }
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",

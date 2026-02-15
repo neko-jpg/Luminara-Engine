@@ -1,6 +1,6 @@
+use luminara_asset::{Asset, AssetLoadError, AssetLoader, Handle};
 use luminara_core::{Component, Entity};
 use luminara_math::{Mat4, Quat, Vec3};
-use luminara_asset::{Asset, Handle, AssetLoader, AssetLoadError};
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ impl Asset for AnimationClip {
 pub struct AnimationChannel {
     pub target_node_index: usize,
     pub target_path: AnimationPath,
-    pub inputs: Vec<f32>, // Time keyframes
+    pub inputs: Vec<f32>,         // Time keyframes
     pub outputs: AnimationOutput, // Value keyframes
 }
 
@@ -106,33 +106,28 @@ impl AssetLoader for GltfLoader {
     }
 
     fn load(&self, bytes: &[u8], _path: &Path) -> Result<Self::Asset, AssetLoadError> {
-        let gltf = gltf::Gltf::from_slice(bytes)
-            .map_err(|e| AssetLoadError::Parse(e.to_string()))?;
+        let gltf =
+            gltf::Gltf::from_slice(bytes).map_err(|e| AssetLoadError::Parse(e.to_string()))?;
 
         let blob = gltf.blob.as_deref();
 
         // Collect node names
-        let node_names: Vec<String> = gltf.nodes()
+        let node_names: Vec<String> = gltf
+            .nodes()
             .map(|n| n.name().unwrap_or("unnamed").to_string())
             .collect();
 
         // ── Extract skeleton from first skin ─────────────────
         let skeleton = if let Some(skin) = gltf.skins().next() {
             let joints: Vec<_> = skin.joints().collect();
-            let reader = skin.reader(|buf| {
-                match buf.source() {
-                    gltf::buffer::Source::Bin => blob,
-                    gltf::buffer::Source::Uri(_) => None,
-                }
+            let reader = skin.reader(|buf| match buf.source() {
+                gltf::buffer::Source::Bin => blob,
+                gltf::buffer::Source::Uri(_) => None,
             });
 
             let inverse_bind_matrices: Vec<Mat4> = reader
                 .read_inverse_bind_matrices()
-                .map(|ibm| {
-                    ibm.map(|m| {
-                        Mat4::from_cols_array_2d(&m)
-                    }).collect()
-                })
+                .map(|ibm| ibm.map(|m| Mat4::from_cols_array_2d(&m)).collect())
                 .unwrap_or_else(|| vec![Mat4::IDENTITY; joints.len()]);
 
             // Build bone list
@@ -140,7 +135,8 @@ impl AssetLoader for GltfLoader {
             let mut hierarchy = Vec::with_capacity(joints.len());
 
             // Create a map from node index -> joint index
-            let mut node_to_joint: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+            let mut node_to_joint: std::collections::HashMap<usize, usize> =
+                std::collections::HashMap::new();
             for (ji, joint) in joints.iter().enumerate() {
                 node_to_joint.insert(joint.index(), ji);
             }
@@ -150,7 +146,8 @@ impl AssetLoader for GltfLoader {
                 let translation = Vec3::new(t[0], t[1], t[2]);
                 let rotation = Quat::from_xyzw(r[0], r[1], r[2], r[3]);
                 let scale = Vec3::new(s[0], s[1], s[2]);
-                let local_transform = Mat4::from_scale_rotation_translation(scale, rotation, translation);
+                let local_transform =
+                    Mat4::from_scale_rotation_translation(scale, rotation, translation);
 
                 let ibm = if ji < inverse_bind_matrices.len() {
                     inverse_bind_matrices[ji]
@@ -165,9 +162,15 @@ impl AssetLoader for GltfLoader {
                 });
 
                 // Find parent joint index
-                let parent_idx = joints.iter().enumerate().find(|(_, potential_parent)| {
-                    potential_parent.children().any(|child| child.index() == joint.index())
-                }).map(|(pi, _)| pi);
+                let parent_idx = joints
+                    .iter()
+                    .enumerate()
+                    .find(|(_, potential_parent)| {
+                        potential_parent
+                            .children()
+                            .any(|child| child.index() == joint.index())
+                    })
+                    .map(|(pi, _)| pi);
                 hierarchy.push(parent_idx);
             }
 
@@ -188,11 +191,9 @@ impl AssetLoader for GltfLoader {
                 let node_index = target.node().index();
                 let property = target.property();
 
-                let reader = channel.reader(|buf| {
-                    match buf.source() {
-                        gltf::buffer::Source::Bin => blob,
-                        gltf::buffer::Source::Uri(_) => None,
-                    }
+                let reader = channel.reader(|buf| match buf.source() {
+                    gltf::buffer::Source::Bin => blob,
+                    gltf::buffer::Source::Uri(_) => None,
                 });
 
                 // Read input timestamps
@@ -223,11 +224,10 @@ impl AssetLoader for GltfLoader {
                         let values: Vec<Quat> = reader
                             .read_outputs()
                             .map(|out| match out {
-                                gltf::animation::util::ReadOutputs::Rotations(iter) => {
-                                    iter.into_f32()
-                                        .map(|r| Quat::from_xyzw(r[0], r[1], r[2], r[3]))
-                                        .collect()
-                                }
+                                gltf::animation::util::ReadOutputs::Rotations(iter) => iter
+                                    .into_f32()
+                                    .map(|r| Quat::from_xyzw(r[0], r[1], r[2], r[3]))
+                                    .collect(),
                                 _ => Vec::new(),
                             })
                             .unwrap_or_default();
@@ -277,7 +277,8 @@ impl AssetLoader for GltfLoader {
         }
 
         Ok(GltfScene {
-            name: _path.file_stem()
+            name: _path
+                .file_stem()
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| "unnamed".to_string()),
             skeleton,

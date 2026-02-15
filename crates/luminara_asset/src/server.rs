@@ -1,10 +1,10 @@
 use crate::{Asset, AssetId, AssetLoadError, AssetLoader, Handle, HandleAllocator};
-use luminara_core::shared_types::Resource;
-use std::any::Any;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
 use crossbeam_channel::{unbounded, Receiver, Sender};
+use luminara_core::shared_types::Resource;
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadState {
@@ -25,6 +25,7 @@ pub struct AssetServer {
     loaders: RwLock<HashMap<String, Arc<dyn ErasedAssetLoader>>>,
     load_states: RwLock<HashMap<AssetId, LoadState>>,
     assets: RwLock<HashMap<AssetId, AssetEntry>>,
+    fallbacks: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
 
     // Async loading
     load_request_tx: Sender<LoadRequest>,
@@ -34,12 +35,14 @@ pub struct AssetServer {
 struct LoadRequest {
     path: PathBuf,
     id: AssetId,
+    expected_type: TypeId,
     extension: String,
     loader: Arc<dyn ErasedAssetLoader>,
 }
 
 struct LoadResult {
     id: AssetId,
+    expected_type: TypeId,
     result: Result<Arc<dyn Any + Send + Sync>, AssetLoadError>,
 }
 
@@ -56,6 +59,7 @@ impl AssetServer {
                     Err(e) => {
                         let _ = load_result_tx.send(LoadResult {
                             id: req.id,
+                            expected_type: req.expected_type,
                             result: Err(e.into()),
                         });
                         continue;
@@ -65,6 +69,7 @@ impl AssetServer {
                 let result = req.loader.load(&bytes, &req.path);
                 let _ = load_result_tx.send(LoadResult {
                     id: req.id,
+                    expected_type: req.expected_type,
                     result,
                 });
             }
@@ -76,6 +81,7 @@ impl AssetServer {
             loaders: RwLock::new(HashMap::new()),
             load_states: RwLock::new(HashMap::new()),
             assets: RwLock::new(HashMap::new()),
+            fallbacks: RwLock::new(HashMap::new()),
             load_request_tx,
             load_result_rx,
         }
@@ -93,8 +99,14 @@ impl AssetServer {
     pub fn load<T: Asset>(&self, path: &str) -> Handle<T> {
         // Path validation to prevent path traversal
         let path_obj = Path::new(path);
-        if path.contains("..") || path_obj.is_absolute() {
-            log::error!("Invalid asset path: {}", path);
+        let is_unsafe = path_obj
+            .components()
+            .any(|c| matches!(c, Component::ParentDir))
+            || path_obj.is_absolute();
+
+        if is_unsafe {
+            log::error!("Invalid asset path (traversal detected): {}", path);
+            // We should probably return a special "Invalid" handle or just the ID but it will never load.
             return Handle::new(self.handle_allocator.id_for_path(path), 0);
         }
 
@@ -143,14 +155,15 @@ impl AssetServer {
             let _ = self.load_request_tx.send(LoadRequest {
                 path: full_path,
                 id,
+                expected_type: TypeId::of::<T>(),
                 extension,
                 loader,
             });
         } else {
-             self.load_states
-                .write()
-                .unwrap()
-                .insert(id, LoadState::Failed(format!("No loader for extension {}", extension)));
+            self.load_states.write().unwrap().insert(
+                id,
+                LoadState::Failed(format!("No loader for extension {}", extension)),
+            );
         }
 
         Handle::new(id, 0)
@@ -168,10 +181,13 @@ impl AssetServer {
                         0
                     };
 
-                    assets.insert(result.id, AssetEntry {
-                        asset: asset_arc,
-                        generation: current_gen,
-                    });
+                    assets.insert(
+                        result.id,
+                        AssetEntry {
+                            asset: asset_arc,
+                            generation: current_gen,
+                        },
+                    );
 
                     self.load_states
                         .write()
@@ -182,10 +198,32 @@ impl AssetServer {
                 }
                 Err(e) => {
                     log::error!("Failed to load asset {:?}: {}", result.id, e);
-                    self.load_states
-                        .write()
-                        .unwrap()
-                        .insert(result.id, LoadState::Failed(e.to_string()));
+
+                    let fallback = {
+                        let fallbacks = self.fallbacks.read().unwrap();
+                        fallbacks.get(&result.expected_type).cloned()
+                    };
+
+                    if let Some(asset) = fallback {
+                        log::warn!("Using fallback for asset {:?}", result.id);
+                        let mut assets = self.assets.write().unwrap();
+                        assets.insert(
+                            result.id,
+                            AssetEntry {
+                                asset,
+                                generation: 0,
+                            },
+                        );
+                        self.load_states
+                            .write()
+                            .unwrap()
+                            .insert(result.id, LoadState::Loaded);
+                    } else {
+                        self.load_states
+                            .write()
+                            .unwrap()
+                            .insert(result.id, LoadState::Failed(e.to_string()));
+                    }
                 }
             }
         }
@@ -227,10 +265,13 @@ impl AssetServer {
                             0
                         };
 
-                        assets.insert(id, AssetEntry {
-                            asset: asset_arc,
-                            generation: current_gen,
-                        });
+                        assets.insert(
+                            id,
+                            AssetEntry {
+                                asset: asset_arc,
+                                generation: current_gen,
+                            },
+                        );
 
                         self.load_states
                             .write()
@@ -267,6 +308,11 @@ impl AssetServer {
         }
     }
 
+    pub fn register_fallback<T: Asset>(&mut self, asset: T) {
+        let mut fallbacks = self.fallbacks.write().unwrap();
+        fallbacks.insert(TypeId::of::<T>(), Arc::new(asset));
+    }
+
     pub fn get<T: Asset>(&self, handle: &Handle<T>) -> Option<Arc<T>> {
         let assets = self.assets.read().unwrap();
         assets.get(&handle.id()).and_then(|entry| {
@@ -275,7 +321,9 @@ impl AssetServer {
             // If handle generation > entry generation, we have old data (impossible unless handle comes from future).
             // If mismatch, we can log warning or return None if we strictly enforce versioning.
             // For now, return the asset.
-            entry.asset.clone()
+            entry
+                .asset
+                .clone()
                 .downcast::<T>()
                 .map_err(|_| "Downcast failed")
                 .ok()
@@ -286,10 +334,13 @@ impl AssetServer {
         let id = AssetId::new();
         let mut assets = self.assets.write().unwrap();
 
-        assets.insert(id, AssetEntry {
-            asset: Arc::new(asset),
-            generation: 0,
-        });
+        assets.insert(
+            id,
+            AssetEntry {
+                asset: Arc::new(asset),
+                generation: 0,
+            },
+        );
 
         self.load_states
             .write()

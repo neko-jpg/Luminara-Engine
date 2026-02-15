@@ -29,7 +29,10 @@ fn test_throw_velocity_logic() {
     let delta_v = impulse / mass;
     let final_velocity = initial_velocity + delta_v;
 
-    assert_eq!(final_velocity, initial_velocity * (1.0 + config.throw_multiplier));
+    assert_eq!(
+        final_velocity,
+        initial_velocity * (1.0 + config.throw_multiplier)
+    );
 
     // Property: Faster drag (higher initial velocity) produces higher release velocity
     let slow_drag_vel = Vec3::new(1.0, 0.0, 0.0);

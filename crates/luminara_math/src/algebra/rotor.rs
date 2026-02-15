@@ -3,9 +3,8 @@
 //! Represents a rotation in 3D space using the even subalgebra of PGA.
 //! Isomorphic to a quaternion.
 
-
 use glam::Quat;
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Mul, Sub};
 
 /// A rotor representing a rotation.
 ///
@@ -27,7 +26,6 @@ impl Rotor<f32> {
         e23: 0.0,
     };
 
-
     pub fn from_quat(q: Quat) -> Self {
         Self {
             s: q.w,
@@ -36,7 +34,6 @@ impl Rotor<f32> {
             e23: q.x,
         }
     }
-
 
     pub fn to_quat(&self) -> Quat {
         Quat::from_xyzw(self.e23, self.e13, self.e12, self.s)
@@ -49,7 +46,7 @@ impl<T> Rotor<T> {
     }
 }
 
-impl<T: Copy + Neg<Output=T>> Rotor<T> {
+impl<T: Copy + Neg<Output = T>> Rotor<T> {
     pub fn reverse(&self) -> Self {
         Self {
             s: self.s,
@@ -62,19 +59,25 @@ impl<T: Copy + Neg<Output=T>> Rotor<T> {
 
 use std::ops::Neg;
 
-impl<T: Copy + Add<Output=T> + Sub<Output=T> + Mul<Output=T>> Rotor<T> {
+impl<T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T>> Rotor<T> {
     pub fn geometric_product(&self, other: &Rotor<T>) -> Rotor<T> {
         // Quaternion multiplication
         Rotor {
-            s: self.s * other.s - self.e12 * other.e12 - self.e13 * other.e13 - self.e23 * other.e23,
-            e12: self.s * other.e12 + self.e12 * other.s - self.e13 * other.e23 + self.e23 * other.e13,
-            e13: self.s * other.e13 + self.e13 * other.s + self.e12 * other.e23 - self.e23 * other.e12,
-            e23: self.s * other.e23 + self.e23 * other.s - self.e12 * other.e13 + self.e13 * other.e12,
+            s: self.s * other.s
+                - self.e12 * other.e12
+                - self.e13 * other.e13
+                - self.e23 * other.e23,
+            e12: self.s * other.e12 + self.e12 * other.s - self.e13 * other.e23
+                + self.e23 * other.e13,
+            e13: self.s * other.e13 + self.e13 * other.s + self.e12 * other.e23
+                - self.e23 * other.e12,
+            e23: self.s * other.e23 + self.e23 * other.s - self.e12 * other.e13
+                + self.e13 * other.e12,
         }
     }
 }
 
-impl<T: Copy + Add<Output=T> + Sub<Output=T> + Mul<Output=T>> std::ops::Mul for Rotor<T> {
+impl<T: Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T>> std::ops::Mul for Rotor<T> {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
         self.geometric_product(&rhs)

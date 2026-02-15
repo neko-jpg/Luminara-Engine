@@ -1,10 +1,10 @@
-use luminara_script::{ScriptId, ScriptError};
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 use crate::api::{input::LuaInput, world::LuaWorld};
 use luminara_core::world::World;
 use luminara_input::Input;
+use luminara_script::{ScriptError, ScriptId};
 use mlua::prelude::*;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 pub struct LuaScriptRuntime {
     pub(crate) lua: mlua::Lua,
@@ -22,7 +22,17 @@ pub struct LoadedScript {
 
 impl LuaScriptRuntime {
     pub fn new() -> Result<Self, ScriptError> {
+        // Use default standard libraries for now (excludes debug/io/os if configured properly via new_with if we had the flags)
+        // Since StdLib::BASE etc are not found, we use safe defaults or new()
         let lua = mlua::Lua::new();
+
+        // Security: Set instruction limit to prevent infinite loops (e.g. 100,000 instructions)
+        // lua.set_interrupt is not available in standard mlua 0.9 without features or changed API.
+        // TODO: Re-enable instruction limit/sandbox once API is clarified.
+        // lua.set_interrupt(|_| {
+        //     Ok(mlua::VmState::Continue)
+        // });
+
         Ok(Self {
             lua,
             scripts: HashMap::new(),
@@ -39,19 +49,30 @@ impl LuaScriptRuntime {
         let path_buf = path.to_path_buf();
 
         if let Some(&id) = self.path_to_id.get(&path_buf) {
-             return Ok(id);
+            return Ok(id);
         }
 
         let source = std::fs::read_to_string(path).map_err(ScriptError::Io)?;
 
         let chunk = self.lua.load(&source);
-        let func = chunk.into_function().map_err(|e| ScriptError::Compilation(e.to_string()))?;
-        let factory_key = self.lua.create_registry_value(func.clone()).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+        let func = chunk
+            .into_function()
+            .map_err(|e| ScriptError::Compilation(e.to_string()))?;
+        let factory_key = self
+            .lua
+            .create_registry_value(func.clone())
+            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
 
-        let result: mlua::Value = func.call(()).map_err(|e| ScriptError::Runtime(format!("Error running script body: {}", e)))?;
+        let result: mlua::Value = func
+            .call(())
+            .map_err(|e| ScriptError::Runtime(format!("Error running script body: {}", e)))?;
 
         let instance_key = if let mlua::Value::Table(t) = result {
-            Some(self.lua.create_registry_value(t).map_err(|e| ScriptError::Runtime(e.to_string()))?)
+            Some(
+                self.lua
+                    .create_registry_value(t)
+                    .map_err(|e| ScriptError::Runtime(e.to_string()))?,
+            )
         } else {
             None
         };
@@ -73,7 +94,9 @@ impl LuaScriptRuntime {
     }
 
     pub fn reload_script(&mut self, script_id: ScriptId) -> Result<(), ScriptError> {
-        let script = self.scripts.get_mut(&script_id)
+        let script = self
+            .scripts
+            .get_mut(&script_id)
             .ok_or_else(|| ScriptError::Runtime(format!("Script not found: {:?}", script_id)))?;
 
         let source = std::fs::read_to_string(&script.path).map_err(ScriptError::Io)?;
@@ -98,13 +121,21 @@ impl LuaScriptRuntime {
 
         let new_instance_key = if let mlua::Value::Table(new_table) = result {
             if let Some(old_key) = &script.instance_key {
-                let old_table: mlua::Table = self.lua.registry_value(old_key).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+                let old_table: mlua::Table = self
+                    .lua
+                    .registry_value(old_key)
+                    .map_err(|e| ScriptError::Runtime(e.to_string()))?;
 
-                let saved_state: Option<mlua::Value> = if let Ok(on_save) = old_table.get::<_, mlua::Function>("on_save") {
-                    Some(on_save.call::<_, mlua::Value>(()).map_err(|e| ScriptError::Runtime(e.to_string()))?)
-                } else {
-                    None
-                };
+                let saved_state: Option<mlua::Value> =
+                    if let Ok(on_save) = old_table.get::<_, mlua::Function>("on_save") {
+                        Some(
+                            on_save
+                                .call::<_, mlua::Value>(())
+                                .map_err(|e| ScriptError::Runtime(e.to_string()))?,
+                        )
+                    } else {
+                        None
+                    };
 
                 for pair in old_table.pairs::<mlua::Value, mlua::Value>() {
                     if let Ok((k, v)) = pair {
@@ -121,63 +152,61 @@ impl LuaScriptRuntime {
                 }
             }
 
-            Some(self.lua.create_registry_value(new_table).map_err(|e| ScriptError::Runtime(e.to_string()))?)
+            Some(
+                self.lua
+                    .create_registry_value(new_table)
+                    .map_err(|e| ScriptError::Runtime(e.to_string()))?,
+            )
         } else {
             None
         };
 
-        script.factory_key = self.lua.create_registry_value(func).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+        script.factory_key = self
+            .lua
+            .create_registry_value(func)
+            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
         script.instance_key = new_instance_key;
 
         Ok(())
     }
 
     pub fn call_lifecycle(&self, script_id: ScriptId, hook: &str) -> Result<(), ScriptError> {
-        let script = self.scripts.get(&script_id)
+        let script = self
+            .scripts
+            .get(&script_id)
             .ok_or_else(|| ScriptError::Runtime(format!("Script not found: {:?}", script_id)))?;
 
         if let Some(key) = &script.instance_key {
-            let table: mlua::Table = self.lua.registry_value(key)
+            let table: mlua::Table = self
+                .lua
+                .registry_value(key)
                 .map_err(|e| ScriptError::Runtime(e.to_string()))?;
 
             if let Ok(func) = table.get::<_, mlua::Function>(hook) {
-                func.call::<_, ()>(()).map_err(|e| ScriptError::Runtime(format!("Error calling hook '{}': {}", hook, e)))?;
+                func.call::<_, ()>(()).map_err(|e| {
+                    ScriptError::Runtime(format!("Error calling hook '{}': {}", hook, e))
+                })?;
             }
         }
         Ok(())
     }
 
     pub fn update(&mut self, dt: f32, world: &mut World, input: &Input) -> Result<(), ScriptError> {
-        // Use unsafe to bypass lifetime issue for 'static requirement in create_userdata.
-        // `input` and `world` references must valid during `scope` call.
-        // `scope` guarantees that userdata created via `create_userdata` (if it takes ownership) lives as long as scope?
-        // No, `create_userdata` takes value.
-        // `LuaInput` wraps reference.
-        // The issue: `mlua` might infer `LuaInput<'a>` implies `'a` must be static if not using `create_userdata_ref` or equivalent?
-        // Or simply `LuaInput` needs to be valid.
-
-        // Let's use `transmute` to extend lifetime to static for the duration of the call,
-        // relying on `scope` to ensure Lua doesn't keep it.
-        // Actually, `scope` ensures UserData created via `create_userdata` is fine?
-        // The error `argument requires that '1 must outlive 'static` suggests that `LuaInput` implements `UserData` which might default to `'static` bound somewhere?
-
-        let static_input: &'static Input = unsafe { std::mem::transmute(input) };
-        let static_world: &'static mut World = unsafe { std::mem::transmute(world) };
-
-        let lua_world = LuaWorld(static_world as *mut _);
+        let lua_world = LuaWorld(world as *mut _);
 
         let result: mlua::Result<()> = self.lua.scope(|scope| {
-            // Now we pass static refs wrapped in our structs.
-            // Safe because we don't leak them outside scope (we don't set globals here, just pass as args).
-
-            let input_ud = scope.create_userdata(LuaInput(static_input))?;
+            // Pass references directly. Scope ensures they don't outlive the function call.
+            // We cast to raw pointer to bypass static lifetime requirement, relying on scope safety
+            let input_ud = scope.create_userdata(LuaInput(input as *const _))?;
             let world_ud = scope.create_userdata(lua_world)?;
 
             for script in self.scripts.values() {
                 if let Some(key) = &script.instance_key {
                     if let Ok(table) = self.lua.registry_value::<mlua::Table>(key) {
                         if let Ok(func) = table.get::<_, mlua::Function>("on_update") {
-                            if let Err(e) = func.call::<_, ()>((dt, input_ud.clone(), world_ud.clone())) {
+                            if let Err(e) =
+                                func.call::<_, ()>((dt, input_ud.clone(), world_ud.clone()))
+                            {
                                 eprintln!("Error in script {:?} on_update: {}", script.id, e);
                             }
                         }

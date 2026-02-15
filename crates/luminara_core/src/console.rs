@@ -1,4 +1,4 @@
-use crate::{Resource, App, AppInterface, Plugin};
+use crate::{App, AppInterface, Plugin, Resource};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -28,7 +28,8 @@ impl Console {
     }
 
     pub fn register<C: ConsoleCommand + 'static>(&mut self, command: C) {
-        self.commands.insert(command.name().to_string(), Arc::new(Box::new(command)));
+        self.commands
+            .insert(command.name().to_string(), Arc::new(Box::new(command)));
     }
 
     pub fn execute(&mut self, input: &str, app: &mut App) {

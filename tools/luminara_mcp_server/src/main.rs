@@ -1,6 +1,6 @@
 pub mod server;
 
-pub use server::{LuminaraMcpServer, McpTool, McpError, McpRequest, McpResponse};
+pub use server::{LuminaraMcpServer, McpError, McpRequest, McpResponse, McpTool};
 
 #[tokio::main]
 async fn main() {

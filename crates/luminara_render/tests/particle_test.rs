@@ -1,5 +1,5 @@
+use luminara_math::{Color, Vec3};
 use luminara_render::particles::{Particle, ParticleSystem};
-use luminara_math::{Vec3, Color};
 
 #[test]
 fn test_particle_despawn() {

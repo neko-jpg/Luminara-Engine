@@ -1,7 +1,10 @@
-use luminara::prelude::*;
-use luminara::input::{ActionMap, InputExt, input_map::{ActionBinding, InputSource}};
 use luminara::input::keyboard::Key;
 use luminara::input::mouse::MouseButton;
+use luminara::input::{
+    input_map::{ActionBinding, InputSource},
+    ActionMap, InputExt,
+};
+use luminara::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CameraAction {
@@ -76,30 +79,54 @@ impl Default for CameraController {
 pub fn setup_camera_input(world: &mut World) {
     let mut map = ActionMap::<CameraAction>::new();
 
-    map.bind(CameraAction::MoveForward, ActionBinding {
-        inputs: vec![InputSource::Key(Key::W), InputSource::Key(Key::Up)],
-    });
-    map.bind(CameraAction::MoveBackward, ActionBinding {
-        inputs: vec![InputSource::Key(Key::S), InputSource::Key(Key::Down)],
-    });
-    map.bind(CameraAction::MoveLeft, ActionBinding {
-        inputs: vec![InputSource::Key(Key::A), InputSource::Key(Key::Left)],
-    });
-    map.bind(CameraAction::MoveRight, ActionBinding {
-        inputs: vec![InputSource::Key(Key::D), InputSource::Key(Key::Right)],
-    });
-    map.bind(CameraAction::MoveUp, ActionBinding {
-        inputs: vec![InputSource::Key(Key::Space), InputSource::Key(Key::E)],
-    });
-    map.bind(CameraAction::MoveDown, ActionBinding {
-        inputs: vec![InputSource::Key(Key::LShift), InputSource::Key(Key::Q)],
-    });
-    map.bind(CameraAction::LookActive, ActionBinding {
-        inputs: vec![InputSource::MouseButton(MouseButton::Right)],
-    });
-    map.bind(CameraAction::ToggleMode, ActionBinding {
-        inputs: vec![InputSource::Key(Key::C)], // 'C' to toggle camera mode
-    });
+    map.bind(
+        CameraAction::MoveForward,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::W), InputSource::Key(Key::Up)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveBackward,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::S), InputSource::Key(Key::Down)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveLeft,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::A), InputSource::Key(Key::Left)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveRight,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::D), InputSource::Key(Key::Right)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveUp,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::Space), InputSource::Key(Key::E)],
+        },
+    );
+    map.bind(
+        CameraAction::MoveDown,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::LShift), InputSource::Key(Key::Q)],
+        },
+    );
+    map.bind(
+        CameraAction::LookActive,
+        ActionBinding {
+            inputs: vec![InputSource::MouseButton(MouseButton::Right)],
+        },
+    );
+    map.bind(
+        CameraAction::ToggleMode,
+        ActionBinding {
+            inputs: vec![InputSource::Key(Key::C)], // 'C' to toggle camera mode
+        },
+    );
 
     world.insert_resource(map);
 }
@@ -211,14 +238,17 @@ pub fn camera_controller_system(
         let rot_alpha = 1.0 - (-smoothing.rotation_stiffness * dt).exp();
 
         // Interpolate position
-        transform.translation = transform.translation.lerp(smoothing.target_position, pos_alpha);
+        transform.translation = transform
+            .translation
+            .lerp(smoothing.target_position, pos_alpha);
 
         // Interpolate rotation values
         // Note: Interpolating Euler angles directly is okay here since we clamped pitch and wrap yaw isn't an issue for small steps,
         // but quaternion slerp is better.
         // Let's interpolate the values stored in controller for rendering
         controller.yaw = controller.yaw + (smoothing.target_yaw - controller.yaw) * rot_alpha;
-        controller.pitch = controller.pitch + (smoothing.target_pitch - controller.pitch) * rot_alpha;
+        controller.pitch =
+            controller.pitch + (smoothing.target_pitch - controller.pitch) * rot_alpha;
 
         // Apply rotation to transform
         let final_yaw = Quat::from_rotation_y(controller.yaw.to_radians());
@@ -230,11 +260,11 @@ pub fn camera_controller_system(
             // Offset camera back
             let offset = transform.rotation * Vec3::new(0.0, 2.0, 5.0);
             transform.translation = transform.translation + offset; // This modifies the visual pos, but target_position is the "pivot"
-            // Wait, if we modify translation here, next frame lerp will start from the offset position towards the pivot.
-            // That would be a glitch.
-            // Correct approach: `transform.translation` should track the camera position.
-            // In 1st person: camera pos = target pos (smoothed).
-            // In 3rd person: camera pos = target pos (smoothed) + offset.
+                                                                    // Wait, if we modify translation here, next frame lerp will start from the offset position towards the pivot.
+                                                                    // That would be a glitch.
+                                                                    // Correct approach: `transform.translation` should track the camera position.
+                                                                    // In 1st person: camera pos = target pos (smoothed).
+                                                                    // In 3rd person: camera pos = target pos (smoothed) + offset.
 
             // So:
             // 1. Smooth the pivot position (target_position -> smoothed_pivot)
@@ -250,9 +280,9 @@ pub fn camera_controller_system(
 
             // We calculate the *desired* camera position.
             let desired_pos = if controller.mode == CameraMode::ThirdPerson {
-                 smoothing.target_position + (final_yaw * final_pitch * Vec3::new(0.0, 0.0, 5.0))
+                smoothing.target_position + (final_yaw * final_pitch * Vec3::new(0.0, 0.0, 5.0))
             } else {
-                 smoothing.target_position
+                smoothing.target_position
             };
 
             // We already lerped `transform.translation` towards `target_position` above.
@@ -260,10 +290,10 @@ pub fn camera_controller_system(
             // We should lerp towards `desired_pos`.
             transform.translation = transform.translation.lerp(desired_pos, pos_alpha);
         } else {
-             // First Person: already handled by simple lerp above?
-             // target_position is where we want to be.
-             // We lerped transform.translation towards it.
-             // Correct.
+            // First Person: already handled by simple lerp above?
+            // target_position is where we want to be.
+            // We lerped transform.translation towards it.
+            // Correct.
         }
 
         // Put back smoothing state

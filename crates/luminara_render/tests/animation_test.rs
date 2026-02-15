@@ -8,28 +8,28 @@ fn test_gltf_parse_stub() {
     glb.extend_from_slice(b"glTF");
     glb.extend_from_slice(&2u32.to_le_bytes()); // Version
     glb.extend_from_slice(&12u32.to_le_bytes()); // Length
-    // ... Needs valid chunk.
+                                                 // ... Needs valid chunk.
 
     // Instead of forging a complex GLB, let's verify that our struct definitions compile
     // and hold data correctly as expected by the design.
 
-    use luminara_render::animation::{AnimationClip, AnimationChannel, AnimationPath, AnimationOutput};
-    use luminara_math::{Vec3, Quat};
+    use luminara_math::{Quat, Vec3};
+    use luminara_render::animation::{
+        AnimationChannel, AnimationClip, AnimationOutput, AnimationPath,
+    };
 
     let clip = AnimationClip {
         name: "TestClip".to_string(),
         duration: 1.0,
-        channels: vec![
-            AnimationChannel {
-                target_node_index: 0,
-                target_path: AnimationPath::Translation,
-                inputs: vec![0.0, 1.0],
-                outputs: AnimationOutput::Vector3(vec![
-                    Vec3::new(0.0, 0.0, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0)
-                ]),
-            }
-        ],
+        channels: vec![AnimationChannel {
+            target_node_index: 0,
+            target_path: AnimationPath::Translation,
+            inputs: vec![0.0, 1.0],
+            outputs: AnimationOutput::Vector3(vec![
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(1.0, 0.0, 0.0),
+            ]),
+        }],
     };
 
     assert_eq!(clip.duration, 1.0);
@@ -37,7 +37,7 @@ fn test_gltf_parse_stub() {
         AnimationOutput::Vector3(v) => {
             assert_eq!(v.len(), 2);
             assert_eq!(v[1].x, 1.0);
-        },
+        }
         _ => panic!("Wrong output type"),
     }
 }

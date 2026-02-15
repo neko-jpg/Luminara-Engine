@@ -3,41 +3,41 @@
 //! **Validates: Requirements 2.4**
 //! **Property 6: Motor Point Transformation Preserves Distance**
 
-use luminara_math::algebra::Motor;
 use glam::Vec3;
+use luminara_math::algebra::Motor;
 use proptest::prelude::*;
 use std::f32::consts::PI;
 
 /// Generate a random motor for property testing.
 fn motor_strategy() -> impl Strategy<Value = Motor<f32>> {
     (
-        -10.0f32..10.0,  // translation x
-        -10.0f32..10.0,  // translation y
-        -10.0f32..10.0,  // translation z
-        -1.0f32..1.0,    // rotation axis x
-        -1.0f32..1.0,    // rotation axis y
-        -1.0f32..1.0,    // rotation axis z
-        -PI..PI,         // rotation angle
-    ).prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
-        let trans = Vec3::new(tx, ty, tz);
-        let axis = Vec3::new(ax, ay, az);
-        
-        // Handle zero axis case
-        if axis.length_squared() < 1e-6 {
-            Motor::from_translation(trans.into())
-        } else {
-            let axis_normalized = axis.normalize();
-            let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
-            let trans_motor = Motor::from_translation(trans.into());
-            trans_motor.geometric_product(&rot)
-        }
-    })
+        -10.0f32..10.0, // translation x
+        -10.0f32..10.0, // translation y
+        -10.0f32..10.0, // translation z
+        -1.0f32..1.0,   // rotation axis x
+        -1.0f32..1.0,   // rotation axis y
+        -1.0f32..1.0,   // rotation axis z
+        -PI..PI,        // rotation angle
+    )
+        .prop_map(|(tx, ty, tz, ax, ay, az, angle)| {
+            let trans = Vec3::new(tx, ty, tz);
+            let axis = Vec3::new(ax, ay, az);
+
+            // Handle zero axis case
+            if axis.length_squared() < 1e-6 {
+                Motor::from_translation(trans.into())
+            } else {
+                let axis_normalized = axis.normalize();
+                let rot = Motor::from_axis_angle(axis_normalized.into(), angle);
+                let trans_motor = Motor::from_translation(trans.into());
+                trans_motor.geometric_product(&rot)
+            }
+        })
 }
 
 /// Generate a random 3D point for property testing.
 fn point_strategy() -> impl Strategy<Value = Vec3> {
-    (-100.0f32..100.0, -100.0f32..100.0, -100.0f32..100.0)
-        .prop_map(|(x, y, z)| Vec3::new(x, y, z))
+    (-100.0f32..100.0, -100.0f32..100.0, -100.0f32..100.0).prop_map(|(x, y, z)| Vec3::new(x, y, z))
 }
 
 proptest! {
@@ -61,21 +61,21 @@ proptest! {
     ) {
         // Compute original distance
         let original_distance = p1.distance(p2);
-        
+
         // Transform both points
         let p1_transformed = motor.transform_point(p1.into());
         let p2_transformed = motor.transform_point(p2.into());
-        
+
         // Compute transformed distance
         let transformed_distance = p1_transformed.distance(p2_transformed);
-        
+
         // The distances should be equal (within floating-point tolerance)
         let relative_error = if original_distance > 1e-6 {
             ((transformed_distance - original_distance) / original_distance).abs()
         } else {
             (transformed_distance - original_distance).abs()
         };
-        
+
         assert!(
             relative_error < 1e-4,
             "Distance not preserved:\n  Original distance: {}\n  Transformed distance: {}\n  Relative error: {}\n  Motor: {:?}\n  p1: {:?}\n  p2: {:?}",
@@ -98,18 +98,18 @@ proptest! {
         p2 in point_strategy(),
     ) {
         let motor = Motor::from_translation(Vec3::new(tx, ty, tz).into());
-        
+
         let original_distance = p1.distance(p2);
         let p1_transformed = motor.transform_point(p1.into());
         let p2_transformed = motor.transform_point(p2.into());
         let transformed_distance = p1_transformed.distance(p2_transformed);
-        
+
         let relative_error = if original_distance > 1e-6 {
             ((transformed_distance - original_distance) / original_distance).abs()
         } else {
             (transformed_distance - original_distance).abs()
         };
-        
+
         assert!(
             relative_error < 1e-4,
             "Translation did not preserve distance: original={}, transformed={}, relative_error={}",
@@ -130,23 +130,23 @@ proptest! {
         p2 in point_strategy(),
     ) {
         let axis = Vec3::new(ax, ay, az);
-        
+
         // Skip if axis is too small
         prop_assume!(axis.length_squared() > 1e-6);
-        
+
         let motor = Motor::from_axis_angle(axis.normalize().into(), angle);
-        
+
         let original_distance = p1.distance(p2);
         let p1_transformed = motor.transform_point(p1.into());
         let p2_transformed = motor.transform_point(p2.into());
         let transformed_distance = p1_transformed.distance(p2_transformed);
-        
+
         let relative_error = if original_distance > 1e-6 {
             ((transformed_distance - original_distance) / original_distance).abs()
         } else {
             (transformed_distance - original_distance).abs()
         };
-        
+
         assert!(
             relative_error < 1e-4,
             "Rotation did not preserve distance: original={}, transformed={}, relative_error={}",

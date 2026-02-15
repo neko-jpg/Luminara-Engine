@@ -1,5 +1,5 @@
-use mlua::prelude::*;
 use luminara_math::Transform;
+use mlua::prelude::*;
 // luminara_core may not have prelude exposed like that, just import what we need or check structure.
 // But we actually only need Transform from math here.
 
@@ -23,10 +23,13 @@ impl LuaUserData for LuaTransform {
             Ok((r.x, r.y, r.z, r.w))
         });
 
-        methods.add_method_mut("set_rotation", |_, this, (x, y, z, w): (f32, f32, f32, f32)| {
-            this.0.rotation = luminara_math::Quat::from_xyzw(x, y, z, w);
-            Ok(())
-        });
+        methods.add_method_mut(
+            "set_rotation",
+            |_, this, (x, y, z, w): (f32, f32, f32, f32)| {
+                this.0.rotation = luminara_math::Quat::from_xyzw(x, y, z, w);
+                Ok(())
+            },
+        );
 
         methods.add_method("scale", |_, this, ()| {
             let s = this.0.scale;

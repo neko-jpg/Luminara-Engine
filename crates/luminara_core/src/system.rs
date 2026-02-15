@@ -28,7 +28,7 @@ pub trait System: Send + Sync {
     }
 }
 
-pub trait SystemParam: Send + Sync + 'static {
+pub trait SystemParam: 'static {
     type Item<'w>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w>;
     fn add_access(access: &mut SystemAccess);
@@ -71,7 +71,11 @@ impl<Q: WorldQuery + 'static, F: QueryFilter + 'static> SystemParam for Query<'s
 impl<E: Event> SystemParam for EventWriter<'static, E> {
     type Item<'w> = EventWriter<'w, E>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
-        EventWriter::new(world.get_events_mut::<E>())
+        EventWriter::new(
+            world
+                .get_events_mut::<E>()
+                .expect("Events resource not found"),
+        )
     }
     fn add_access(access: &mut SystemAccess) {
         access
@@ -91,7 +95,11 @@ impl SystemParam for World {
 impl<E: Event> SystemParam for EventReader<'static, E> {
     type Item<'w> = EventReader<'w, E>;
     fn get_param<'w>(world: &'w World) -> Self::Item<'w> {
-        EventReader::new(world.get_events_mut::<E>())
+        EventReader::new(
+            world
+                .get_events::<E>()
+                .expect("Events resource not found - did you register it?"),
+        )
     }
     fn add_access(access: &mut SystemAccess) {
         access
@@ -108,7 +116,22 @@ pub trait IntoSystem<Marker> {
 pub struct FunctionSystem<F, Params> {
     f: F,
     pub(crate) system_access: SystemAccess,
-    _marker: PhantomData<Params>,
+    _marker: PhantomDataSend<Params>,
+}
+
+struct PhantomDataSend<T: ?Sized>(PhantomData<T>);
+unsafe impl<T: ?Sized> Send for PhantomDataSend<T> {}
+unsafe impl<T: ?Sized> Sync for PhantomDataSend<T> {}
+impl<T: ?Sized> Clone for PhantomDataSend<T> {
+    fn clone(&self) -> Self {
+        Self(PhantomData)
+    }
+}
+impl<T: ?Sized> Copy for PhantomDataSend<T> {}
+impl<T: ?Sized> Default for PhantomDataSend<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
 }
 
 impl<F, Params> FunctionSystem<F, Params> {
@@ -150,7 +173,7 @@ macro_rules! impl_system_func {
                 FunctionSystem {
                     f: self,
                     system_access: access,
-                    _marker: PhantomData,
+                    _marker: PhantomDataSend::default(),
                 }
             }
         }
@@ -218,17 +241,7 @@ where
     }
 }
 
-unsafe impl<F, P> Send for FunctionSystem<F, P>
-where
-    F: Send,
-    P: Send,
-{
-}
-unsafe impl<F, P> Sync for FunctionSystem<F, P>
-where
-    F: Sync,
-    P: Sync,
-{
-}
+unsafe impl<F, P> Send for FunctionSystem<F, P> where F: Send {}
+unsafe impl<F, P> Sync for FunctionSystem<F, P> where F: Sync {}
 unsafe impl<F> Send for ExclusiveFunctionSystem<F> where F: Send {}
 unsafe impl<F> Sync for ExclusiveFunctionSystem<F> where F: Sync {}

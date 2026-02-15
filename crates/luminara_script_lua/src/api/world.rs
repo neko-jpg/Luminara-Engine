@@ -1,8 +1,9 @@
-use mlua::prelude::*;
-use luminara_core::world::World;
-use luminara_core::entity::Entity;
-use luminara_math::Transform;
 use crate::api::transform::LuaTransform;
+use luminara_core::entity::Entity;
+use luminara_core::world::World;
+use luminara_math::Transform;
+use mlua::prelude::*;
+use mlua::AnyUserData;
 
 fn pack_entity(entity: Entity) -> u64 {
     ((entity.generation() as u64) << 32) | (entity.id() as u64)
@@ -19,7 +20,6 @@ struct EntityData {
     id: u32,
     generation: u32,
 }
-
 
 #[derive(Clone, Copy)]
 pub struct LuaWorld(pub *mut World);
@@ -56,11 +56,15 @@ impl LuaUserData for LuaWorld {
             }
         });
 
-        methods.add_method("set_transform", |_, this, (packed_entity, transform): (u64, LuaTransform)| {
-            let world = unsafe { &mut *this.0 };
-            let entity = unpack_entity(packed_entity);
-            world.add_component(entity, transform.0);
-            Ok(())
-        });
+        methods.add_method(
+            "set_transform",
+            |_, this, (packed_entity, transform_ud): (u64, AnyUserData)| {
+                let world = unsafe { &mut *this.0 };
+                let entity = unpack_entity(packed_entity);
+                let transform = transform_ud.borrow::<LuaTransform>()?;
+                world.add_component(entity, transform.0);
+                Ok(())
+            },
+        );
     }
 }

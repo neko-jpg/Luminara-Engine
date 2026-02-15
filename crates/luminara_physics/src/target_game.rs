@@ -4,7 +4,7 @@
 //! raycast hit detection, score tracking, and visual feedback.
 
 use luminara_core::{Component, Resource};
-use luminara_math::{Vec3, Color};
+use luminara_math::{Color, Vec3};
 
 /// Marks an entity as a shootable target.
 #[derive(Debug, Clone)]
@@ -151,11 +151,23 @@ pub fn draw_crosshair(
     let gap = 3.0;
 
     // Horizontal lines (left and right of center with gap)
-    overlay.draw_rect(cx - size, cy - thickness * 0.5, size - gap, thickness, color);
+    overlay.draw_rect(
+        cx - size,
+        cy - thickness * 0.5,
+        size - gap,
+        thickness,
+        color,
+    );
     overlay.draw_rect(cx + gap, cy - thickness * 0.5, size - gap, thickness, color);
 
     // Vertical lines (top and bottom of center with gap)
-    overlay.draw_rect(cx - thickness * 0.5, cy - size, thickness, size - gap, color);
+    overlay.draw_rect(
+        cx - thickness * 0.5,
+        cy - size,
+        thickness,
+        size - gap,
+        color,
+    );
     overlay.draw_rect(cx - thickness * 0.5, cy + gap, thickness, size - gap, color);
 
     // Center dot
@@ -176,7 +188,10 @@ pub fn draw_target_hud(
     // Score panel (top-center)
     let score_text = format!(
         "SCORE: {} | HITS: {}/{} | ACC: {:.0}%",
-        state.score, state.hits, state.shots_fired, state.accuracy()
+        state.score,
+        state.hits,
+        state.shots_fired,
+        state.accuracy()
     );
     let panel_w = score_text.len() as f32 * cw + 24.0;
     let panel_x = (screen_w - panel_w) * 0.5;

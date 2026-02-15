@@ -17,19 +17,13 @@ fn point2d_strategy() -> impl Strategy<Value = [f64; 2]> {
 
 /// Generate nearly-collinear points to test edge cases.
 fn nearly_collinear_points() -> impl Strategy<Value = ([f64; 2], [f64; 2], [f64; 2])> {
-    (
-        -1000.0..1000.0,
-        -1000.0..1000.0,
-        0.0..1.0,
-        -1e-10..1e-10,
-    )
-        .prop_map(|(x1, y1, t, epsilon)| {
-            let p1 = [x1, y1];
-            let p2 = [x1 + 1.0, y1 + 1.0];
-            // p3 is nearly on the line from p1 to p2
-            let p3 = [x1 + t, y1 + t + epsilon];
-            (p1, p2, p3)
-        })
+    (-1000.0..1000.0, -1000.0..1000.0, 0.0..1.0, -1e-10..1e-10).prop_map(|(x1, y1, t, epsilon)| {
+        let p1 = [x1, y1];
+        let p2 = [x1 + 1.0, y1 + 1.0];
+        // p3 is nearly on the line from p1 to p2
+        let p3 = [x1 + t, y1 + t + epsilon];
+        (p1, p2, p3)
+    })
 }
 
 proptest! {
@@ -48,10 +42,10 @@ proptest! {
         pc in point2d_strategy(),
     ) {
         let result = orient2d(pa, pb, pc);
-        
+
         // Compute the exact determinant using f64 arithmetic
         let det = (pb[0] - pa[0]) * (pc[1] - pa[1]) - (pb[1] - pa[1]) * (pc[0] - pa[0]);
-        
+
         // The sign should be consistent with the determinant
         // (allowing for the case where both are very close to zero)
         if det.abs() > 1e-10 {
@@ -72,7 +66,7 @@ proptest! {
     ) {
         let result1 = orient2d(pa, pb, pc);
         let result2 = orient2d(pa, pc, pb); // Swap pb and pc
-        
+
         // The results should have opposite signs (or both be zero)
         if result1.abs() > 1e-15 && result2.abs() > 1e-15 {
             assert_eq!(result1.signum(), -result2.signum(),
@@ -89,12 +83,12 @@ proptest! {
         (pa, pb, pc) in nearly_collinear_points()
     ) {
         let result = orient2d(pa, pb, pc);
-        
+
         // The result should be finite (not NaN or Inf)
         assert!(result.is_finite(),
             "orient2d returned non-finite value for nearly-collinear points: result={}, pa={:?}, pb={:?}, pc={:?}",
             result, pa, pb, pc);
-        
+
         // The result should be deterministic (calling again gives same result)
         let result2 = orient2d(pa, pb, pc);
         assert_eq!(result, result2,
@@ -114,13 +108,13 @@ proptest! {
         ty in -100.0..100.0,
     ) {
         let result1 = orient2d(pa, pb, pc);
-        
+
         // Translate all points
         let pa2 = [pa[0] + tx, pa[1] + ty];
         let pb2 = [pb[0] + tx, pb[1] + ty];
         let pc2 = [pc[0] + tx, pc[1] + ty];
         let result2 = orient2d(pa2, pb2, pc2);
-        
+
         // The signs should be the same
         if result1.abs() > 1e-10 && result2.abs() > 1e-10 {
             assert_eq!(result1.signum(), result2.signum(),
@@ -140,13 +134,13 @@ proptest! {
         scale in 0.1..10.0,
     ) {
         let result1 = orient2d(pa, pb, pc);
-        
+
         // Scale all points
         let pa2 = [pa[0] * scale, pa[1] * scale];
         let pb2 = [pb[0] * scale, pb[1] * scale];
         let pc2 = [pc[0] * scale, pc[1] * scale];
         let result2 = orient2d(pa2, pb2, pc2);
-        
+
         // The signs should be the same
         if result1.abs() > 1e-10 && result2.abs() > 1e-10 {
             assert_eq!(result1.signum(), result2.signum(),
@@ -193,13 +187,21 @@ mod unit_tests {
     fn test_orient2d_large_coordinates() {
         // Test with large coordinates
         let result = orient2d([1e10, 1e10], [1e10 + 1.0, 1e10], [1e10, 1e10 + 1.0]);
-        assert!(result > 0.0, "Expected positive for CCW with large coords, got {}", result);
+        assert!(
+            result > 0.0,
+            "Expected positive for CCW with large coords, got {}",
+            result
+        );
     }
 
     #[test]
     fn test_orient2d_small_differences() {
         // Test with points that have very small differences
         let result = orient2d([0.0, 0.0], [1e-10, 0.0], [0.0, 1e-10]);
-        assert!(result > 0.0, "Expected positive for CCW with small differences, got {}", result);
+        assert!(
+            result > 0.0,
+            "Expected positive for CCW with small differences, got {}",
+            result
+        );
     }
 }
