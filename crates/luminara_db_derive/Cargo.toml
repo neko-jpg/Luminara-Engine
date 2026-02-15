@@ -1,0 +1,14 @@
+[package]
+name = "luminara_db_derive"
+version = "0.1.0"
+edition = "2021"
+description = "Derive macros for luminara_db"
+authors = ["Luminara Team"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+proc-macro2 = "1.0"

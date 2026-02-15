@@ -22,9 +22,10 @@ luminara_script = { workspace = true, optional = true }
 luminara_script_lua = { workspace = true, optional = true }
 luminara_script_wasm = { workspace = true, optional = true }
 luminara_ai_agent = { workspace = true, optional = true }
+luminara_db = { path = "../luminara_db", optional = true }
 
 [features]
-default = ["core", "math", "window", "input", "asset", "render", "scene", "physics", "audio", "platform", "diagnostic", "script", "script_lua", "script_wasm", "ai_agent"]
+default = ["core", "math", "window", "input", "asset", "render", "scene", "physics", "audio", "platform", "diagnostic", "script", "script_lua", "script_wasm", "ai_agent", "db"]
 core = ["dep:luminara_core"]
 math = ["dep:luminara_math"]
 window = ["dep:luminara_window"]
@@ -40,3 +41,7 @@ script = ["dep:luminara_script"]
 script_lua = ["dep:luminara_script_lua"]
 script_wasm = ["dep:luminara_script_wasm"]
 ai_agent = ["dep:luminara_ai_agent"]
+db = ["dep:luminara_db"]
+db-surrealdb = ["db", "luminara_db/surrealkv"]
+db-rocksdb = ["db", "luminara_db/rocksdb"]
+db-memory = ["db", "luminara_db/memory"]
