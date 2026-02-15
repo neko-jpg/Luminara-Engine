@@ -22,9 +22,10 @@ pub mod dsl;
 pub mod dynamics;
 pub mod foundations;
 pub mod geometry;
+pub mod migration;
 pub mod symbolic;
+pub mod validation;
 
-use luminara_core::Component;
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,7 @@ use serde::{Deserialize, Serialize};
 
 /// A color represented by RGBA components.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ecs", derive(luminara_reflect_derive::Reflect))]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -177,6 +179,7 @@ impl Default for Rect {
 
 /// Represents the position, rotation, and scale of an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ecs", derive(luminara_reflect_derive::Reflect))]
 pub struct Transform {
     pub translation: Vec3,
     pub rotation: Quat,
@@ -290,8 +293,16 @@ impl Default for Transform {
     }
 }
 
-impl Component for Transform {
+#[cfg(feature = "ecs")]
+impl luminara_core::Component for Transform {
     fn type_name() -> &'static str {
         "Transform"
+    }
+}
+
+#[cfg(feature = "ecs")]
+impl luminara_core::Component for Color {
+    fn type_name() -> &'static str {
+        "Color"
     }
 }

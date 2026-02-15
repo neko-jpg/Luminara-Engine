@@ -1,16 +1,9 @@
 use crate::dynamics::spectral_fluid::SpectralFluidSolver2D;
-use luminara_core::component::Component;
 
 pub struct FluidVisualization {
     pub solver: SpectralFluidSolver2D,
     pub width: usize,
     pub height: usize,
-}
-
-impl Component for FluidVisualization {
-    fn type_name() -> &'static str {
-        "FluidVisualization"
-    }
 }
 
 impl FluidVisualization {

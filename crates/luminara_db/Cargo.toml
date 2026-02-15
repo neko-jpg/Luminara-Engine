@@ -1,37 +1,46 @@
 [package]
 name = "luminara_db"
-version = "0.1.0"
-edition = "2021"
-description = "Embedded database layer for Luminara Engine (SurrealDB)"
-
-[features]
-default = ["surrealkv"]
-surrealkv = ["surrealdb/kv-surrealkv"]
-rocksdb = ["surrealdb/kv-rocksdb"]
-indexeddb = ["surrealdb/kv-indxdb"]    # WASM
-memory = ["surrealdb/kv-mem"]          # Test
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-surrealdb = { version = "2.0", default-features = false, features = ["protocol-ws"] }
-luminara_core = { path = "../luminara_core" }
-luminara_math = { path = "../luminara_math" }
-luminara_db_derive = { path = "../luminara_db_derive" }
-luminara_mcp = { package = "luminara_mcp_server", path = "../../tools/luminara_mcp_server" }
+# SurrealDB embedded mode
+surrealdb = { version = "2.1", default-features = false }
+tokio = { version = "1.41", features = ["full"] }
 
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1", features = ["sync", "rt", "macros"] }
-thiserror = "2.0"
-tracing = "0.1"
-uuid = { version = "1.0", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
-semver = { version = "1.0", features = ["serde"] }
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+ron = "0.8"
+
+# Error handling
+thiserror = { workspace = true }
+
+# Async runtime
+futures = "0.3"
+
+# Logging
+log = "0.4"
+
+# ECS integration
+luminara_core = { path = "../luminara_core" }
+
+[features]
+default = ["rocksdb"]
+# Storage backends
+memory = ["surrealdb/kv-mem"]
+rocksdb = ["surrealdb/kv-rocksdb"]
+surrealkv = ["surrealdb/kv-surrealkv"]
+# WASM support with IndexedDB
+wasm = ["surrealdb/kv-indxdb"]
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
-tempfile = "3"
-criterion = { version = "0.5", features = ["async_tokio"] }
+tokio-test = "0.4"
+tempfile = "3.13"
+proptest = "1.5"
+env_logger = "0.11"
 
-[[bench]]
-name = "db_bench"
-harness = false
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"

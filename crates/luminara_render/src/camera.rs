@@ -1,15 +1,16 @@
 use luminara_core::shared_types::Component;
 use luminara_math::{Color, Mat4};
 use serde::{Deserialize, Serialize};
+use luminara_reflect_derive::Reflect;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Camera {
     pub projection: Projection,
     pub clear_color: Color,
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum Projection {
     Perspective { fov: f32, near: f32, far: f32 },
     Orthographic { size: f32, near: f32, far: f32 },

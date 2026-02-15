@@ -1,7 +1,8 @@
 use luminara_asset::{AssetServer, Handle};
 use luminara_core::time::Time;
 use luminara_core::{App, CoreStage, Resource, World};
-use luminara_math::{Quat, Transform, Vec3};
+use luminara_math::{Quat, Vec3};
+use luminara_scene::Transform;
 use luminara_render::animation::{
     AnimationChannel, AnimationClip, AnimationOutput, AnimationPath, SkinnedMesh,
 };

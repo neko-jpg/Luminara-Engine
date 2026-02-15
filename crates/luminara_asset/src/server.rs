@@ -5,6 +5,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::thread;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadState {
@@ -27,9 +28,10 @@ pub struct AssetServer {
     assets: RwLock<HashMap<AssetId, AssetEntry>>,
     fallbacks: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
 
-    // Async loading
+    // Async loading with thread pool
     load_request_tx: Sender<LoadRequest>,
     load_result_rx: Receiver<LoadResult>,
+    _worker_threads: Vec<thread::JoinHandle<()>>,
 }
 
 struct LoadRequest {
@@ -48,32 +50,49 @@ struct LoadResult {
 
 impl AssetServer {
     pub fn new(asset_dir: impl Into<PathBuf>) -> Self {
+        Self::with_thread_count(asset_dir, num_cpus::get().min(8))
+    }
+
+    pub fn with_thread_count(asset_dir: impl Into<PathBuf>, thread_count: usize) -> Self {
         let (load_request_tx, load_request_rx) = unbounded::<LoadRequest>();
         let (load_result_tx, load_result_rx) = unbounded::<LoadResult>();
 
-        // Start a background loader thread
-        std::thread::spawn(move || {
-            for req in load_request_rx {
-                let bytes = match std::fs::read(&req.path) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        let _ = load_result_tx.send(LoadResult {
+        // Start multiple background loader threads for parallel loading
+        let thread_count = thread_count.max(1); // At least 1 thread
+        let mut worker_threads = Vec::with_capacity(thread_count);
+
+        for i in 0..thread_count {
+            let request_rx = load_request_rx.clone();
+            let result_tx = load_result_tx.clone();
+
+            let handle = thread::Builder::new()
+                .name(format!("asset-loader-{}", i))
+                .spawn(move || {
+                    for req in request_rx {
+                        let bytes = match std::fs::read(&req.path) {
+                            Ok(b) => b,
+                            Err(e) => {
+                                let _ = result_tx.send(LoadResult {
+                                    id: req.id,
+                                    expected_type: req.expected_type,
+                                    result: Err(e.into()),
+                                });
+                                continue;
+                            }
+                        };
+
+                        let result = req.loader.load(&bytes, &req.path);
+                        let _ = result_tx.send(LoadResult {
                             id: req.id,
                             expected_type: req.expected_type,
-                            result: Err(e.into()),
+                            result,
                         });
-                        continue;
                     }
-                };
+                })
+                .expect("Failed to spawn asset loader thread");
 
-                let result = req.loader.load(&bytes, &req.path);
-                let _ = load_result_tx.send(LoadResult {
-                    id: req.id,
-                    expected_type: req.expected_type,
-                    result,
-                });
-            }
-        });
+            worker_threads.push(handle);
+        }
 
         Self {
             asset_dir: asset_dir.into(),
@@ -84,6 +103,7 @@ impl AssetServer {
             fallbacks: RwLock::new(HashMap::new()),
             load_request_tx,
             load_result_rx,
+            _worker_threads: worker_threads,
         }
     }
 

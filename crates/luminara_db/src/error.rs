@@ -1,40 +1,38 @@
+//! Error types for the database
+
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+/// Result type for database operations
+pub type DbResult<T> = Result<T, DbError>;
+
+/// Database error types
+#[derive(Debug, Error)]
 pub enum DbError {
-    #[error("SurrealDB error: {0}")]
+    /// SurrealDB error
+    #[error("Database error: {0}")]
     Surreal(#[from] surrealdb::Error),
 
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-
-    #[error("Scene not found: {0}")]
-    SceneNotFound(String),
-
+    /// Entity not found
     #[error("Entity not found: {0}")]
     EntityNotFound(String),
 
+    /// Component not found
+    #[error("Component not found: {0}")]
+    ComponentNotFound(String),
+
+    /// Asset not found
     #[error("Asset not found: {0}")]
     AssetNotFound(String),
 
-    #[error("Schema migration failed: {0}")]
-    MigrationFailed(String),
+    /// Operation not found
+    #[error("Operation not found: {0}")]
+    OperationNotFound(String),
 
-    #[error("Connection error: {0}")]
-    ConnectionError(String),
+    /// Serialization error
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
 
-    #[error("Query error: {0}")]
-    QueryError(String),
-
-    #[error("Transaction failed: {0}")]
-    TransactionFailed(String),
-
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
-
-    #[error("Channel send error")]
-    ChannelSend,
-
-    #[error("Channel receive error")]
-    ChannelRecv,
+    /// Other errors
+    #[error("{0}")]
+    Other(String),
 }

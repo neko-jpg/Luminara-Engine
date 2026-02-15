@@ -8,9 +8,12 @@ downcast-rs = "1.2"
 parking_lot = "0.12"
 rayon = "1.10"
 serde = { workspace = true }
+serde_json = "1.0"
 log = "0.4"
 instant = { workspace = true }
 thiserror.workspace = true
+luminara_reflect_derive = { workspace = true }
+glam = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.5"

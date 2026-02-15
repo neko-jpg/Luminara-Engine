@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-luminara_diagnostic = { path = "../luminara_diagnostic" }
 luminara_core = { path = "../luminara_core" }
 luminara_math = { path = "../luminara_math" }
 luminara_scene = { path = "../luminara_scene" }
@@ -17,7 +16,9 @@ rapier2d = { version = "0.22", features = ["serde-serialize"] }
 
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
+luminara_reflect_derive = { workspace = true }
 
 [dev-dependencies]
+luminara_diagnostic = { path = "../luminara_diagnostic" }
 proptest = "1.0"
 env_logger = "0.11"

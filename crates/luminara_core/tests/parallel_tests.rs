@@ -74,6 +74,6 @@ fn test_query_par_for_each() {
 
     assert_eq!(
         count.load(std::sync::atomic::Ordering::Relaxed),
-        (0..1000).sum()
+        (0..1000).sum::<u32>()
     );
 }

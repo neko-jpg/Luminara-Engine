@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-luminara_diagnostic = { path = "../luminara_diagnostic" }
 wgpu = "22"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3"
@@ -17,6 +16,8 @@ gltf = { version = "1.4", features = ["import"] }
 luminara_asset = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "hdr"] }
 serde = { workspace = true }
+serde_json = "1.0"
+luminara_reflect_derive = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.5"

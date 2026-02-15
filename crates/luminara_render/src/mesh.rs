@@ -2,6 +2,7 @@ use crate::command::DrawCommand;
 use crate::PbrMaterial;
 use bytemuck::{Pod, Zeroable};
 use luminara_asset::{Asset, Handle};
+use luminara_core::Reflect;
 use luminara_math::{Mat4, Vec3};
 use wgpu;
 
@@ -532,5 +533,82 @@ mod tests {
         let aabb = AABB::from_vertices(&vertices);
         assert_eq!(aabb.min, Vec3::ZERO);
         assert_eq!(aabb.max, Vec3::ZERO);
+    }
+}
+
+// Manual Reflect implementation for Mesh
+// We only reflect the vertices and indices, not the GPU buffers
+impl Reflect for Mesh {
+    fn type_info(&self) -> &luminara_core::TypeInfo {
+        use std::sync::OnceLock;
+        static INFO: OnceLock<luminara_core::TypeInfo> = OnceLock::new();
+        INFO.get_or_init(|| luminara_core::TypeInfo {
+            type_name: "Mesh".to_string(),
+            type_id: std::any::TypeId::of::<Mesh>(),
+            kind: luminara_core::TypeKind::Struct,
+            fields: vec![
+                luminara_core::FieldInfo {
+                    name: "vertex_count".to_string(),
+                    type_name: "usize".to_string(),
+                    type_id: std::any::TypeId::of::<usize>(),
+                    description: Some("Number of vertices in the mesh".to_string()),
+                    default_value: None,
+                },
+                luminara_core::FieldInfo {
+                    name: "index_count".to_string(),
+                    type_name: "usize".to_string(),
+                    type_id: std::any::TypeId::of::<usize>(),
+                    description: Some("Number of indices in the mesh".to_string()),
+                    default_value: None,
+                },
+            ],
+        })
+    }
+
+    fn field(&self, name: &str) -> Option<&dyn Reflect> {
+        // We don't expose the actual vertex/index data through reflection
+        // Only metadata
+        None
+    }
+
+    fn field_mut(&mut self, _name: &str) -> Option<&mut dyn Reflect> {
+        None
+    }
+
+    fn set_field(&mut self, name: &str, _value: Box<dyn Reflect>) -> Result<(), luminara_core::ReflectError> {
+        Err(luminara_core::ReflectError::CannotSetField(name.to_string()))
+    }
+
+    fn clone_value(&self) -> Box<dyn Reflect> {
+        Box::new(Self {
+            vertices: self.vertices.clone(),
+            indices: self.indices.clone(),
+            aabb: self.aabb,
+            vertex_buffer: RwLock::new(None),
+            index_buffer: RwLock::new(None),
+        })
+    }
+
+    fn serialize_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "vertex_count": self.vertices.len(),
+            "index_count": self.indices.len(),
+            "aabb_min": [self.aabb.min.x, self.aabb.min.y, self.aabb.min.z],
+            "aabb_max": [self.aabb.max.x, self.aabb.max.y, self.aabb.max.z],
+        })
+    }
+
+    fn deserialize_json(&mut self, _value: &serde_json::Value) -> Result<(), luminara_core::ReflectError> {
+        Err(luminara_core::ReflectError::DeserializationError(
+            "Mesh deserialization not supported through reflection".to_string(),
+        ))
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }

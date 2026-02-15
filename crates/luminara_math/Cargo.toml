@@ -3,10 +3,20 @@ name = "luminara_math"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["ecs"]
+ecs = ["luminara_core"]
+
 [dependencies]
 glam = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
-luminara_core = { workspace = true }
+serde_json = "1.0"
+luminara_core = { path = "../luminara_core", optional = true }
+luminara_reflect_derive = { workspace = true }
+
+# For serialization validation
+ron = { workspace = true }
+bincode = { workspace = true }
 
 # For exact predicates
 smallvec = "1.11"
@@ -28,6 +38,7 @@ rayon = "1.8"
 proptest = "1.4"
 criterion = "0.5"
 approx = "0.5"
+luminara_asset = { path = "../luminara_asset" }
 
 [[bench]]
 name = "math_benchmarks"

@@ -1,3 +1,4 @@
+pub mod components;
 pub mod hierarchy;
 pub mod plugin;
 pub mod prefab;

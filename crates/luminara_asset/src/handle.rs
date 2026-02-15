@@ -102,3 +102,53 @@ impl<T: Asset> Component for Handle<T> {
         std::any::type_name::<Handle<T>>()
     }
 }
+
+// Implement Reflect for Handle<T>
+impl<T: Asset> luminara_core::Reflect for Handle<T> {
+    fn type_info(&self) -> &luminara_core::TypeInfo {
+        use std::sync::OnceLock;
+        use std::any::TypeId;
+        static INFO: OnceLock<luminara_core::TypeInfo> = OnceLock::new();
+        INFO.get_or_init(|| luminara_core::TypeInfo {
+            type_name: format!("Handle<{}>", T::type_name()),
+            type_id: TypeId::of::<Handle<T>>(),
+            kind: luminara_core::TypeKind::Value,
+            fields: Vec::new(),
+        })
+    }
+
+    fn field(&self, _name: &str) -> Option<&dyn luminara_core::Reflect> {
+        None
+    }
+
+    fn field_mut(&mut self, _name: &str) -> Option<&mut dyn luminara_core::Reflect> {
+        None
+    }
+
+    fn set_field(&mut self, name: &str, _value: Box<dyn luminara_core::Reflect>) -> Result<(), luminara_core::ReflectError> {
+        Err(luminara_core::ReflectError::FieldNotFound(name.to_string()))
+    }
+
+    fn clone_value(&self) -> Box<dyn luminara_core::Reflect> {
+        Box::new(self.clone())
+    }
+
+    fn serialize_json(&self) -> serde_json::Value {
+        serde_json::to_value(&self.id).unwrap_or(serde_json::Value::Null)
+    }
+
+    fn deserialize_json(&mut self, value: &serde_json::Value) -> Result<(), luminara_core::ReflectError> {
+        let id: AssetId = serde_json::from_value(value.clone())
+            .map_err(|e| luminara_core::ReflectError::DeserializationError(e.to_string()))?;
+        *self = Handle::new(id, 0);
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}

@@ -9,10 +9,15 @@ uuid = { version = "1.0", features = ["v4", "v5", "serde"] }
 notify = "6.1"
 crossbeam-channel = "0.5"
 serde = { workspace = true }
+serde_json = "1.0"
 log = "0.4"
 thiserror = { workspace = true }
 gltf = "1.4.1"
+num_cpus = "1.16"
+luminara_reflect_derive = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.5"
 uuid = { version = "1.0", features = ["v4"] }
+ron = { workspace = true }
+bincode = { workspace = true }

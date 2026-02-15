@@ -34,9 +34,15 @@ pub struct DbDirty {
 
 impl_component!(DbDirty);
 
-pub mod snapshot;
-pub mod restore;
-pub mod commands;
+// Temporarily disabled - incomplete implementation
+// pub mod snapshot;
+// pub mod restore;
+// pub mod commands;
+
+// WorldSync module for ECS synchronization
+pub mod world_sync;
+
+pub use world_sync::{WorldSync, SyncStatistics, SyncResult};
 
 // Registry Logic
 
@@ -102,7 +108,7 @@ impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> Compone
 
     fn deserialize(&self, world: &mut World, entity: Entity, data: &serde_json::Value) -> Result<(), crate::error::DbError> {
         let comp: T = serde_json::from_value(data.clone())?;
-        world.add_component(entity, comp).map_err(|_| crate::error::DbError::InvalidData("Failed to add component".into()))?;
+        world.add_component(entity, comp).map_err(|_| crate::error::DbError::Other("Failed to add component".into()))?;
         Ok(())
     }
 

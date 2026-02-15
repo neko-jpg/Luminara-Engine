@@ -1,5 +1,6 @@
 use crate::registry::TypeRegistry;
 use luminara_core::{Entity, World};
+use luminara_math::Transform;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -159,6 +160,174 @@ impl Scene {
 
     pub fn to_json(&self) -> Result<String, SceneError> {
         crate::serialization::to_json(self)
+    }
+
+    /// Create a Scene from a World, capturing all entities with their hierarchies
+    /// 
+    /// This function serializes the entire entity hierarchy, preserving parent-child
+    /// relationships and all component data.
+    /// 
+    /// Requirements: 8.5, 8.6
+    pub fn from_world(world: &World) -> Self {
+        let mut entity_map = HashMap::new();
+        let mut root_entities = Vec::new();
+
+        // First pass: identify all entities and their hierarchy relationships
+        for entity in world.entities() {
+            let has_parent = world.get_component::<crate::hierarchy::Parent>(entity).is_some();
+            if !has_parent {
+                root_entities.push(entity);
+            }
+        }
+
+        // Second pass: serialize each root entity and its children recursively
+        let entities = root_entities
+            .into_iter()
+            .map(|entity| Self::serialize_entity_recursive(world, entity, &mut entity_map))
+            .collect();
+
+        Scene {
+            meta: SceneMeta {
+                name: "Exported Scene".to_string(),
+                description: "Scene exported from World".to_string(),
+                version: "1.0".to_string(),
+                tags: vec![],
+            },
+            entities,
+        }
+    }
+
+    /// Serialize a single entity and its children recursively
+    fn serialize_entity_recursive(
+        world: &World,
+        entity: Entity,
+        entity_map: &mut HashMap<Entity, u64>,
+    ) -> EntityData {
+        // Assign a unique ID for this entity
+        let entity_id = entity_map.len() as u64;
+        entity_map.insert(entity, entity_id);
+
+        // Get entity name
+        let name = world
+            .get_component::<Name>(entity)
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|| format!("Entity_{}", entity_id));
+
+        // Get entity tags
+        let tags = world
+            .get_component::<Tag>(entity)
+            .map(|t| t.0.iter().cloned().collect())
+            .unwrap_or_default();
+
+        // Serialize all components (except hierarchy components which are handled separately)
+        let mut components = HashMap::new();
+
+        // Add Transform if present
+        if let Some(transform) = world.get_component::<Transform>(entity) {
+            if let Ok(value) = serde_json::to_value(transform) {
+                components.insert("Transform".to_string(), value);
+            }
+        }
+
+        // Get parent reference (if any)
+        let parent = world
+            .get_component::<crate::hierarchy::Parent>(entity)
+            .and_then(|p| entity_map.get(&p.0).copied());
+
+        // Serialize children recursively
+        let children = world
+            .get_component::<crate::hierarchy::Children>(entity)
+            .map(|c| {
+                c.0.iter()
+                    .map(|&child| Self::serialize_entity_recursive(world, child, entity_map))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        EntityData {
+            name,
+            id: Some(entity_id),
+            parent,
+            components,
+            children,
+            tags,
+        }
+    }
+
+    /// Load only specific entities by name from the scene
+    /// 
+    /// This supports partial loading by allowing selective entity instantiation.
+    /// 
+    /// Requirements: 8.7
+    pub fn spawn_entities_by_name(
+        &self,
+        world: &mut World,
+        entity_names: &[&str],
+    ) -> Vec<Entity> {
+        let registry = world.remove_resource::<TypeRegistry>();
+        let mut id_map = HashMap::new();
+        let mut spawned_entities = Vec::new();
+
+        for entity_data in &self.entities {
+            self.spawn_entity_selective(
+                world,
+                registry.as_ref(),
+                entity_data,
+                None,
+                &mut id_map,
+                &mut spawned_entities,
+                entity_names,
+            );
+        }
+
+        if let Some(reg) = registry {
+            world.insert_resource(reg);
+        }
+
+        spawned_entities
+    }
+
+    /// Recursively spawn entities, but only if they match the filter
+    fn spawn_entity_selective(
+        &self,
+        world: &mut World,
+        registry: Option<&TypeRegistry>,
+        data: &EntityData,
+        parent: Option<Entity>,
+        id_map: &mut HashMap<u64, Entity>,
+        spawned_entities: &mut Vec<Entity>,
+        entity_names: &[&str],
+    ) -> Option<Entity> {
+        // Check if this entity should be spawned
+        let should_spawn = entity_names.is_empty() || entity_names.contains(&data.name.as_str());
+
+        if !should_spawn {
+            // Still process children in case they match
+            for child_data in &data.children {
+                self.spawn_entity_selective(
+                    world,
+                    registry,
+                    child_data,
+                    parent,
+                    id_map,
+                    spawned_entities,
+                    entity_names,
+                );
+            }
+            return None;
+        }
+
+        // Spawn the entity using the existing logic
+        let entity = self.spawn_entity_recursive(
+            world,
+            registry,
+            data,
+            parent,
+            id_map,
+            spawned_entities,
+        );
+
+        Some(entity)
     }
 
     pub fn spawn_into(&self, world: &mut World) -> Vec<Entity> {

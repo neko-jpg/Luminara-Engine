@@ -1,17 +1,10 @@
 use crate::algebra::motor::Motor;
 use crate::{Mat4, Quat, Vec3};
-use luminara_core::shared_types::Component;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MotorTransform {
     pub motor: Motor<f32>,
     pub scale: Vec3,
-}
-
-impl Component for MotorTransform {
-    fn type_name() -> &'static str {
-        "MotorTransform"
-    }
 }
 
 impl Default for MotorTransform {

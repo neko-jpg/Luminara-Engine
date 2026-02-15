@@ -1,12 +1,13 @@
 use luminara_core::Entity;
 use serde::{Deserialize, Serialize};
+use luminara_reflect_derive::Reflect;
 
 /// Handle to an audio clip asset
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct AudioClipHandle(pub String);
 
 /// Audio source component for playing sounds
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct AudioSource {
     /// Handle to the audio clip to play
     pub clip: AudioClipHandle,
@@ -42,7 +43,7 @@ impl Default for AudioSource {
 }
 
 /// Audio listener component (typically attached to the camera)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct AudioListener {
     /// Whether this listener is enabled
     pub enabled: bool,

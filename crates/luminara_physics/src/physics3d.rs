@@ -1,7 +1,6 @@
 use luminara_core::shared_types::{AppInterface, CoreStage};
 use luminara_core::system::ExclusiveMarker;
 use luminara_core::{Commands, Component, Entity, Plugin, Query, Res, ResMut, Resource, Without};
-use luminara_diagnostic::profile_scope;
 use luminara_math::{Quat, Transform, Vec3};
 use rapier3d::prelude::*;
 use std::collections::HashMap;
@@ -403,8 +402,6 @@ pub fn physics_step_system(
     if time.time_scale == 0.0 {
         return;
     }
-
-    profile_scope!("physics_step_system");
 
     physics_world.accumulator += time.delta_seconds();
 

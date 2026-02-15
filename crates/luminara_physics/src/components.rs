@@ -1,9 +1,10 @@
 use luminara_core::{Component, Entity};
 use luminara_math::{Transform, Vec3};
 use serde::{Deserialize, Serialize};
+use luminara_reflect_derive::Reflect;
 
 /// Component to store the previous frame's transform for interpolation
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Reflect)]
 pub struct PreviousTransform(pub Transform);
 
 impl Default for PreviousTransform {
@@ -19,7 +20,7 @@ impl Component for PreviousTransform {
 }
 
 /// Rigid body component for physics simulation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct RigidBody {
     pub body_type: RigidBodyType,
     pub mass: f32,
@@ -47,7 +48,7 @@ impl Default for RigidBody {
 }
 
 /// Type of rigid body
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum RigidBodyType {
     /// Dynamic bodies are affected by forces and collisions
     Dynamic,
@@ -58,7 +59,7 @@ pub enum RigidBodyType {
 }
 
 /// Collider component for collision detection
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct Collider {
     pub shape: ColliderShape,
     pub friction: f32,
@@ -86,7 +87,7 @@ impl Default for Collider {
 }
 
 /// Shape of a collider
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub enum ColliderShape {
     Box {
         half_extents: Vec3,

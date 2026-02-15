@@ -2,10 +2,13 @@ target/
 **/*.rs.bk
 test_output.txt
 .DS_Store
-Rust製 汎用ゲームエンジン Luminara Engine設計書.md
 progress/
-.kiro/
+
 .agent/
-Luminara Engine 数学基盤：統合設計書.md
 Benchmark Results/
 memo/
+docs/codereview/
+docs/check
+.kiro/
+docs/audit
+luminara_diagnostic

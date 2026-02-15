@@ -10,7 +10,9 @@ luminara_scene = { path = "../luminara_scene" }
 luminara_asset = { path = "../luminara_asset" }
 kira = { version = "0.9", default-features = false, features = ["cpal"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 log = "0.4"
+luminara_reflect_derive = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.0"
