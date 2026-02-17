@@ -2,7 +2,7 @@ use crate::{ScriptError, ScriptId};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Receiver};
 use std::time::{Duration, Instant};
 
 pub struct HotReloadSystem {
@@ -17,8 +17,13 @@ impl HotReloadSystem {
     pub fn new() -> Result<Self, ScriptError> {
         let (tx, rx) = channel();
 
-        let watcher = RecommendedWatcher::new(tx, Config::default())
-            .map_err(|e| ScriptError::Runtime(format!("Failed to create watcher: {}", e)))?;
+        let watcher = RecommendedWatcher::new(tx, Config::default()).map_err(|e| {
+            ScriptError::Runtime {
+                script_path: "hot_reload_system".to_string(),
+                message: format!("Failed to create watcher: {}", e),
+                stack_trace: String::new(),
+            }
+        })?;
 
         Ok(Self {
             watcher,
@@ -31,7 +36,11 @@ impl HotReloadSystem {
     pub fn watch(&mut self, path: &Path, script_id: ScriptId) -> Result<(), ScriptError> {
         self.watcher
             .watch(path, RecursiveMode::NonRecursive)
-            .map_err(|e| ScriptError::Runtime(format!("Failed to watch path {:?}: {}", path, e)))?;
+            .map_err(|e| ScriptError::Runtime {
+                script_path: path.display().to_string(),
+                message: format!("Failed to watch path: {}", e),
+                stack_trace: String::new(),
+            })?;
 
         self.path_map.insert(path.to_path_buf(), script_id);
         Ok(())

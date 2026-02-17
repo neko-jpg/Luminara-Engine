@@ -1,7 +1,7 @@
 use crate::command::DrawCommand;
 use crate::PbrMaterial;
 use bytemuck::{Pod, Zeroable};
-use luminara_asset::{Asset, Handle};
+use luminara_asset::{Asset, Handle, PlaceholderAsset};
 use luminara_core::Reflect;
 use luminara_math::{Mat4, Vec3};
 use wgpu;
@@ -619,5 +619,13 @@ impl Reflect for Mesh {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+impl PlaceholderAsset for Mesh {
+    /// Create a default placeholder mesh (a simple cube with magenta color to indicate loading)
+    fn create_placeholder() -> Self {
+        // Create a small cube as placeholder
+        Mesh::cube(1.0)
     }
 }

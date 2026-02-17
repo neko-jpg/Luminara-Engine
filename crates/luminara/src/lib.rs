@@ -17,7 +17,7 @@ pub mod prelude {
     pub use luminara_script::*;
 
     #[cfg(feature = "db")]
-    pub use luminara_db::prelude::*;
+    pub use luminara_db::*;
 }
 
 #[cfg(feature = "ai_agent")]

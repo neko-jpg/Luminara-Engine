@@ -3,7 +3,7 @@ use quickcheck::TestResult;
 use quickcheck_macros::quickcheck;
 
 #[quickcheck]
-fn test_semantic_search_retrieval(id: u64, text: String) -> TestResult {
+fn test_semantic_search_retrieval(id: u32, text: String) -> TestResult {
     if text.is_empty() {
         return TestResult::discard();
     }
@@ -27,7 +27,7 @@ fn test_semantic_search_retrieval(id: u64, text: String) -> TestResult {
 fn test_semantic_index_capacity(count: u8) -> TestResult {
     let mut index = SemanticIndex::new();
     for i in 0..count {
-        index.index_entity(i as u64, format!("Entity {}", i));
+        index.index_entity(i as u32, format!("Entity {}", i));
     }
 
     let results = index.search("Entity", count as usize);

@@ -1,0 +1,13 @@
+[package]
+name = "fluid_viz_demo"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+luminara = { path = "../../crates/luminara" }
+luminara_math = { workspace = true }
+luminara_render = { workspace = true }
+log = "0.4"
+env_logger = "0.11"

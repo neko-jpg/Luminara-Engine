@@ -5,7 +5,7 @@
 //! - Query asset dependencies with SurrealQL
 //! - Support transitive dependency queries
 
-use luminara_db::{AssetMetadata, AssetRecord, ComponentRecord, EntityRecord, LuminaraDatabase};
+use luminara_db::{schema::AssetMetadata, AssetRecord, ComponentRecord, EntityRecord, LuminaraDatabase};
 use serde_json::json;
 
 #[tokio::test]

@@ -137,17 +137,16 @@ impl WorldSync {
 
         // Check if entity already exists in database
         if let Some(record_id) = mapping.get(&entity_id) {
-            // Update existing entity
-            let entity = EntityRecord {
-                id: Some(record_id.clone()),
-                name,
-                tags,
-                components: Vec::new(), // Will be updated separately
-                parent: None,
-                children: Vec::new(),
-            };
-
-            self.db.update_entity(record_id, entity).await?;
+            // For updates, use a simpler approach - just update the fields we need
+            // This avoids the overhead of loading the entire entity first
+            let query = format!(
+                "UPDATE {} SET name = {}, tags = {}",
+                record_id,
+                serde_json::to_string(&name).unwrap_or("null".to_string()),
+                serde_json::to_string(&tags).unwrap_or("[]".to_string())
+            );
+            self.db.execute_query(&query).await?;
+            
             Ok(record_id.clone())
         } else {
             // Create new entity
@@ -183,16 +182,16 @@ impl WorldSync {
 
         // Check if component already exists in database
         if let Some(record_id) = component_mapping.get(&key) {
-            // Update existing component
-            let component = ComponentRecord {
-                id: Some(record_id.clone()),
-                type_name: component_type,
-                type_id,
-                data,
-                entity: entity_record_id,
-            };
-
-            self.db.update_component(record_id, component).await?;
+            // For updates, use a simpler approach - just update the fields we need
+            let query = format!(
+                "UPDATE {} SET type_name = {}, type_id = {}, data = {}",
+                record_id,
+                serde_json::to_string(&component_type).unwrap(),
+                serde_json::to_string(&type_id).unwrap(),
+                serde_json::to_string(&data).unwrap()
+            );
+            self.db.execute_query(&query).await?;
+            
             Ok(record_id.clone())
         } else {
             // Create new component

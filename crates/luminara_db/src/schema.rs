@@ -128,6 +128,10 @@ pub struct OperationRecord {
 
     /// Branch name (for Git-like workflow)
     pub branch: Option<String>,
+
+    /// AI intent that generated this operation (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub intent: Option<String>,
 }
 
 impl EntityRecord {
@@ -218,6 +222,7 @@ impl OperationRecord {
             timestamp,
             parent: None,
             branch: None,
+            intent: None,
         }
     }
 
@@ -230,6 +235,12 @@ impl OperationRecord {
     /// Set the branch name
     pub fn with_branch(mut self, branch: impl Into<String>) -> Self {
         self.branch = Some(branch.into());
+        self
+    }
+
+    /// Set the AI intent
+    pub fn with_intent(mut self, intent: impl Into<String>) -> Self {
+        self.intent = Some(intent.into());
         self
     }
 }

@@ -26,6 +26,9 @@ pub mod migration;
 pub mod symbolic;
 pub mod validation;
 
+// Re-export commonly used algebra types
+pub use algebra::TransformMotor;
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------

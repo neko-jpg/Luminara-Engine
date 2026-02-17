@@ -1,245 +1,392 @@
+/// Integration test for serialization of all core types
+///
+/// This test verifies that all core types (Vec3, Quat, Transform, Color, Handle<T>)
+/// support both RON (human-readable) and binary serialization formats as required
+/// by Requirements 8.1 and 8.4.
+///
+/// **Validates: Requirements 8.1, 8.4**
+
+use luminara_asset::{Asset, AssetId, Handle};
 use luminara_math::{Color, Quat, Transform, Vec3};
 use serde::{Deserialize, Serialize};
 
-/// A complex scene structure that uses all core serializable types
+// Test asset type for Handle<T> testing
+struct TestAsset;
+impl Asset for TestAsset {
+    fn type_name() -> &'static str {
+        "TestAsset"
+    }
+}
+
+/// Comprehensive structure containing all core types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SceneEntity {
-    name: String,
+    // Vec3 - position vector
+    position: Vec3,
+    // Quat - rotation quaternion
+    rotation: Quat,
+    // Transform - complete transform
     transform: Transform,
+    // Color - RGBA color
     color: Color,
-    velocity: Vec3,
-    angular_velocity: Quat,
+    // Handle<T> - asset reference
+    texture: Handle<TestAsset>,
+    model: Handle<TestAsset>,
+    // Collections of core types
+    waypoints: Vec<Vec3>,
+    child_transforms: Vec<Transform>,
+    palette: Vec<Color>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ComplexScene {
-    entities: Vec<SceneEntity>,
-    ambient_color: Color,
-    gravity: Vec3,
+impl SceneEntity {
+    fn new_test_entity() -> Self {
+        Self {
+            position: Vec3::new(10.5, 20.3, 30.7),
+            rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_4),
+            transform: Transform {
+                translation: Vec3::new(100.0, 200.0, 300.0),
+                rotation: Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
+                scale: Vec3::splat(2.5),
+            },
+            color: Color::rgba(0.8, 0.6, 0.4, 0.9),
+            texture: Handle::new(AssetId::from_path("textures/entity.png"), 0),
+            model: Handle::new(AssetId::from_path("models/entity.gltf"), 0),
+            waypoints: vec![
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(10.0, 0.0, 0.0),
+                Vec3::new(10.0, 10.0, 0.0),
+                Vec3::new(0.0, 10.0, 0.0),
+            ],
+            child_transforms: vec![
+                Transform::from_xyz(1.0, 0.0, 0.0),
+                Transform::from_xyz(0.0, 1.0, 0.0),
+                Transform::from_xyz(0.0, 0.0, 1.0),
+            ],
+            palette: vec![
+                Color::RED,
+                Color::GREEN,
+                Color::BLUE,
+                Color::rgba(0.5, 0.5, 0.5, 1.0),
+            ],
+        }
+    }
 }
 
 #[test]
-fn test_complex_scene_ron_serialization() {
-    let scene = ComplexScene {
-        entities: vec![
-            SceneEntity {
-                name: "Player".to_string(),
-                transform: Transform {
-                    translation: Vec3::new(0.0, 1.0, 0.0),
-                    rotation: Quat::IDENTITY,
-                    scale: Vec3::ONE,
-                },
-                color: Color::BLUE,
-                velocity: Vec3::new(1.0, 0.0, 0.0),
-                angular_velocity: Quat::from_rotation_y(0.1),
-            },
-            SceneEntity {
-                name: "Enemy".to_string(),
-                transform: Transform {
-                    translation: Vec3::new(5.0, 0.0, 5.0),
-                    rotation: Quat::from_rotation_y(std::f32::consts::PI),
-                    scale: Vec3::splat(1.5),
-                },
-                color: Color::RED,
-                velocity: Vec3::new(-0.5, 0.0, -0.5),
-                angular_velocity: Quat::from_rotation_z(0.05),
-            },
-        ],
-        ambient_color: Color::rgba(0.2, 0.2, 0.3, 1.0),
-        gravity: Vec3::new(0.0, -9.81, 0.0),
-    };
+fn test_ron_serialization_all_core_types() {
+    let entity = SceneEntity::new_test_entity();
 
-    // Serialize to RON
-    let ron_str = ron::ser::to_string_pretty(&scene, ron::ser::PrettyConfig::default())
-        .expect("Failed to serialize scene to RON");
+    // Serialize to RON (human-readable format)
+    let ron_string = ron::ser::to_string_pretty(&entity, ron::ser::PrettyConfig::default())
+        .expect("Failed to serialize to RON");
 
-    println!("Complex Scene RON:\n{}", ron_str);
+    // Verify RON string is human-readable
+    assert!(ron_string.contains("position"));
+    assert!(ron_string.contains("rotation"));
+    assert!(ron_string.contains("transform"));
+    assert!(ron_string.contains("color"));
+    assert!(ron_string.contains("texture"));
 
     // Deserialize from RON
-    let deserialized: ComplexScene =
-        ron::from_str(&ron_str).expect("Failed to deserialize scene from RON");
+    let deserialized: SceneEntity =
+        ron::from_str(&ron_string).expect("Failed to deserialize from RON");
 
-    // Verify entities
-    assert_eq!(scene.entities.len(), deserialized.entities.len());
+    // Verify all fields are preserved
+    assert_eq!(entity.position, deserialized.position);
+    assert_eq!(entity.rotation, deserialized.rotation);
+    assert_eq!(entity.transform, deserialized.transform);
+    assert_eq!(entity.color, deserialized.color);
+    assert_eq!(entity.texture, deserialized.texture);
+    assert_eq!(entity.model, deserialized.model);
+    assert_eq!(entity.waypoints.len(), deserialized.waypoints.len());
+    assert_eq!(
+        entity.child_transforms.len(),
+        deserialized.child_transforms.len()
+    );
+    assert_eq!(entity.palette.len(), deserialized.palette.len());
 
-    for (original, deserialized) in scene.entities.iter().zip(deserialized.entities.iter()) {
-        assert_eq!(original.name, deserialized.name);
-        assert_eq!(
-            original.transform.translation,
-            deserialized.transform.translation
-        );
-        assert_eq!(original.transform.scale, deserialized.transform.scale);
-        assert_eq!(original.color, deserialized.color);
-        assert_eq!(original.velocity, deserialized.velocity);
-    }
-
-    // Verify scene properties
-    assert_eq!(scene.ambient_color, deserialized.ambient_color);
-    assert_eq!(scene.gravity, deserialized.gravity);
+    println!("✓ RON serialization test passed");
+    println!("RON output sample:\n{}", &ron_string[..ron_string.len().min(500)]);
 }
 
 #[test]
-fn test_complex_scene_binary_serialization() {
-    let scene = ComplexScene {
-        entities: vec![SceneEntity {
-            name: "Light".to_string(),
-            transform: Transform {
-                translation: Vec3::new(0.0, 10.0, 0.0),
-                rotation: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4),
-                scale: Vec3::ONE,
-            },
-            color: Color::WHITE,
-            velocity: Vec3::ZERO,
-            angular_velocity: Quat::IDENTITY,
-        }],
-        ambient_color: Color::GRAY,
-        gravity: Vec3::new(0.0, -9.81, 0.0),
-    };
+fn test_binary_serialization_all_core_types() {
+    let entity = SceneEntity::new_test_entity();
 
-    // Serialize to binary
-    let binary = bincode::serialize(&scene).expect("Failed to serialize scene to binary");
+    // Serialize to binary format
+    let binary = bincode::serialize(&entity).expect("Failed to serialize to binary");
 
+    // Verify binary is compact (should be much smaller than RON)
     println!("Binary size: {} bytes", binary.len());
+    assert!(binary.len() < 1000, "Binary serialization should be compact");
 
     // Deserialize from binary
-    let deserialized: ComplexScene =
-        bincode::deserialize(&binary).expect("Failed to deserialize scene from binary");
+    let deserialized: SceneEntity =
+        bincode::deserialize(&binary).expect("Failed to deserialize from binary");
 
-    // Verify
-    assert_eq!(scene.entities.len(), deserialized.entities.len());
-    assert_eq!(scene.entities[0].name, deserialized.entities[0].name);
-    assert_eq!(scene.ambient_color, deserialized.ambient_color);
-    assert_eq!(scene.gravity, deserialized.gravity);
+    // Verify all fields are preserved
+    assert_eq!(entity.position, deserialized.position);
+    assert_eq!(entity.rotation, deserialized.rotation);
+    assert_eq!(entity.transform, deserialized.transform);
+    assert_eq!(entity.color, deserialized.color);
+    assert_eq!(entity.texture, deserialized.texture);
+    assert_eq!(entity.model, deserialized.model);
+    assert_eq!(entity.waypoints.len(), deserialized.waypoints.len());
+    assert_eq!(
+        entity.child_transforms.len(),
+        deserialized.child_transforms.len()
+    );
+    assert_eq!(entity.palette.len(), deserialized.palette.len());
+
+    println!("✓ Binary serialization test passed");
 }
 
 #[test]
-fn test_transform_hierarchy_serialization() {
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    struct TransformNode {
-        name: String,
-        local_transform: Transform,
-        children: Vec<TransformNode>,
-    }
+fn test_ron_vs_binary_size_comparison() {
+    let entity = SceneEntity::new_test_entity();
 
-    let hierarchy = TransformNode {
-        name: "Root".to_string(),
-        local_transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        children: vec![
-            TransformNode {
-                name: "Child1".to_string(),
-                local_transform: Transform::from_xyz(1.0, 0.0, 0.0),
-                children: vec![TransformNode {
-                    name: "Grandchild1".to_string(),
-                    local_transform: Transform::from_xyz(0.0, 1.0, 0.0),
-                    children: vec![],
-                }],
-            },
-            TransformNode {
-                name: "Child2".to_string(),
-                local_transform: Transform::from_xyz(-1.0, 0.0, 0.0),
-                children: vec![],
-            },
-        ],
-    };
+    // Serialize to both formats
+    let ron_string = ron::to_string(&entity).expect("Failed to serialize to RON");
+    let binary = bincode::serialize(&entity).expect("Failed to serialize to binary");
 
-    // Test RON serialization
-    let ron_str = ron::ser::to_string_pretty(&hierarchy, ron::ser::PrettyConfig::default())
-        .expect("Failed to serialize hierarchy to RON");
-
-    println!("Transform Hierarchy RON:\n{}", ron_str);
-
-    let deserialized: TransformNode =
-        ron::from_str(&ron_str).expect("Failed to deserialize hierarchy from RON");
-
-    assert_eq!(hierarchy.name, deserialized.name);
-    assert_eq!(hierarchy.children.len(), deserialized.children.len());
-    assert_eq!(
-        hierarchy.children[0].children.len(),
-        deserialized.children[0].children.len()
+    println!("RON size: {} bytes", ron_string.len());
+    println!("Binary size: {} bytes", binary.len());
+    println!(
+        "Binary is {:.1}x smaller than RON",
+        ron_string.len() as f32 / binary.len() as f32
     );
 
-    // Test binary serialization
-    let binary = bincode::serialize(&hierarchy).expect("Failed to serialize hierarchy to binary");
-    let deserialized_binary: TransformNode =
-        bincode::deserialize(&binary).expect("Failed to deserialize hierarchy from binary");
-
-    assert_eq!(hierarchy.name, deserialized_binary.name);
-    assert_eq!(hierarchy.children.len(), deserialized_binary.children.len());
+    // Binary should be significantly smaller
+    assert!(
+        binary.len() < ron_string.len(),
+        "Binary format should be more compact than RON"
+    );
 }
 
 #[test]
-fn test_color_palette_serialization() {
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    struct ColorPalette {
-        name: String,
-        colors: Vec<Color>,
-    }
+fn test_vec3_serialization_formats() {
+    let vec = Vec3::new(1.5, 2.5, 3.5);
 
-    let palette = ColorPalette {
-        name: "Sunset".to_string(),
-        colors: vec![
-            Color::rgb(1.0, 0.5, 0.0), // Orange
-            Color::rgb(1.0, 0.3, 0.3), // Red-orange
-            Color::rgb(0.8, 0.2, 0.5), // Purple
-            Color::rgb(0.2, 0.2, 0.4), // Dark blue
-        ],
-    };
+    // RON format
+    let ron = ron::to_string(&vec).expect("Failed to serialize Vec3 to RON");
+    println!("Vec3 RON: {}", ron);
+    let deserialized: Vec3 = ron::from_str(&ron).expect("Failed to deserialize Vec3 from RON");
+    assert_eq!(vec, deserialized);
 
-    // Test RON
-    let ron_str = ron::ser::to_string_pretty(&palette, ron::ser::PrettyConfig::default())
-        .expect("Failed to serialize palette to RON");
-
-    println!("Color Palette RON:\n{}", ron_str);
-
-    let deserialized: ColorPalette =
-        ron::from_str(&ron_str).expect("Failed to deserialize palette from RON");
-
-    assert_eq!(palette.name, deserialized.name);
-    assert_eq!(palette.colors.len(), deserialized.colors.len());
-
-    for (original, deserialized) in palette.colors.iter().zip(deserialized.colors.iter()) {
-        assert_eq!(original, deserialized);
-    }
-
-    // Test binary
-    let binary = bincode::serialize(&palette).expect("Failed to serialize palette to binary");
-    let deserialized_binary: ColorPalette =
-        bincode::deserialize(&binary).expect("Failed to deserialize palette from binary");
-
-    assert_eq!(palette.colors, deserialized_binary.colors);
+    // Binary format
+    let binary = bincode::serialize(&vec).expect("Failed to serialize Vec3 to binary");
+    println!("Vec3 binary size: {} bytes", binary.len());
+    let deserialized: Vec3 =
+        bincode::deserialize(&binary).expect("Failed to deserialize Vec3 from binary");
+    assert_eq!(vec, deserialized);
 }
 
 #[test]
-fn test_serialization_format_comparison() {
+fn test_quat_serialization_formats() {
+    let quat = Quat::from_rotation_y(std::f32::consts::FRAC_PI_4);
+
+    // RON format
+    let ron = ron::to_string(&quat).expect("Failed to serialize Quat to RON");
+    println!("Quat RON: {}", ron);
+    let deserialized: Quat = ron::from_str(&ron).expect("Failed to deserialize Quat from RON");
+    // Quaternions q and -q represent the same rotation
+    assert!(
+        (quat.x - deserialized.x).abs() < 1e-6
+            && (quat.y - deserialized.y).abs() < 1e-6
+            && (quat.z - deserialized.z).abs() < 1e-6
+            && (quat.w - deserialized.w).abs() < 1e-6
+    );
+
+    // Binary format
+    let binary = bincode::serialize(&quat).expect("Failed to serialize Quat to binary");
+    println!("Quat binary size: {} bytes", binary.len());
+    let deserialized: Quat =
+        bincode::deserialize(&binary).expect("Failed to deserialize Quat from binary");
+    assert!(
+        (quat.x - deserialized.x).abs() < 1e-6
+            && (quat.y - deserialized.y).abs() < 1e-6
+            && (quat.z - deserialized.z).abs() < 1e-6
+            && (quat.w - deserialized.w).abs() < 1e-6
+    );
+}
+
+#[test]
+fn test_transform_serialization_formats() {
     let transform = Transform {
-        translation: Vec3::new(1.0, 2.0, 3.0),
-        rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_4),
+        translation: Vec3::new(10.0, 20.0, 30.0),
+        rotation: Quat::from_rotation_x(std::f32::consts::FRAC_PI_2),
         scale: Vec3::splat(2.0),
     };
 
-    // RON serialization
-    let ron_str = ron::to_string(&transform).unwrap();
-    let ron_size = ron_str.len();
+    // RON format
+    let ron = ron::ser::to_string_pretty(&transform, ron::ser::PrettyConfig::default())
+        .expect("Failed to serialize Transform to RON");
+    println!("Transform RON:\n{}", ron);
+    let deserialized: Transform =
+        ron::from_str(&ron).expect("Failed to deserialize Transform from RON");
+    assert_eq!(transform, deserialized);
 
-    // Binary serialization
-    let binary = bincode::serialize(&transform).unwrap();
-    let binary_size = binary.len();
+    // Binary format
+    let binary = bincode::serialize(&transform).expect("Failed to serialize Transform to binary");
+    println!("Transform binary size: {} bytes", binary.len());
+    let deserialized: Transform =
+        bincode::deserialize(&binary).expect("Failed to deserialize Transform from binary");
+    assert_eq!(transform, deserialized);
+}
 
-    println!("Transform serialization comparison:");
-    println!("  RON size: {} bytes", ron_size);
-    println!("  Binary size: {} bytes", binary_size);
+#[test]
+fn test_color_serialization_formats() {
+    let color = Color::rgba(0.8, 0.6, 0.4, 0.9);
+
+    // RON format
+    let ron = ron::to_string(&color).expect("Failed to serialize Color to RON");
+    println!("Color RON: {}", ron);
+    let deserialized: Color = ron::from_str(&ron).expect("Failed to deserialize Color from RON");
+    assert_eq!(color, deserialized);
+
+    // Binary format
+    let binary = bincode::serialize(&color).expect("Failed to serialize Color to binary");
+    println!("Color binary size: {} bytes", binary.len());
+    let deserialized: Color =
+        bincode::deserialize(&binary).expect("Failed to deserialize Color from binary");
+    assert_eq!(color, deserialized);
+}
+
+#[test]
+fn test_handle_serialization_formats() {
+    let handle: Handle<TestAsset> = Handle::new(AssetId::from_path("assets/test.png"), 0);
+
+    // RON format
+    let ron = ron::to_string(&handle).expect("Failed to serialize Handle to RON");
+    println!("Handle RON: {}", ron);
+    let deserialized: Handle<TestAsset> =
+        ron::from_str(&ron).expect("Failed to deserialize Handle from RON");
+    assert_eq!(handle, deserialized);
+
+    // Binary format
+    let binary = bincode::serialize(&handle).expect("Failed to serialize Handle to binary");
+    println!("Handle binary size: {} bytes", binary.len());
+    let deserialized: Handle<TestAsset> =
+        bincode::deserialize(&binary).expect("Failed to deserialize Handle from binary");
+    assert_eq!(handle, deserialized);
+}
+
+#[test]
+fn test_scene_file_simulation() {
+    // Simulate a scene file with multiple entities
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Scene {
+        name: String,
+        entities: Vec<SceneEntity>,
+    }
+
+    let scene = Scene {
+        name: "TestScene".to_string(),
+        entities: vec![
+            SceneEntity::new_test_entity(),
+            SceneEntity::new_test_entity(),
+            SceneEntity::new_test_entity(),
+        ],
+    };
+
+    // Save as RON (human-editable scene file)
+    let ron_scene = ron::ser::to_string_pretty(&scene, ron::ser::PrettyConfig::default())
+        .expect("Failed to serialize scene to RON");
+
+    println!("Scene RON size: {} bytes", ron_scene.len());
     println!(
-        "  Compression ratio: {:.2}x",
-        ron_size as f32 / binary_size as f32
+        "Scene RON preview:\n{}",
+        &ron_scene[..ron_scene.len().min(300)]
     );
 
-    // Binary should be more compact
-    assert!(binary_size < ron_size);
+    // Load from RON
+    let loaded_scene: Scene =
+        ron::from_str(&ron_scene).expect("Failed to deserialize scene from RON");
+    assert_eq!(scene.name, loaded_scene.name);
+    assert_eq!(scene.entities.len(), loaded_scene.entities.len());
 
-    // Both should deserialize correctly
-    let from_ron: Transform = ron::from_str(&ron_str).unwrap();
-    let from_binary: Transform = bincode::deserialize(&binary).unwrap();
+    // Save as binary (optimized runtime format)
+    let binary_scene = bincode::serialize(&scene).expect("Failed to serialize scene to binary");
+    println!("Scene binary size: {} bytes", binary_scene.len());
+    println!(
+        "Binary is {:.1}x smaller than RON",
+        ron_scene.len() as f32 / binary_scene.len() as f32
+    );
 
-    assert_eq!(transform, from_ron);
-    assert_eq!(transform, from_binary);
+    // Load from binary
+    let loaded_scene: Scene =
+        bincode::deserialize(&binary_scene).expect("Failed to deserialize scene from binary");
+    assert_eq!(scene.name, loaded_scene.name);
+    assert_eq!(scene.entities.len(), loaded_scene.entities.len());
+}
+
+#[test]
+fn test_all_core_types_individually() {
+    println!("\n=== Testing Individual Core Type Serialization ===\n");
+
+    // Vec3
+    let vec3 = Vec3::new(1.0, 2.0, 3.0);
+    let ron = ron::to_string(&vec3).unwrap();
+    let binary = bincode::serialize(&vec3).unwrap();
+    println!("Vec3: RON={} bytes, Binary={} bytes", ron.len(), binary.len());
+    assert_eq!(vec3, ron::from_str::<Vec3>(&ron).unwrap());
+    assert_eq!(vec3, bincode::deserialize::<Vec3>(&binary).unwrap());
+
+    // Quat
+    let quat = Quat::from_rotation_y(1.0);
+    let ron = ron::to_string(&quat).unwrap();
+    let binary = bincode::serialize(&quat).unwrap();
+    println!(
+        "Quat: RON={} bytes, Binary={} bytes",
+        ron.len(),
+        binary.len()
+    );
+    let deserialized = ron::from_str::<Quat>(&ron).unwrap();
+    assert!((quat.x - deserialized.x).abs() < 1e-6);
+    let deserialized = bincode::deserialize::<Quat>(&binary).unwrap();
+    assert!((quat.x - deserialized.x).abs() < 1e-6);
+
+    // Transform
+    let transform = Transform::from_xyz(1.0, 2.0, 3.0);
+    let ron = ron::to_string(&transform).unwrap();
+    let binary = bincode::serialize(&transform).unwrap();
+    println!(
+        "Transform: RON={} bytes, Binary={} bytes",
+        ron.len(),
+        binary.len()
+    );
+    assert_eq!(transform, ron::from_str::<Transform>(&ron).unwrap());
+    assert_eq!(
+        transform,
+        bincode::deserialize::<Transform>(&binary).unwrap()
+    );
+
+    // Color
+    let color = Color::rgba(0.5, 0.6, 0.7, 0.8);
+    let ron = ron::to_string(&color).unwrap();
+    let binary = bincode::serialize(&color).unwrap();
+    println!(
+        "Color: RON={} bytes, Binary={} bytes",
+        ron.len(),
+        binary.len()
+    );
+    assert_eq!(color, ron::from_str::<Color>(&ron).unwrap());
+    assert_eq!(color, bincode::deserialize::<Color>(&binary).unwrap());
+
+    // Handle<T>
+    let handle: Handle<TestAsset> = Handle::new(AssetId::from_path("test.asset"), 0);
+    let ron = ron::to_string(&handle).unwrap();
+    let binary = bincode::serialize(&handle).unwrap();
+    println!(
+        "Handle<T>: RON={} bytes, Binary={} bytes",
+        ron.len(),
+        binary.len()
+    );
+    assert_eq!(handle, ron::from_str::<Handle<TestAsset>>(&ron).unwrap());
+    assert_eq!(
+        handle,
+        bincode::deserialize::<Handle<TestAsset>>(&binary).unwrap()
+    );
+
+    println!("\n✓ All core types support both RON and binary serialization");
 }

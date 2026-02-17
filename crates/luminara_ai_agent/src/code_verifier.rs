@@ -1,10 +1,14 @@
-// ... imports ...
-use crate::dry_run::{CodeApplicator, DiffPreview, DryRunner};
+// Requirements 25.1: Complete Code Verification Pipeline
+// "Static analysis for Lua/WASM"
+// "Sandbox execution with resource limits"
+// "Automatic rollback with monitoring"
+// "Fix suggestions based on common error patterns"
+
+use crate::dry_run::{CodeApplicator, DiffPreview, DryRunner, MonitoringResult};
 use crate::sandbox::{SandboxConfig, ScriptSandbox};
 use crate::static_analyzer::{IssueSeverity, StaticAnalyzer, StaticIssue};
 use luminara_core::world::World;
-use luminara_script::{ScriptError, ScriptId};
-use std::time::Duration;
+use luminara_script::ScriptError;
 
 pub struct CodeVerificationPipeline {
     static_analyzer: StaticAnalyzer,
@@ -25,16 +29,13 @@ pub struct VerificationResult {
 pub struct ApplyResult {
     pub success: bool,
     pub error: Option<String>,
+    pub monitoring: Option<MonitoringResult>,
 }
 
 impl CodeVerificationPipeline {
     pub fn new() -> Result<Self, ScriptError> {
-        let config = SandboxConfig {
-            allow_filesystem: false,
-            allow_network: false,
-            max_execution_time: Duration::from_millis(50),
-            ..Default::default()
-        };
+        // Use verification config with proper limits per requirement 25.1
+        let config = SandboxConfig::for_verification();
 
         Ok(Self {
             static_analyzer: StaticAnalyzer::new(),
@@ -44,9 +45,9 @@ impl CodeVerificationPipeline {
         })
     }
 
-    // Method used by tests (verification only)
+    /// Verify code without applying (for testing and validation)
     pub fn verify(&mut self, code: &str) -> VerificationResult {
-        // 1. Static Analysis
+        // Step 1: Static Analysis
         let issues = self.static_analyzer.analyze(code);
         let errors = issues
             .iter()
@@ -56,60 +57,50 @@ impl CodeVerificationPipeline {
         if errors > 0 {
             return VerificationResult {
                 passed: false,
-                static_issues: issues,
+                static_issues: issues.clone(),
                 sandbox_result: None,
                 diff: None,
-                suggestions: vec!["Fix static analysis errors first.".into()],
+                suggestions: self.generate_fix_suggestions(&issues),
             };
         }
 
-        // 2. Sandbox Execution
+        // Step 2: Sandbox Execution
         let sandbox_res = self.sandbox.run_lua(code);
 
-        // 3. Dry Run (mock) - Needs world, but we might not have it in this simple verify call.
-        // If verify is called without world, we skip dry run or mock it?
-        // But dry_run requires &World.
-        // Let's create a temporary world for dry run estimation or pass None?
-        // Actually, let's overload or change signature.
-        // The tests call `verify(code)`.
-        // Let's make `verify` take `code` and assume empty world if not provided?
-        // Or just require `verify_with_world`.
+        if sandbox_res.is_err() {
+            let mut suggestions = self.generate_fix_suggestions(&issues);
+            suggestions.push("Code failed runtime verification in sandbox.".into());
 
-        // For property tests, we just want to check static/sandbox logic.
-        // I will add a dummy World construction here if needed or just skip dry run if I can't construct it easily.
-        // Luminara core World::new() is cheap.
+            return VerificationResult {
+                passed: false,
+                static_issues: issues,
+                sandbox_result: Some(sandbox_res),
+                diff: None,
+                suggestions,
+            };
+        }
 
-        let diff = if sandbox_res.is_ok() {
-            use luminara_core::world::World;
-            let world = World::new();
-            Some(self.dry_runner.dry_run(code, &world))
-        } else {
-            None
-        };
-
-        let passed = sandbox_res.is_ok();
-        let suggestions = if !passed {
-            vec!["Code failed runtime verification in sandbox.".into()]
-        } else {
-            vec![]
-        };
+        // Step 3: Dry Run (requires world, create temporary one for verification)
+        let world = World::new();
+        let diff = self.dry_runner.dry_run(code, &world);
 
         VerificationResult {
-            passed,
+            passed: true,
             static_issues: issues,
             sandbox_result: Some(sandbox_res),
-            diff,
-            suggestions,
+            diff: Some(diff),
+            suggestions: vec![],
         }
     }
 
+    /// Verify and apply code with full monitoring and rollback
+    /// Requirements 25.1: Complete verification pipeline
     pub fn verify_and_apply(
         &mut self,
         code: &str,
         world: &mut World,
     ) -> (VerificationResult, Option<ApplyResult>) {
-        // ... implementation as before ...
-        // 1. Static Analysis
+        // Step 1: Static Analysis
         let issues = self.static_analyzer.analyze(code);
         let errors = issues
             .iter()
@@ -120,54 +111,109 @@ impl CodeVerificationPipeline {
             return (
                 VerificationResult {
                     passed: false,
-                    static_issues: issues,
+                    static_issues: issues.clone(),
                     sandbox_result: None,
                     diff: None,
-                    suggestions: vec!["Fix static analysis errors first.".into()],
+                    suggestions: self.generate_fix_suggestions(&issues),
                 },
                 None,
             );
         }
 
-        // 2. Sandbox Execution
+        // Step 2: Sandbox Execution
         let sandbox_res = self.sandbox.run_lua(code);
         if sandbox_res.is_err() {
+            let mut suggestions = self.generate_fix_suggestions(&issues);
+            suggestions.push("Code failed runtime verification in sandbox.".into());
+
             return (
                 VerificationResult {
                     passed: false,
                     static_issues: issues,
                     sandbox_result: Some(sandbox_res),
                     diff: None,
-                    suggestions: vec!["Code failed runtime verification in sandbox.".into()],
+                    suggestions,
                 },
                 None,
             );
         }
 
-        // 3. Dry Run
+        // Step 3: Dry Run - Generate diff preview
         let diff = self.dry_runner.dry_run(code, world);
 
-        // 4. Apply
-        let apply_result = match self.applicator.apply_with_monitoring(code, world) {
-            Ok(_) => ApplyResult {
-                success: true,
-                error: None,
-            },
+        // Step 4: Apply with monitoring and automatic rollback
+        let monitoring_result = match self.applicator.apply_with_monitoring(code, world) {
+            Ok(monitoring) => {
+                let success = monitoring.success;
+                let error = if !success {
+                    Some(monitoring.errors.join("; "))
+                } else {
+                    None
+                };
+
+                ApplyResult {
+                    success,
+                    error,
+                    monitoring: Some(monitoring),
+                }
+            }
             Err(e) => ApplyResult {
                 success: false,
                 error: Some(e),
+                monitoring: None,
             },
         };
 
         (
             VerificationResult {
-                passed: true,
+                passed: monitoring_result.success,
                 static_issues: issues,
                 sandbox_result: Some(sandbox_res),
                 diff: Some(diff),
-                suggestions: vec![],
+                suggestions: if monitoring_result.success {
+                    vec![]
+                } else {
+                    vec!["Code was rolled back due to runtime errors or anomalies.".into()]
+                },
             },
-            Some(apply_result),
+            Some(monitoring_result),
         )
     }
+
+    /// Generate fix suggestions based on common error patterns
+    /// Requirements 25.1: "Provide fix suggestions based on common error patterns"
+    fn generate_fix_suggestions(&self, issues: &[StaticIssue]) -> Vec<String> {
+        let mut suggestions = Vec::new();
+
+        for issue in issues {
+            if let Some(suggestion) = &issue.suggestion {
+                suggestions.push(suggestion.clone());
+            }
+        }
+
+        // Add general suggestions based on error patterns
+        let has_infinite_loop = issues.iter().any(|i| i.message.contains("infinite loop"));
+        let has_system_call = issues.iter().any(|i| i.message.contains("system call"));
+        let has_undefined_var = issues.iter().any(|i| i.message.contains("undefined variable"));
+
+        if has_infinite_loop {
+            suggestions.push("Consider using bounded loops with explicit termination conditions.".into());
+        }
+
+        if has_system_call {
+            suggestions.push("Use engine-provided APIs instead of system calls for security.".into());
+        }
+
+        if has_undefined_var {
+            suggestions.push("Declare all variables with 'local' keyword to avoid global scope pollution.".into());
+        }
+
+        if suggestions.is_empty() && !issues.is_empty() {
+            suggestions.push("Review the static analysis issues and fix them before proceeding.".into());
+        }
+
+        suggestions
+    }
 }
+
+

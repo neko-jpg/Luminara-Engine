@@ -201,6 +201,30 @@
                 <tbody>
 
                     <tr>
+                        <td><strong>Startup Time</strong></td>
+                        <td>0.00</td>
+                        <td>1500.00</td>
+                        <td>0.0%</td>
+                        <td><span class="status-pass">✓ PASS</span></td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>Physics Simulation</strong></td>
+                        <td>0.00</td>
+                        <td>16.67</td>
+                        <td>0.0%</td>
+                        <td><span class="status-pass">✓ PASS</span></td>
+                    </tr>
+
+                    <tr>
+                        <td><strong>ECS Iteration</strong></td>
+                        <td>0.00</td>
+                        <td>5.00</td>
+                        <td>0.0%</td>
+                        <td><span class="status-pass">✓ PASS</span></td>
+                    </tr>
+
+                    <tr>
                         <td><strong>BunnyMark</strong></td>
                         <td>211800.00</td>
                         <td>200000.00</td>
@@ -216,30 +240,6 @@
                         <td><span class="status-pass">✓ PASS</span></td>
                     </tr>
 
-                    <tr>
-                        <td><strong>Physics Simulation</strong></td>
-                        <td>0.00</td>
-                        <td>16.67</td>
-                        <td>0.0%</td>
-                        <td><span class="status-pass">✓ PASS</span></td>
-                    </tr>
-
-                    <tr>
-                        <td><strong>Startup Time</strong></td>
-                        <td>0.00</td>
-                        <td>1500.00</td>
-                        <td>0.0%</td>
-                        <td><span class="status-pass">✓ PASS</span></td>
-                    </tr>
-
-                    <tr>
-                        <td><strong>ECS Iteration</strong></td>
-                        <td>0.00</td>
-                        <td>5.00</td>
-                        <td>0.0%</td>
-                        <td><span class="status-pass">✓ PASS</span></td>
-                    </tr>
-
                 </tbody>
             </table>
         </div>
@@ -249,18 +249,18 @@
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ["BunnyMark", "Rendering Stress", "Physics Simulation", "Startup Time", "ECS Iteration"],
+                    labels: ["Startup Time", "Physics Simulation", "ECS Iteration", "BunnyMark", "Rendering Stress"],
                     datasets: [
                         {
                             label: 'Actual',
-                            data: [211800.00, 0.00, 0.00, 0.00, 0.00],
+                            data: [0.00, 0.00, 0.00, 211800.00, 0.00],
                             backgroundColor: 'rgba(102, 126, 234, 0.8)',
                             borderColor: 'rgba(102, 126, 234, 1)',
                             borderWidth: 1
                         },
                         {
                             label: 'Target',
-                            data: [200000.00, 60.00, 16.67, 1500.00, 5.00],
+                            data: [1500.00, 16.67, 5.00, 200000.00, 60.00],
                             backgroundColor: 'rgba(40, 167, 69, 0.8)',
                             borderColor: 'rgba(40, 167, 69, 1)',
                             borderWidth: 1
@@ -305,39 +305,39 @@
             new Chart(trendCtx, {
                 type: 'line',
                 data: {
-                    labels: ["Run 1", "Run 2", "Run 3"],
+                    labels: ["Run 1", "Run 2", "Run 3", "Run 4"],
                     datasets: [
                 {
-                    label: 'BunnyMark',
-                    data: [211800.00, 211800.00, 211800.00],
+                    label: 'ECS Iteration',
+                    data: [0.00, 0.00, 0.00, 0.00],
                     borderColor: 'rgba(102, 126, 234, 1)',
                     backgroundColor: 'rgba(102, 126, 234, 0.2)',
                     tension: 0.1
                 },
                 {
                     label: 'Rendering Stress',
-                    data: [0.00, 0.00, 0.00],
+                    data: [0.00, 0.00, 0.00, 0.00],
                     borderColor: 'rgba(118, 75, 162, 1)',
                     backgroundColor: 'rgba(118, 75, 162, 0.2)',
                     tension: 0.1
                 },
                 {
-                    label: 'ECS Iteration',
-                    data: [0.00, 0.00, 0.00],
+                    label: 'Physics Simulation',
+                    data: [0.00, 0.00, 0.00, 0.00],
                     borderColor: 'rgba(40, 167, 69, 1)',
                     backgroundColor: 'rgba(40, 167, 69, 0.2)',
                     tension: 0.1
                 },
                 {
-                    label: 'Startup Time',
-                    data: [0.00, 0.00, 0.00],
+                    label: 'BunnyMark',
+                    data: [211800.00, 211800.00, 211800.00, 211800.00],
                     borderColor: 'rgba(255, 193, 7, 1)',
                     backgroundColor: 'rgba(255, 193, 7, 0.2)',
                     tension: 0.1
                 },
                 {
-                    label: 'Physics Simulation',
-                    data: [0.00, 0.00, 0.00],
+                    label: 'Startup Time',
+                    data: [0.00, 0.00, 0.00, 0.00],
                     borderColor: 'rgba(220, 53, 69, 1)',
                     backgroundColor: 'rgba(220, 53, 69, 0.2)',
                     tension: 0.1
@@ -428,7 +428,7 @@
 
         <footer>
             <p>Generated by Luminara Diagnostic Suite</p>
-            <p>Report generated: 2026-02-15 17:30:35</p>
+            <p>Report generated: 2026-02-17 10:12:23</p>
         </footer>
     </div>
 </body>

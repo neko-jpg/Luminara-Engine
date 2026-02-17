@@ -1,0 +1,13 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc deacffcbddd98c81c91c3deeb408a176b2faa2e2b4e99c0067adfcfcf46be2f1 # shrinks to position = Vec3(0.0, 0.0, 0.0), velocity = Vec3(0.0, 0.0, -5.950107), mass = 0.1, gravity = 11.020289, frames = 50
+cc 1d191b3be93e42f8977bb5b6b7df5e7de9521e801768b60ab7f205f24c826ebf # shrinks to position = Vec3(0.0, 5.914977, 0.0), mass = 0.1, gravity = 19.6519
+cc 6a54314cd200a4db18f99d7ef7149e72d99ef82e66f0716598dc52b6d8f4dd49 # shrinks to height = 1.0, horizontal_vel = 0.0, vertical_vel = 0.0, mass = 0.1, gravity = 11.707614
+cc 63fa3ab2ffaf6aae10a88cbc9d0563770d3cf1939eaa04e0a6ddced7a219bbcd # shrinks to world = PhysicsWorld { bodies: [RigidBody { position: Vec3(0.0, 0.0, 0.0), velocity: Vec3(0.0, 0.0, -10.892779), mass: 0.1 }], gravity: 19.685007 }, (frames, dt) = (30, 0.033333335)
+cc 5a68fe65f6b8357a0503c735ccd64554436e35f6ea55f6a53c6784848fe64cdc # shrinks to world = PhysicsWorld { bodies: [RigidBody { position: Vec3(0.0, 18.342733, 0.0), velocity: Vec3(0.0, 0.0, 0.0), mass: 0.1 }], gravity: 17.810831 }, (frames, dt) = (130, 0.033333335)
+cc 0262307132d7e35c2604ad5cbeb1560bd84560e88dbf717d95a68478c7915c92 # shrinks to height = 5.0, horizontal_vel = 0.0, vertical_vel = 0.0, mass = 0.1, gravity = 19.382772
+cc da0dca05197f680863e0c85ed849f85ade143ea4d7184c71ace7cb434e8e70cb # shrinks to world = PhysicsWorld { bodies: [RigidBody { position: Vec3(0.0, 3.2618375, 0.0), velocity: Vec3(0.0, 0.0, 0.0), mass: 0.1 }], gravity: 19.477364 }, (frames, dt) = (31, 0.033333335)

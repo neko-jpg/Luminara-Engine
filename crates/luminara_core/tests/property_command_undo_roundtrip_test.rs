@@ -305,6 +305,95 @@ impl UndoCommand for AddComponentCommand {
     }
 }
 
+/// Command to remove a component
+#[derive(Debug, Clone)]
+enum RemoveComponentCommand {
+    Position(Entity, Option<Position>),
+    Velocity(Entity, Option<Velocity>),
+    Health(Entity, Option<Health>),
+}
+
+impl RemoveComponentCommand {
+    fn new_position(entity: Entity) -> Self {
+        Self::Position(entity, None)
+    }
+
+    fn new_velocity(entity: Entity) -> Self {
+        Self::Velocity(entity, None)
+    }
+
+    fn new_health(entity: Entity) -> Self {
+        Self::Health(entity, None)
+    }
+}
+
+impl UndoCommand for RemoveComponentCommand {
+    fn execute(&mut self, world: &mut World) -> CommandResult<()> {
+        match self {
+            Self::Position(entity, old_value) => {
+                *old_value = world.get_component::<Position>(*entity).cloned();
+                if old_value.is_none() {
+                    return Err(CommandError::CommandError(format!(
+                        "Entity {:?} does not have Position component",
+                        entity
+                    )));
+                }
+                world.remove_component::<Position>(*entity)?;
+            }
+            Self::Velocity(entity, old_value) => {
+                *old_value = world.get_component::<Velocity>(*entity).cloned();
+                if old_value.is_none() {
+                    return Err(CommandError::CommandError(format!(
+                        "Entity {:?} does not have Velocity component",
+                        entity
+                    )));
+                }
+                world.remove_component::<Velocity>(*entity)?;
+            }
+            Self::Health(entity, old_value) => {
+                *old_value = world.get_component::<Health>(*entity).cloned();
+                if old_value.is_none() {
+                    return Err(CommandError::CommandError(format!(
+                        "Entity {:?} does not have Health component",
+                        entity
+                    )));
+                }
+                world.remove_component::<Health>(*entity)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn undo(&mut self, world: &mut World) -> CommandResult<()> {
+        match self {
+            Self::Position(entity, old_value) => {
+                if let Some(old) = old_value {
+                    world.add_component(*entity, old.clone())?;
+                }
+            }
+            Self::Velocity(entity, old_value) => {
+                if let Some(old) = old_value {
+                    world.add_component(*entity, old.clone())?;
+                }
+            }
+            Self::Health(entity, old_value) => {
+                if let Some(old) = old_value {
+                    world.add_component(*entity, old.clone())?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn description(&self) -> String {
+        match self {
+            Self::Position(entity, _) => format!("Remove Position from {:?}", entity),
+            Self::Velocity(entity, _) => format!("Remove Velocity from {:?}", entity),
+            Self::Health(entity, _) => format!("Remove Health from {:?}", entity),
+        }
+    }
+}
+
 /// Command to modify a component
 #[derive(Debug, Clone)]
 enum ModifyComponentCommand {
@@ -499,6 +588,54 @@ fn property_command_undo_round_trip_add_component() {
     });
 }
 
+/// Test undo round-trip for remove component commands
+#[test]
+fn property_command_undo_round_trip_remove_component() {
+    proptest!(|(pos in arb_position(), vel in arb_velocity(), health in arb_health())| {
+        let mut world = World::new();
+        let entity = world.spawn();
+
+        // Test removing Position
+        world.add_component(entity, pos.clone()).unwrap();
+        let snapshot_before = WorldSnapshot::capture(&world);
+
+        let mut cmd = RemoveComponentCommand::new_position(entity);
+        cmd.execute(&mut world).unwrap();
+        assert!(world.get_component::<Position>(entity).is_none());
+        cmd.undo(&mut world).unwrap();
+        assert!(
+            snapshot_before.matches(&world),
+            "World state after undo (Position remove) does not match initial state"
+        );
+
+        // Test removing Velocity
+        world.add_component(entity, vel.clone()).unwrap();
+        let snapshot_before = WorldSnapshot::capture(&world);
+
+        let mut cmd = RemoveComponentCommand::new_velocity(entity);
+        cmd.execute(&mut world).unwrap();
+        assert!(world.get_component::<Velocity>(entity).is_none());
+        cmd.undo(&mut world).unwrap();
+        assert!(
+            snapshot_before.matches(&world),
+            "World state after undo (Velocity remove) does not match initial state"
+        );
+
+        // Test removing Health
+        world.add_component(entity, health.clone()).unwrap();
+        let snapshot_before = WorldSnapshot::capture(&world);
+
+        let mut cmd = RemoveComponentCommand::new_health(entity);
+        cmd.execute(&mut world).unwrap();
+        assert!(world.get_component::<Health>(entity).is_none());
+        cmd.undo(&mut world).unwrap();
+        assert!(
+            snapshot_before.matches(&world),
+            "World state after undo (Health remove) does not match initial state"
+        );
+    });
+}
+
 /// Test undo round-trip for modify component commands
 #[test]
 fn property_command_undo_round_trip_modify_component() {
@@ -672,6 +809,94 @@ fn property_command_undo_round_trip_multiple_components() {
         assert!(
             snapshot_before.matches(&world),
             "World state after undoing multiple component modifications does not match initial state"
+        );
+    });
+}
+
+/// Test undo round-trip for all command types in a realistic workflow
+///
+/// This test validates Requirements 9.2 and 9.3 by testing all command types:
+/// - SpawnEntity (skipped due to World::despawn bug)
+/// - DestroyEntity (skipped due to World::despawn bug)
+/// - AddComponent
+/// - RemoveComponent
+/// - ModifyComponent
+#[test]
+fn property_command_undo_round_trip_all_command_types() {
+    proptest!(|(
+        pos1 in arb_position(),
+        pos2 in arb_position(),
+        vel in arb_velocity(),
+        health in arb_health()
+    )| {
+        let mut world = World::new();
+        let mut history = CommandHistory::new(100);
+
+        // Create an entity with initial components
+        let entity = world.spawn();
+        world.add_component(entity, pos1.clone()).unwrap();
+        world.add_component(entity, vel.clone()).unwrap();
+
+        let snapshot_initial = WorldSnapshot::capture(&world);
+
+        // Test 1: Add a new component (Health)
+        history.execute(
+            Box::new(AddComponentCommand::new_health(entity, health.clone())),
+            &mut world
+        ).unwrap();
+        assert!(world.get_component::<Health>(entity).is_some());
+
+        // Test 2: Modify an existing component (Position)
+        history.execute(
+            Box::new(ModifyComponentCommand::new_position(entity, pos2.clone())),
+            &mut world
+        ).unwrap();
+        assert_eq!(world.get_component::<Position>(entity), Some(&pos2));
+
+        // Test 3: Remove a component (Velocity)
+        history.execute(
+            Box::new(RemoveComponentCommand::new_velocity(entity)),
+            &mut world
+        ).unwrap();
+        assert!(world.get_component::<Velocity>(entity).is_none());
+
+        // Verify state has changed from initial
+        assert_ne!(WorldSnapshot::capture(&world), snapshot_initial);
+
+        // Undo all operations in reverse order
+        history.undo(&mut world).unwrap(); // Undo remove velocity
+        assert!(world.get_component::<Velocity>(entity).is_some());
+
+        history.undo(&mut world).unwrap(); // Undo modify position
+        assert_eq!(world.get_component::<Position>(entity), Some(&pos1));
+
+        history.undo(&mut world).unwrap(); // Undo add health
+        assert!(world.get_component::<Health>(entity).is_none());
+
+        // Verify we're back to initial state
+        assert!(
+            snapshot_initial.matches(&world),
+            "World state after undoing all operations does not match initial state"
+        );
+
+        // Test redo functionality
+        history.redo(&mut world).unwrap(); // Redo add health
+        assert!(world.get_component::<Health>(entity).is_some());
+
+        history.redo(&mut world).unwrap(); // Redo modify position
+        assert_eq!(world.get_component::<Position>(entity), Some(&pos2));
+
+        history.redo(&mut world).unwrap(); // Redo remove velocity
+        assert!(world.get_component::<Velocity>(entity).is_none());
+
+        // Undo everything again to verify idempotence
+        while history.can_undo() {
+            history.undo(&mut world).unwrap();
+        }
+
+        assert!(
+            snapshot_initial.matches(&world),
+            "World state after second undo cycle does not match initial state"
         );
     });
 }

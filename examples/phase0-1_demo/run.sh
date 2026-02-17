@@ -18,7 +18,7 @@ fi
 
 # Build the demo
 echo "🔨 Building Ultimate Demo..."
-/home/arat2/.cargo/bin/cargo build --release
+cargo build --release
 
 if [ $? -ne 0 ]; then
     echo "❌ Build failed!"
@@ -45,7 +45,7 @@ echo ""
 echo "Press Ctrl+C to exit"
 echo ""
 
-RUST_LOG=info /home/arat2/.cargo/bin/cargo run --release
+RUST_LOG=info cargo run --release
 
 echo ""
 echo "👋 Demo closed. Thanks for watching!"

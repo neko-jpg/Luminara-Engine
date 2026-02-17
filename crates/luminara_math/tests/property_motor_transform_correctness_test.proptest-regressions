@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 09fb21bd5a04891a8a10e897a33f53331f86481bcbefd1086a67548f5d1d8e0a # shrinks to t = Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(-0.0, -0.0, -0.8948742, 0.44631833), scale: Vec3(0.1, 1.9397473, 0.1) }, p = Vec3(0.0, -50.67526, 0.0)
+cc 89ffa16fba92ad63968c131ed858dac7c5e30cfd9b719070ebedaafffcdab775 # shrinks to t = Transform { translation: Vec3(0.0, 0.0, 9.556616), rotation: Quat(0.0, 0.0, 0.0, 1.0), scale: Vec3(0.1, 0.1, 0.1) }
+cc 544821b1c051ccc3f5f947029a373778e767e0cfaf7e9b146ca9cc365fd1314c # shrinks to t1 = Transform { translation: Vec3(0.0, 0.0, 0.0), rotation: Quat(0.0, 0.0, 0.0, 1.0), scale: Vec3(0.1, 0.1, 0.1) }, t2 = Transform { translation: Vec3(0.0, 0.0, 2.465839), rotation: Quat(0.0, 0.0, 0.0, 1.0), scale: Vec3(0.1, 0.1, 0.1) }

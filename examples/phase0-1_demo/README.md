@@ -12,7 +12,7 @@
 
 #### 方法1: インタラクティブメニュー (最も簡単)
 ```cmd
-cd examples\ultimate_demo
+cd examples\phase0-1_demo
 menu.bat
 ```
 
@@ -29,18 +29,18 @@ menu.bat
 
 #### 方法2: 直接実行
 ```cmd
-cd examples\ultimate_demo
+cd examples\phase0-1_demo
 run_wsl.bat
 ```
 
 #### 方法3: WSLコマンド直接実行
 ```cmd
-wsl -d ubuntu bash -c "cd /mnt/c/dev/Luminara-Engine/examples/ultimate_demo && /home/arat2/.cargo/bin/cargo run --release"
+wsl cargo run --release
 ```
 
 ### Linux / WSL内部
 ```bash
-cd examples/ultimate_demo
+cd examples/phase0-1_demo
 cargo run --release
 ```
 
@@ -270,10 +270,10 @@ source $HOME/.cargo/env
 #### パスが正しくない
 ```cmd
 # プロジェクトパスを確認
-wsl -d ubuntu bash -c "ls /mnt/c/dev/Luminara-Engine/examples/ultimate_demo"
+wsl ls .
 
 # Cargoパスを確認
-wsl -d ubuntu bash -c "ls /home/arat2/.cargo/bin/cargo"
+wsl ls ~/.cargo/bin/cargo
 ```
 
 ### パフォーマンス関連

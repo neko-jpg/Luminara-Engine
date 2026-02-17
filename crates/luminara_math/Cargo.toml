@@ -43,3 +43,7 @@ luminara_asset = { path = "../luminara_asset" }
 [[bench]]
 name = "math_benchmarks"
 harness = false
+
+[[bench]]
+name = "motor_vs_quat_benchmark"
+harness = false

@@ -1,25 +1,7 @@
-// Requirements 8.1, 8.8
-// "Static Analyzer... Lua AST parser... dangerous patterns... suggestions"
+// Requirements 25.1: Static analysis for Lua scripts
+// Detects: infinite loops, undefined variables, type errors, dangerous patterns
 
-// We use `full-moon` or `mlua`'s parser if available?
-// `mlua` doesn't expose AST easily.
-// `full-moon` is a Lua 5.1/5.2/5.3/5.4 parser in Rust.
-// Or we use regex/basic pattern matching for MVP if full parser is heavy.
-// Requirement 8.1 says "Set up Lua AST parser".
-// So we should use a parser.
-// Let's add `full-moon` to dependencies.
-
-// But wait, `full-moon` is heavy.
-// Let's check `luminara_ai_agent/Cargo.toml` dependencies.
-// I can add it now.
-
-// Pattern detection:
-// 1. Infinite loops: `while true do` without break (hard to prove statically, but we can flag `while true`).
-// 2. Undefined vars: Requires scope analysis.
-// 3. System calls: `os.execute`, `io.open` (already blocked by sandbox, but static analysis adds early warning).
-// 4. Resource exhaustion: large tables?
-
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub struct StaticAnalyzer {
     // Configuration or rules
@@ -48,44 +30,218 @@ impl StaticAnalyzer {
     pub fn analyze(&self, code: &str) -> Vec<StaticIssue> {
         let mut issues = Vec::new();
 
-        // MVP: Regex-based or simple string matching if full parser not available yet.
-        // Or simpler parser.
-        // Let's look for "while true" and "os.*" "io.*".
+        // Track variable declarations and usage
+        let mut declared_vars = HashSet::new();
+        let mut used_vars = HashSet::new();
+        
+        // Lua built-ins that are always available
+        let builtins: HashSet<&str> = [
+            "print", "type", "tonumber", "tostring", "pairs", "ipairs",
+            "next", "select", "assert", "error", "pcall", "xpcall",
+            "math", "string", "table", "_G", "_VERSION", "require",
+        ].iter().copied().collect();
 
         for (i, line) in code.lines().enumerate() {
             let line_num = i + 1;
+            let trimmed = line.trim();
 
-            if line.contains("while true") {
-                issues.push(StaticIssue {
-                    severity: IssueSeverity::Warning,
-                    message: "Potential infinite loop detected: 'while true'".into(),
-                    line: line_num,
-                    suggestion: Some("Ensure there is a 'break' condition.".into()),
-                });
+            // Skip comments
+            if trimmed.starts_with("--") {
+                continue;
             }
 
-            if line.contains("os.execute") || line.contains("io.open") {
+            // Detect infinite loops
+            if trimmed.contains("while true") && !trimmed.contains("break") {
+                // Check if break exists in subsequent lines (simple heuristic)
+                let has_break = code.lines().skip(i).take(20).any(|l| l.contains("break"));
+                if !has_break {
+                    issues.push(StaticIssue {
+                        severity: IssueSeverity::Error,
+                        message: "Potential infinite loop detected: 'while true' without break".into(),
+                        line: line_num,
+                        suggestion: Some("Add a break condition or use a bounded loop.".into()),
+                    });
+                }
+            }
+
+            // Detect repeat until false (infinite loop)
+            if trimmed.contains("repeat") {
+                // Check if "until false" appears in the same line or subsequent lines
+                let remaining_code = code.lines().skip(i).take(20).collect::<Vec<_>>().join(" ");
+                if remaining_code.contains("until false") {
+                    issues.push(StaticIssue {
+                        severity: IssueSeverity::Error,
+                        message: "Infinite loop detected: 'repeat until false'".into(),
+                        line: line_num,
+                        suggestion: Some("Use a proper termination condition.".into()),
+                    });
+                }
+            }
+
+            // Detect system calls (security)
+            if trimmed.contains("os.execute") || trimmed.contains("io.open") || 
+               trimmed.contains("io.popen") || trimmed.contains("loadfile") ||
+               trimmed.contains("dofile") {
                 issues.push(StaticIssue {
                     severity: IssueSeverity::Error,
-                    message: "System call detected. IO/OS modules are restricted.".into(),
+                    message: "Dangerous system call detected. IO/OS modules are restricted.".into(),
                     line: line_num,
-                    suggestion: Some("Remove system calls.".into()),
+                    suggestion: Some("Remove system calls. Use engine APIs instead.".into()),
                 });
             }
 
-            // "Undefined variable" - hard without AST.
-            // "Resource exhaustion" - "for i=1,1000000"
-            if line.contains("1000000") {
-                // Very naive heuristic
+            // Detect large loop iterations (resource exhaustion)
+            if let Some(count) = extract_loop_count(trimmed) {
+                if count > 10000 {
+                    issues.push(StaticIssue {
+                        severity: IssueSeverity::Warning,
+                        message: format!("Large loop iteration count detected: {}", count),
+                        line: line_num,
+                        suggestion: Some("Consider reducing iteration count or using coroutines.".into()),
+                    });
+                }
+            }
+
+            // Track variable declarations (local x = ...)
+            if let Some(var_name) = extract_local_declaration(trimmed) {
+                declared_vars.insert(var_name);
+            }
+
+            // Track variable usage
+            for var in extract_variable_usage(trimmed) {
+                if !builtins.contains(var.as_str()) {
+                    used_vars.insert(var);
+                }
+            }
+
+            // Detect type errors (basic)
+            if trimmed.contains("nil + ") || trimmed.contains("+ nil") {
+                issues.push(StaticIssue {
+                    severity: IssueSeverity::Error,
+                    message: "Type error: attempting arithmetic on nil value".into(),
+                    line: line_num,
+                    suggestion: Some("Check for nil before arithmetic operations.".into()),
+                });
+            }
+
+            // Detect string concatenation with nil
+            if trimmed.contains("nil .. ") || trimmed.contains(".. nil") {
+                issues.push(StaticIssue {
+                    severity: IssueSeverity::Error,
+                    message: "Type error: attempting to concatenate nil value".into(),
+                    line: line_num,
+                    suggestion: Some("Check for nil before string concatenation.".into()),
+                });
+            }
+        }
+
+        // Check for undefined variables
+        for var in &used_vars {
+            if !declared_vars.contains(var) {
                 issues.push(StaticIssue {
                     severity: IssueSeverity::Warning,
-                    message: "Large loop iteration count detected.".into(),
-                    line: line_num,
-                    suggestion: Some("Reduce iteration count or use time-slicing.".into()),
+                    message: format!("Potentially undefined variable: '{}'", var),
+                    line: 0, // We'd need better tracking for exact line
+                    suggestion: Some(format!("Declare '{}' with 'local' or ensure it's defined.", var)),
                 });
             }
         }
 
         issues
     }
+
+    /// Analyze WASM module for safety
+    pub fn analyze_wasm(&self, _wasm_bytes: &[u8]) -> Vec<StaticIssue> {
+        let mut issues = Vec::new();
+        
+        // For WASM, we check:
+        // 1. Allowed imports only
+        // 2. No dangerous instructions
+        // 3. Memory limits
+        
+        // This would require wasmparser crate for full implementation
+        // For now, return placeholder
+        
+        issues.push(StaticIssue {
+            severity: IssueSeverity::Info,
+            message: "WASM validation not yet fully implemented".into(),
+            line: 0,
+            suggestion: Some("WASM modules will be validated at runtime".into()),
+        });
+        
+        issues
+    }
+}
+
+// Helper functions for parsing
+
+fn extract_loop_count(line: &str) -> Option<usize> {
+    // Match patterns like "for i=1,10000" or "for i = 1, 10000"
+    if line.contains("for ") && line.contains("=") {
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() >= 2 {
+            if let Some(num_str) = parts[1].split_whitespace().next() {
+                return num_str.parse::<usize>().ok();
+            }
+        }
+    }
+    None
+}
+
+fn extract_local_declaration(line: &str) -> Option<String> {
+    // Match "local varname = " or "local varname,"
+    if line.starts_with("local ") {
+        let after_local = &line[6..];
+        if let Some(var_name) = after_local.split_whitespace().next() {
+            let clean_name = var_name.trim_end_matches(',').trim_end_matches('=');
+            if !clean_name.is_empty() {
+                return Some(clean_name.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_variable_usage(line: &str) -> Vec<String> {
+    // Very simple: extract words that look like identifiers
+    // This is a naive implementation - a real parser would be better
+    let mut vars = Vec::new();
+    
+    for word in line.split_whitespace() {
+        // Remove common punctuation but keep dots for table access detection
+        let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '.');
+        
+        // Handle table access (e.g., math.sqrt, string.upper)
+        // Only extract the base table name if it contains a dot
+        let identifier = if clean.contains('.') {
+            // Skip table access - these are method calls on builtins
+            continue;
+        } else {
+            clean
+        };
+        
+        // Handle function calls - extract just the function name before '('
+        let identifier = if let Some(paren_pos) = identifier.find('(') {
+            &identifier[..paren_pos]
+        } else {
+            identifier
+        };
+        
+        if !identifier.is_empty() && identifier.chars().next().unwrap().is_alphabetic() {
+            // Skip Lua keywords
+            if !is_lua_keyword(identifier) {
+                vars.push(identifier.to_string());
+            }
+        }
+    }
+    
+    vars
+}
+
+fn is_lua_keyword(word: &str) -> bool {
+    matches!(word, 
+        "and" | "break" | "do" | "else" | "elseif" | "end" | "false" | 
+        "for" | "function" | "if" | "in" | "local" | "nil" | "not" | 
+        "or" | "repeat" | "return" | "then" | "true" | "until" | "while"
+    )
 }

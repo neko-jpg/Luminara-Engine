@@ -14,6 +14,13 @@ impl Entity {
     pub fn generation(&self) -> u32 {
         self.generation
     }
+
+    /// Create an entity from raw ID and generation (for testing/internal use)
+    /// Note: This bypasses the normal entity allocation system and should only be used
+    /// for testing or when reconstructing entities from external sources
+    pub fn from_raw(id: u32, generation: u32) -> Self {
+        Entity { id, generation }
+    }
 }
 
 #[derive(Default)]

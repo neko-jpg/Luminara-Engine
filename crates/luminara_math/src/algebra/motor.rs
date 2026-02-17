@@ -10,6 +10,7 @@ use super::traits::Scalar;
 use super::vector::Vector3;
 
 use glam::{Quat, Vec3};
+use serde::{Deserialize, Serialize};
 
 /// A motor in PGA(3,0,1) representing a rigid transformation (rotation + translation).
 ///
@@ -21,7 +22,7 @@ use glam::{Quat, Vec3};
 ///
 /// Motors are composed using the geometric product and can transform points
 /// using the sandwich product: p' = M p M̃ (where M̃ is the reverse).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(C, align(32))]
 pub struct Motor<T> {
     /// Scalar component

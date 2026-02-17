@@ -1,5 +1,6 @@
 pub mod components;
 pub mod hierarchy;
+pub mod motor_transform;
 pub mod plugin;
 pub mod prefab;
 pub mod registry;
@@ -8,6 +9,11 @@ pub mod serialization;
 
 pub use hierarchy::{
     remove_parent, set_parent, transform_propagate_system, Children, GlobalTransform, Parent,
+};
+pub use motor_transform::{
+    motor_transform_propagate_system, sync_global_motor_to_transform_system,
+    sync_motor_to_transform_system, sync_transform_to_motor_system, GlobalTransformMotor,
+    MotorDriven,
 };
 pub use plugin::ScenePlugin;
 pub use prefab::Prefab;

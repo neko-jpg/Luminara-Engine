@@ -6,6 +6,7 @@
 use crate::error::{DbError, DbResult};
 use crate::schema::{ComponentRecord, EntityRecord};
 use crate::LuminaraDatabase;
+use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -128,11 +129,11 @@ impl RonMigrationTool {
 
         // First pass: Create all entities without relationships
         for entity_data in &scene.entities {
-            let (entity_id, component_count) = self
+            let (entity_count, component_count) = self
                 .migrate_entity_first_pass(entity_data, &mut id_map)
                 .await?;
 
-            entities_migrated += 1;
+            entities_migrated += entity_count;
             components_migrated += component_count;
         }
 
@@ -154,11 +155,13 @@ impl RonMigrationTool {
     }
 
     /// First pass: Create entity and components without relationships
+    /// Returns (entity_count, component_count) where entity_count includes all descendants
+    #[async_recursion]
     async fn migrate_entity_first_pass(
         &self,
         entity_data: &EntityData,
         id_map: &mut HashMap<u64, surrealdb::RecordId>,
-    ) -> DbResult<(surrealdb::RecordId, usize)> {
+    ) -> DbResult<(usize, usize)> {
         // Create entity record
         let entity =
             EntityRecord::new(Some(entity_data.name.clone())).with_tags(entity_data.tags.clone());
@@ -186,17 +189,22 @@ impl RonMigrationTool {
             component_count += 1;
         }
 
+        // Start with 1 entity (this one)
+        let mut entity_count = 1;
+
         // Recursively migrate children
         for child_data in &entity_data.children {
-            let (_, child_component_count) =
+            let (child_entity_count, child_component_count) =
                 self.migrate_entity_first_pass(child_data, id_map).await?;
+            entity_count += child_entity_count;
             component_count += child_component_count;
         }
 
-        Ok((entity_id, component_count))
+        Ok((entity_count, component_count))
     }
 
     /// Second pass: Establish parent-child relationships
+    #[async_recursion]
     async fn migrate_entity_second_pass(
         &self,
         entity_data: &EntityData,
@@ -328,6 +336,7 @@ impl RonMigrationTool {
     }
 
     /// Verify entity and its children recursively
+    #[async_recursion]
     async fn verify_entity_recursive(&self, entity_data: &EntityData) -> DbResult<bool> {
         // Find entity by name
         let entities = self

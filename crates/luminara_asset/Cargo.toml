@@ -15,9 +15,12 @@ thiserror = { workspace = true }
 gltf = "1.4.1"
 num_cpus = "1.16"
 luminara_reflect_derive = { workspace = true }
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "fs", "sync", "time"] }
+futures = "0.3"
 
 [dev-dependencies]
 proptest = "1.5"
 uuid = { version = "1.0", features = ["v4"] }
 ron = { workspace = true }
 bincode = { workspace = true }
+tempfile = "3.8"

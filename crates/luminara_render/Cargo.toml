@@ -11,6 +11,8 @@ log = "0.4"
 luminara_core = { workspace = true }
 luminara_math = { workspace = true }
 luminara_window = { workspace = true }
+luminara_audio = { workspace = true }
+luminara_diagnostic = { workspace = true }
 thiserror = { workspace = true }
 gltf = { version = "1.4", features = ["import"] }
 luminara_asset = { workspace = true }
@@ -21,3 +23,12 @@ luminara_reflect_derive = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.5"
+criterion = "0.5"
+
+[[bench]]
+name = "instancing_benchmark"
+harness = false
+
+[[bench]]
+name = "frustum_culling_benchmark"
+harness = false

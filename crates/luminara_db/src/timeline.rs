@@ -68,6 +68,18 @@ impl OperationTimeline {
         }
     }
 
+    /// Get a reference to the underlying database
+    pub fn get_db(&self) -> &LuminaraDatabase {
+        &self.db
+    }
+
+    /// Set the current position manually
+    ///
+    /// Useful for restoring state or testing.
+    pub fn set_position(&mut self, position: Option<RecordId>) {
+        self.current_position = position;
+    }
+
     /// Record a new operation to the timeline
     ///
     /// # Arguments
@@ -102,6 +114,54 @@ impl OperationTimeline {
         inverse_commands: Vec<serde_json::Value>,
         affected_entities: Vec<RecordId>,
     ) -> DbResult<RecordId> {
+        self.record_operation_with_intent(
+            operation_type,
+            description,
+            commands,
+            inverse_commands,
+            affected_entities,
+            None,
+        )
+        .await
+    }
+
+    /// Record a new operation with intent to the timeline
+    ///
+    /// # Arguments
+    ///
+    /// * `operation_type` - Type of operation (e.g., "SpawnEntity", "ModifyComponent")
+    /// * `description` - Human-readable description
+    /// * `commands` - Forward commands to execute
+    /// * `inverse_commands` - Inverse commands for undo
+    /// * `affected_entities` - Entities affected by this operation
+    /// * `intent` - Optional AI intent that generated this operation
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use luminara_db::{LuminaraDatabase, timeline::OperationTimeline};
+    /// # use serde_json::json;
+    /// # async fn example(timeline: &mut OperationTimeline) -> Result<(), Box<dyn std::error::Error>> {
+    /// let op_id = timeline.record_operation_with_intent(
+    ///     "SpawnEntity",
+    ///     "Spawned player entity",
+    ///     vec![json!({"type": "spawn", "entity": "player"})],
+    ///     vec![json!({"type": "despawn", "entity": "player"})],
+    ///     vec![],
+    ///     Some("Create a player character at spawn point".to_string()),
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn record_operation_with_intent(
+        &mut self,
+        operation_type: impl Into<String>,
+        description: impl Into<String>,
+        commands: Vec<serde_json::Value>,
+        inverse_commands: Vec<serde_json::Value>,
+        affected_entities: Vec<RecordId>,
+        intent: Option<String>,
+    ) -> DbResult<RecordId> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -115,6 +175,11 @@ impl OperationTimeline {
             timestamp,
         )
         .with_branch(&self.current_branch);
+
+        // Set intent if provided
+        if let Some(intent_text) = intent {
+            operation.intent = Some(intent_text);
+        }
 
         // Set parent to current position
         if let Some(parent_id) = &self.current_position {
@@ -205,11 +270,14 @@ impl OperationTimeline {
         let parent_id = match &self.current_position {
             Some(id) => id,
             None => {
-                // At the beginning, find the first operation in this branch
-                let operations = self
-                    .db
-                    .load_operation_history(1, Some(&self.current_branch))
-                    .await?;
+                // At the beginning, find the first operation in this branch (operation with no parent)
+                let query = format!(
+                    "SELECT * FROM operation WHERE parent = NONE AND branch = '{}' ORDER BY timestamp ASC LIMIT 1",
+                    self.current_branch
+                );
+
+                let mut result = self.db.execute_query(&query).await?;
+                let operations: Vec<OperationRecord> = result.take(0)?;
 
                 return Ok(operations
                     .into_iter()
@@ -234,6 +302,8 @@ impl OperationTimeline {
     }
 
     /// Get operation history for the current branch
+    ///
+    /// Returns operations in reverse chronological order (most recent first).
     ///
     /// # Arguments
     ///
@@ -375,7 +445,8 @@ impl OperationTimeline {
     /// ```
     pub async fn list_branches(&self) -> DbResult<Vec<BranchInfo>> {
         // Query all unique branch names
-        let query = "SELECT DISTINCT branch FROM operation WHERE branch IS NOT NULL";
+        // Use GROUP BY instead of DISTINCT for SurrealDB compatibility
+        let query = "SELECT branch FROM operation WHERE branch IS NOT NULL GROUP BY branch";
         let mut result = self.db.execute_query(query).await?;
         let branch_records: Vec<BranchRecord> = result.take(0)?;
 
@@ -527,6 +598,231 @@ impl OperationTimeline {
         }
 
         Ok(())
+    }
+
+    /// Perform selective undo of a specific operation
+    ///
+    /// This attempts to undo a specific operation in the history, even if it's not
+    /// the most recent one. It checks for conflicts with dependent operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `operation_id` - ID of the operation to undo
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Some(inverse_commands))` if the operation can be safely undone,
+    /// `Ok(None)` if there are conflicts, or an error if the operation doesn't exist.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use luminara_db::timeline::OperationTimeline;
+    /// # use surrealdb::RecordId;
+    /// # async fn example(timeline: &mut OperationTimeline, op_id: RecordId) -> Result<(), Box<dyn std::error::Error>> {
+    /// match timeline.selective_undo(&op_id).await? {
+    ///     Some((conflicts, inverse_commands)) if conflicts.is_empty() => {
+    ///         println!("Safe to undo, executing inverse commands");
+    ///         // Execute inverse commands...
+    ///     }
+    ///     Some((conflicts, _)) => {
+    ///         println!("Cannot undo due to {} conflicts", conflicts.len());
+    ///         for conflict in conflicts {
+    ///             println!("  - {}", conflict);
+    ///         }
+    ///     }
+    ///     None => {
+    ///         println!("Operation not found");
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn selective_undo(
+        &self,
+        operation_id: &RecordId,
+    ) -> DbResult<Option<(Vec<String>, Vec<serde_json::Value>)>> {
+        // Load the operation
+        let operation = match self.db.load_operation(operation_id).await {
+            Ok(op) => op,
+            Err(_) => return Ok(None),
+        };
+
+        // Check for conflicts with dependent operations
+        let conflicts = self.check_undo_conflicts(operation_id, &operation).await?;
+
+        // Return conflicts and inverse commands
+        Ok(Some((conflicts, operation.inverse_commands)))
+    }
+
+    /// Check for conflicts when undoing an operation
+    ///
+    /// This checks if any operations that came after this one depend on it.
+    async fn check_undo_conflicts(
+        &self,
+        operation_id: &RecordId,
+        operation: &OperationRecord,
+    ) -> DbResult<Vec<String>> {
+        let mut conflicts = Vec::new();
+
+        // Get all operations that came after this one in the same branch
+        let query = format!(
+            "SELECT * FROM operation WHERE branch = '{}' AND timestamp > {} ORDER BY timestamp ASC",
+            self.current_branch, operation.timestamp
+        );
+
+        let mut result = self.db.execute_query(&query).await?;
+        let later_operations: Vec<OperationRecord> = result.take(0)?;
+
+        // Check if any later operations affect the same entities
+        for later_op in later_operations {
+            // Check for entity conflicts
+            for affected_entity in &operation.affected_entities {
+                if later_op.affected_entities.contains(affected_entity) {
+                    conflicts.push(format!(
+                        "Operation '{}' (at {}) also modified entity {}",
+                        later_op.description,
+                        later_op.timestamp,
+                        affected_entity
+                    ));
+                }
+            }
+
+            // Check if this operation is a parent of the later operation
+            if let Some(parent_id) = &later_op.parent {
+                if parent_id == operation_id {
+                    conflicts.push(format!(
+                        "Operation '{}' depends on this operation as its parent",
+                        later_op.description
+                    ));
+                }
+            }
+        }
+
+        Ok(conflicts)
+    }
+
+    /// Generate AI context summary from recent operations
+    ///
+    /// This creates a human-readable summary of recent operations for AI context.
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - Maximum number of operations to include
+    /// * `include_details` - Whether to include command details
+    ///
+    /// # Returns
+    ///
+    /// A formatted string summarizing recent operations
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use luminara_db::timeline::OperationTimeline;
+    /// # async fn example(timeline: &OperationTimeline) -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = timeline.generate_ai_context(10, false).await?;
+    /// println!("Recent operations:\n{}", context);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn generate_ai_context(
+        &self,
+        limit: usize,
+        include_details: bool,
+    ) -> DbResult<String> {
+        let operations = self.get_history(limit).await?;
+
+        if operations.is_empty() {
+            return Ok("No operations in history.".to_string());
+        }
+
+        let mut context = format!(
+            "Operation History (Branch: {}, {} operations):\n\n",
+            self.current_branch,
+            operations.len()
+        );
+
+        for (i, op) in operations.iter().enumerate() {
+            // Format timestamp
+            let timestamp = chrono::DateTime::from_timestamp(op.timestamp, 0)
+                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            context.push_str(&format!(
+                "{}. [{}] {} - {}\n",
+                i + 1,
+                timestamp,
+                op.operation_type,
+                op.description
+            ));
+
+            // Add intent if present
+            if let Some(intent) = &op.intent {
+                context.push_str(&format!("   Intent: {}\n", intent));
+            }
+
+            // Add affected entities count
+            if !op.affected_entities.is_empty() {
+                context.push_str(&format!(
+                    "   Affected {} entities\n",
+                    op.affected_entities.len()
+                ));
+            }
+
+            // Add command details if requested
+            if include_details {
+                if !op.commands.is_empty() {
+                    context.push_str(&format!("   Commands: {} operations\n", op.commands.len()));
+                }
+            }
+
+            context.push('\n');
+        }
+
+        Ok(context)
+    }
+
+    /// Generate a compact operation summary for AI token efficiency
+    ///
+    /// This creates a very compact summary suitable for token-constrained contexts.
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - Maximum number of operations to include
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use luminara_db::timeline::OperationTimeline;
+    /// # async fn example(timeline: &OperationTimeline) -> Result<(), Box<dyn std::error::Error>> {
+    /// let summary = timeline.generate_compact_summary(5).await?;
+    /// println!("{}", summary);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn generate_compact_summary(&self, limit: usize) -> DbResult<String> {
+        let operations = self.get_history(limit).await?;
+
+        if operations.is_empty() {
+            return Ok("No operations.".to_string());
+        }
+
+        let summaries: Vec<String> = operations
+            .iter()
+            .map(|op| {
+                if let Some(intent) = &op.intent {
+                    format!("{}: {}", op.operation_type, intent)
+                } else {
+                    format!("{}: {}", op.operation_type, op.description)
+                }
+            })
+            .collect();
+
+        Ok(format!(
+            "Recent ops ({}): {}",
+            self.current_branch,
+            summaries.join(" → ")
+        ))
     }
 }
 

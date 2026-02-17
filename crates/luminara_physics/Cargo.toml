@@ -23,3 +23,13 @@ luminara_reflect_derive = { workspace = true }
 luminara_diagnostic = { path = "../luminara_diagnostic" }
 proptest = "1.0"
 env_logger = "0.11"
+criterion = "0.5"
+rand = "0.8"
+
+[[bench]]
+name = "euler_vs_lie_benchmark"
+harness = false
+
+[[bench]]
+name = "collision_detection_benchmark"
+harness = false

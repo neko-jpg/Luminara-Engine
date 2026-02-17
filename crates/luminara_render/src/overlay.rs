@@ -5,6 +5,7 @@
 //! draw call per frame.
 
 use luminara_core::shared_types::Resource;
+use luminara_diagnostic::profiler::OverlayRendererInterface;
 use wgpu::util::DeviceExt;
 
 // ============================================================================
@@ -858,3 +859,18 @@ const FONT_DATA: [[u8; 8]; 96] = [
     // 127: solid block (used for filled rectangles)
     [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
 ];
+
+
+// ============================================================================
+// Integration with luminara_diagnostic
+// ============================================================================
+
+impl OverlayRendererInterface for OverlayRenderer {
+    fn draw_rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: [f32; 4]) {
+        self.draw_rect(x, y, w, h, color);
+    }
+
+    fn draw_text(&mut self, x: f32, y: f32, text: &str, color: [f32; 4], scale: f32) {
+        self.draw_text(x, y, text, color, scale);
+    }
+}

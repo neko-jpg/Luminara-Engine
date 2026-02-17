@@ -2,7 +2,6 @@ use crate::api::{input::LuaInput, world::LuaWorld};
 use luminara_core::world::World;
 use luminara_input::Input;
 use luminara_script::{ScriptError, ScriptId};
-use mlua::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -45,6 +44,49 @@ impl LuaScriptRuntime {
         &self.lua
     }
 
+    /// Extract detailed stack trace from Lua error
+    fn extract_stack_trace(&self, error: &mlua::Error) -> String {
+        match error {
+            mlua::Error::CallbackError { traceback, cause } => {
+                format!("Callback error:\n{}\nCause: {}", traceback, cause)
+            }
+            mlua::Error::RuntimeError(msg) => {
+                // Try to get debug traceback
+                if let Ok(debug_traceback) = self.lua.load("debug.traceback()").eval::<String>() {
+                    format!("{}\n\nStack trace:\n{}", msg, debug_traceback)
+                } else {
+                    msg.clone()
+                }
+            }
+            mlua::Error::SyntaxError { message, .. } => message.clone(),
+            _ => error.to_string(),
+        }
+    }
+
+    /// Safely execute a Lua function with error isolation
+    fn safe_call<'lua, A, R>(
+        &'lua self,
+        func: mlua::Function<'lua>,
+        args: A,
+        script_path: &str,
+    ) -> Result<R, ScriptError>
+    where
+        A: mlua::IntoLuaMulti<'lua>,
+        R: mlua::FromLuaMulti<'lua>,
+    {
+        match func.call::<A, R>(args) {
+            Ok(result) => Ok(result),
+            Err(e) => {
+                let stack_trace = self.extract_stack_trace(&e);
+                Err(ScriptError::Runtime {
+                    script_path: script_path.to_string(),
+                    message: e.to_string(),
+                    stack_trace,
+                })
+            }
+        }
+    }
+
     pub fn load_script(&mut self, path: &Path) -> Result<ScriptId, ScriptError> {
         let path_buf = path.to_path_buf();
 
@@ -53,26 +95,49 @@ impl LuaScriptRuntime {
         }
 
         let source = std::fs::read_to_string(path).map_err(ScriptError::Io)?;
+        let path_str = path.display().to_string();
 
         let chunk = self.lua.load(&source);
-        let func = chunk
-            .into_function()
-            .map_err(|e| ScriptError::Compilation(e.to_string()))?;
-        let factory_key = self
-            .lua
-            .create_registry_value(func.clone())
-            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+        let func = chunk.into_function().map_err(|e| {
+            let stack_trace = self.extract_stack_trace(&e);
+            ScriptError::Compilation {
+                script_path: path_str.clone(),
+                message: e.to_string(),
+                stack_trace,
+            }
+        })?;
 
-        let result: mlua::Value = func
-            .call(())
-            .map_err(|e| ScriptError::Runtime(format!("Error running script body: {}", e)))?;
+        let factory_key = self.lua.create_registry_value(func.clone()).map_err(|e| {
+            let stack_trace = self.extract_stack_trace(&e);
+            ScriptError::Runtime {
+                script_path: path_str.clone(),
+                message: e.to_string(),
+                stack_trace,
+            }
+        })?;
+
+        // Execute script body - need to call directly to avoid borrow issues
+        let result: mlua::Value = match func.call(()) {
+            Ok(v) => v,
+            Err(e) => {
+                let stack_trace = self.extract_stack_trace(&e);
+                return Err(ScriptError::Runtime {
+                    script_path: path_str,
+                    message: e.to_string(),
+                    stack_trace,
+                });
+            }
+        };
 
         let instance_key = if let mlua::Value::Table(t) = result {
-            Some(
-                self.lua
-                    .create_registry_value(t)
-                    .map_err(|e| ScriptError::Runtime(e.to_string()))?,
-            )
+            Some(self.lua.create_registry_value(t).map_err(|e| {
+                let stack_trace = self.extract_stack_trace(&e);
+                ScriptError::Runtime {
+                    script_path: path_str.clone(),
+                    message: e.to_string(),
+                    stack_trace,
+                }
+            })?)
         } else {
             None
         };
@@ -94,98 +159,177 @@ impl LuaScriptRuntime {
     }
 
     pub fn reload_script(&mut self, script_id: ScriptId) -> Result<(), ScriptError> {
-        let script = self
+        // Get script path first to avoid borrow issues
+        let path_str = self
             .scripts
-            .get_mut(&script_id)
-            .ok_or_else(|| ScriptError::Runtime(format!("Script not found: {:?}", script_id)))?;
+            .get(&script_id)
+            .ok_or_else(|| ScriptError::ScriptNotFound(format!("Script ID: {:?}", script_id)))?
+            .path
+            .display()
+            .to_string();
 
-        let source = std::fs::read_to_string(&script.path).map_err(ScriptError::Io)?;
+        let path_buf = self.scripts.get(&script_id).unwrap().path.clone();
+        let source = std::fs::read_to_string(&path_buf).map_err(ScriptError::Io)?;
 
         let chunk = self.lua.load(&source);
         let func = match chunk.into_function() {
             Ok(f) => f,
             Err(e) => {
-                eprintln!("Failed to compile script on reload: {}", e);
-                return Err(ScriptError::Compilation(e.to_string()));
+                let stack_trace = self.extract_stack_trace(&e);
+                eprintln!(
+                    "Failed to compile script on reload: {}\nStack trace:\n{}",
+                    e, stack_trace
+                );
+                return Err(ScriptError::Compilation {
+                    script_path: path_str,
+                    message: e.to_string(),
+                    stack_trace,
+                });
             }
         };
 
-        let result: mlua::Result<mlua::Value> = func.call(());
-        let result = match result {
+        // Execute script body
+        let result = match func.call::<_, mlua::Value>(()) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("Failed to execute script body on reload: {}", e);
-                return Err(ScriptError::Runtime(e.to_string()));
+                let stack_trace = self.extract_stack_trace(&e);
+                eprintln!(
+                    "Failed to execute script body on reload: {}\nStack trace:\n{}",
+                    e, stack_trace
+                );
+                return Err(ScriptError::Runtime {
+                    script_path: path_str,
+                    message: e.to_string(),
+                    stack_trace,
+                });
             }
         };
 
         let new_instance_key = if let mlua::Value::Table(new_table) = result {
-            if let Some(old_key) = &script.instance_key {
-                let old_table: mlua::Table = self
-                    .lua
-                    .registry_value(old_key)
-                    .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            // Check if we have an old instance to preserve state from
+            let has_old_instance = self
+                .scripts
+                .get(&script_id)
+                .and_then(|s| s.instance_key.as_ref())
+                .is_some();
 
-                let saved_state: Option<mlua::Value> =
-                    if let Ok(on_save) = old_table.get::<_, mlua::Function>("on_save") {
-                        Some(
-                            on_save
-                                .call::<_, mlua::Value>(())
-                                .map_err(|e| ScriptError::Runtime(e.to_string()))?,
-                        )
-                    } else {
-                        None
-                    };
+            if has_old_instance {
+                let old_key = self.scripts.get(&script_id).unwrap().instance_key.as_ref().unwrap();
+                // Try to preserve state across reload
+                match self.lua.registry_value::<mlua::Table>(old_key) {
+                    Ok(old_table) => {
+                        // Try to save state
+                        let saved_state: Option<mlua::Value> =
+                            if let Ok(on_save) = old_table.get::<_, mlua::Function>("on_save") {
+                                match on_save.call::<_, mlua::Value>(()) {
+                                    Ok(state) => Some(state),
+                                    Err(e) => {
+                                        let stack_trace = self.extract_stack_trace(&e);
+                                        eprintln!(
+                                            "Error calling on_save during reload:\n{}\nStack trace:\n{}",
+                                            e, stack_trace
+                                        );
+                                        None
+                                    }
+                                }
+                            } else {
+                                None
+                            };
 
-                for pair in old_table.pairs::<mlua::Value, mlua::Value>() {
-                    if let Ok((k, v)) = pair {
-                        if !v.is_function() {
-                            let _ = new_table.set(k, v);
+                        // Copy non-function fields
+                        for pair in old_table.pairs::<mlua::Value, mlua::Value>() {
+                            if let Ok((k, v)) = pair {
+                                if !v.is_function() {
+                                    let _ = new_table.set(k, v);
+                                }
+                            }
+                        }
+
+                        // Try to restore state
+                        if let Some(state) = saved_state {
+                            if let Ok(on_restore) = new_table.get::<_, mlua::Function>("on_restore")
+                            {
+                                if let Err(e) = on_restore.call::<_, ()>(state) {
+                                    let stack_trace = self.extract_stack_trace(&e);
+                                    eprintln!(
+                                        "Error calling on_restore during reload:\n{}\nStack trace:\n{}",
+                                        e, stack_trace
+                                    );
+                                }
+                            }
                         }
                     }
-                }
-
-                if let Some(state) = saved_state {
-                    if let Ok(on_restore) = new_table.get::<_, mlua::Function>("on_restore") {
-                        let _ = on_restore.call::<_, ()>(state);
+                    Err(e) => {
+                        eprintln!("Failed to get old table during reload: {}", e);
                     }
                 }
             }
 
-            Some(
-                self.lua
-                    .create_registry_value(new_table)
-                    .map_err(|e| ScriptError::Runtime(e.to_string()))?,
-            )
+            match self.lua.create_registry_value(new_table) {
+                Ok(key) => Some(key),
+                Err(e) => {
+                    let stack_trace = self.extract_stack_trace(&e);
+                    return Err(ScriptError::Runtime {
+                        script_path: path_str.clone(),
+                        message: e.to_string(),
+                        stack_trace,
+                    });
+                }
+            }
         } else {
             None
         };
 
-        script.factory_key = self
-            .lua
-            .create_registry_value(func)
-            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+        let factory_key = match self.lua.create_registry_value(func) {
+            Ok(key) => key,
+            Err(e) => {
+                let stack_trace = self.extract_stack_trace(&e);
+                return Err(ScriptError::Runtime {
+                    script_path: path_str,
+                    message: e.to_string(),
+                    stack_trace,
+                });
+            }
+        };
+
+        // Now update the script
+        let script = self.scripts.get_mut(&script_id).unwrap();
+        script.factory_key = factory_key;
         script.instance_key = new_instance_key;
 
         Ok(())
     }
 
     pub fn call_lifecycle(&self, script_id: ScriptId, hook: &str) -> Result<(), ScriptError> {
-        let script = self
-            .scripts
-            .get(&script_id)
-            .ok_or_else(|| ScriptError::Runtime(format!("Script not found: {:?}", script_id)))?;
+        let script = self.scripts.get(&script_id).ok_or_else(|| {
+            ScriptError::ScriptNotFound(format!("Script ID: {:?}", script_id))
+        })?;
+
+        let path_str = script.path.display().to_string();
 
         if let Some(key) = &script.instance_key {
-            let table: mlua::Table = self
-                .lua
-                .registry_value(key)
-                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            let table: mlua::Table = self.lua.registry_value(key).map_err(|e| {
+                let stack_trace = self.extract_stack_trace(&e);
+                ScriptError::Runtime {
+                    script_path: path_str.clone(),
+                    message: format!("Failed to get script instance: {}", e),
+                    stack_trace,
+                }
+            })?;
 
             if let Ok(func) = table.get::<_, mlua::Function>(hook) {
-                func.call::<_, ()>(()).map_err(|e| {
-                    ScriptError::Runtime(format!("Error calling hook '{}': {}", hook, e))
-                })?;
+                // Call directly with explicit type annotation
+                match func.call::<_, ()>(()) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        let stack_trace = self.extract_stack_trace(&e);
+                        return Err(ScriptError::Runtime {
+                            script_path: path_str,
+                            message: e.to_string(),
+                            stack_trace,
+                        });
+                    }
+                }
             }
         }
         Ok(())
@@ -204,10 +348,17 @@ impl LuaScriptRuntime {
                 if let Some(key) = &script.instance_key {
                     if let Ok(table) = self.lua.registry_value::<mlua::Table>(key) {
                         if let Ok(func) = table.get::<_, mlua::Function>("on_update") {
-                            if let Err(e) =
-                                func.call::<_, ()>((dt, input_ud.clone(), world_ud.clone()))
-                            {
-                                eprintln!("Error in script {:?} on_update: {}", script.id, e);
+                            // Isolate errors per script - don't let one script crash others
+                            if let Err(e) = func.call::<_, ()>((dt, input_ud.clone(), world_ud.clone())) {
+                                let stack_trace = self.extract_stack_trace(&e);
+                                eprintln!(
+                                    "Error in script {:?} ({}) on_update:\n{}\n\nStack trace:\n{}",
+                                    script.id,
+                                    script.path.display(),
+                                    e,
+                                    stack_trace
+                                );
+                                // Continue processing other scripts instead of propagating error
                             }
                         }
                     }
@@ -216,6 +367,13 @@ impl LuaScriptRuntime {
             Ok(())
         });
 
-        result.map_err(|e| ScriptError::Runtime(e.to_string()))
+        result.map_err(|e| {
+            let stack_trace = self.extract_stack_trace(&e);
+            ScriptError::Runtime {
+                script_path: "update loop".to_string(),
+                message: e.to_string(),
+                stack_trace,
+            }
+        })
     }
 }

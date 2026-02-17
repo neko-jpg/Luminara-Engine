@@ -2,6 +2,7 @@ use crate::Asset;
 use luminara_core::shared_types::Component;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -20,6 +21,14 @@ impl AssetId {
 
     pub fn from_path(path: &str) -> Self {
         Self(Uuid::new_v5(&Uuid::NAMESPACE_URL, path.as_bytes()))
+    }
+
+    pub fn from_u128(value: u128) -> Self {
+        Self(Uuid::from_u128(value))
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.0.is_nil()
     }
 }
 
@@ -44,6 +53,12 @@ impl<T: Asset> Handle<T> {
 
     pub fn generation(&self) -> u32 {
         self.generation
+    }
+}
+
+impl<T: Asset> Default for Handle<T> {
+    fn default() -> Self {
+        Self::new(AssetId::default(), 0)
     }
 }
 
@@ -157,5 +172,24 @@ impl<T: Asset> luminara_core::Reflect for Handle<T> {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+impl<T: Asset> Handle<T> {
+    /// Check if this handle is ready (asset is loaded)
+    pub fn is_loaded(&self, server: &crate::AssetServer) -> bool {
+        use crate::LoadState;
+        matches!(server.load_state(self.id), LoadState::Loaded)
+    }
+
+    /// Get the load state of this handle
+    pub fn load_state(&self, server: &crate::AssetServer) -> crate::LoadState {
+        server.load_state(self.id)
+    }
+
+    /// Resolve this handle to the actual asset (non-blocking)
+    /// Returns None if the asset is not yet loaded
+    pub fn resolve(&self, server: &crate::AssetServer) -> Option<Arc<T>> {
+        server.get(self)
     }
 }

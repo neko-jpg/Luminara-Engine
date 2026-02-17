@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 4e0010b032d2142dbe9f9ba3feca42ef3f8c9aa3c67656b462620c3f14f64ff3 # shrinks to angular_velocity = 30.159443, axis_index = 0
+cc 709c069e5ddca69cadefc6fc0880f70f67811c2011d3c5f9484188147f806afa # shrinks to angular_x = 10.0, angular_y = 28.422625

@@ -10,5 +10,6 @@ memo/
 docs/codereview/
 docs/check
 .kiro/
-docs/audit
 luminara_diagnostic
+docs/audit/
+coverage/

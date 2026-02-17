@@ -1,8 +1,6 @@
 // Requirements 5.6
 // "Implement SemanticIndex... local embedding model... HNSW vector store... entity-to-text"
 
-use luminara_core::entity::Entity;
-use luminara_core::world::World;
 use std::collections::HashMap;
 
 // We need a vector store. For MVP, simple linear scan or lightweight crate.
@@ -20,11 +18,11 @@ use std::collections::HashMap;
 
 pub struct SemanticIndex {
     // Entity ID -> Text representation
-    entity_texts: HashMap<u64, String>,
+    entity_texts: HashMap<u32, String>,
     // Entity ID -> Embedding Vector
-    entity_vectors: HashMap<u64, Vec<f32>>,
+    entity_vectors: HashMap<u32, Vec<f32>>,
     // Dirty set for updates
-    dirty_entities: Vec<u64>,
+    dirty_entities: Vec<u32>,
 }
 
 impl SemanticIndex {
@@ -36,7 +34,7 @@ impl SemanticIndex {
         }
     }
 
-    pub fn index_entity(&mut self, entity_id: u64, text: String) {
+    pub fn index_entity(&mut self, entity_id: u32, text: String) {
         self.entity_texts.insert(entity_id, text.clone());
         let embedding = self.generate_embedding(&text);
         self.entity_vectors.insert(entity_id, embedding);
@@ -59,10 +57,10 @@ impl SemanticIndex {
         vec
     }
 
-    pub fn search(&self, query: &str, limit: usize) -> Vec<(u64, f32)> {
+    pub fn search(&self, query: &str, limit: usize) -> Vec<(u32, f32)> {
         let query_vec = self.generate_embedding(query);
 
-        let mut scores: Vec<(u64, f32)> = self
+        let mut scores: Vec<(u32, f32)> = self
             .entity_vectors
             .iter()
             .map(|(&id, vec)| {
@@ -77,7 +75,7 @@ impl SemanticIndex {
         scores
     }
 
-    pub fn mark_dirty(&mut self, entity_id: u64) {
+    pub fn mark_dirty(&mut self, entity_id: u32) {
         if !self.dirty_entities.contains(&entity_id) {
             self.dirty_entities.push(entity_id);
         }

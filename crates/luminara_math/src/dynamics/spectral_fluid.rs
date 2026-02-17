@@ -3,8 +3,10 @@
 //! GPU-based FFT solver with IMEX time integration.
 
 use super::fft::{FftPlan, GpuTexture};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ecs", derive(luminara_reflect_derive::Reflect))]
 pub enum BoundaryMethod {
     Periodic,
     Penalization,

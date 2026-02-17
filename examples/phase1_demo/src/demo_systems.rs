@@ -7,6 +7,9 @@ use luminara::input::{
 };
 use luminara::prelude::*;
 use luminara::render::{Mesh, OverlayRenderer};
+use luminara_math::Color;
+use luminara_physics::{ColliderShape, RigidBodyType};
+use luminara_scene::Name;
 use rand::Rng;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,7 +32,7 @@ pub fn setup_demo_input(world: &mut World) {
     map.bind(
         DemoAction::IncreaseGravity,
         ActionBinding {
-            inputs: vec![InputSource::Key(Key::Plus), InputSource::Key(Key::Equals)],
+            inputs: vec![InputSource::Key(Key::Equal), InputSource::Key(Key::Equal)],
         },
     );
     map.bind(
@@ -41,13 +44,13 @@ pub fn setup_demo_input(world: &mut World) {
     map.bind(
         DemoAction::IncreaseTimeScale,
         ActionBinding {
-            inputs: vec![InputSource::Key(Key::RBracket)],
+            inputs: vec![InputSource::Key(Key::BracketRight)],
         },
     );
     map.bind(
         DemoAction::DecreaseTimeScale,
         ActionBinding {
-            inputs: vec![InputSource::Key(Key::LBracket)],
+            inputs: vec![InputSource::Key(Key::BracketLeft)],
         },
     );
     map.bind(
@@ -130,12 +133,12 @@ pub fn demo_interaction_system(
     // Time scale control
     if InputExt::action_just_pressed(&*input, DemoAction::IncreaseTimeScale, &map) {
         settings.time_scale = (settings.time_scale + 0.1).min(2.0);
-        time.set_time_scale(settings.time_scale);
+        time.time_scale = settings.time_scale;
         println!("Time scale: {:.2}", settings.time_scale);
     }
     if InputExt::action_just_pressed(&*input, DemoAction::DecreaseTimeScale, &map) {
         settings.time_scale = (settings.time_scale - 0.1).max(0.1);
-        time.set_time_scale(settings.time_scale);
+        time.time_scale = settings.time_scale;
         println!("Time scale: {:.2}", settings.time_scale);
     }
 
@@ -223,8 +226,15 @@ pub fn floating_animation_system(
 
 // Exclusive system for spawning objects (needs full world access)
 pub fn demo_spawn_system(world: &mut World) {
-    let input = world.resource::<Input>().clone();
-    let map = world.resource::<ActionMap<DemoAction>>().clone();
+    let input = world.get_resource::<Input>().map(|r| (*r).clone());
+    let map = world.get_resource::<ActionMap<DemoAction>>().map(|r| (*r).clone());
+    
+    if input.is_none() || map.is_none() {
+        return;
+    }
+    
+    let input = input.unwrap();
+    let map = map.unwrap();
 
     let mut should_spawn_sphere = false;
     let mut should_spawn_cube = false;
@@ -243,23 +253,27 @@ pub fn demo_spawn_system(world: &mut World) {
 
     // Execute actions
     if should_spawn_sphere {
-        let mut settings = world.resource_mut::<DemoSettings>();
-        let gravity_scale = settings.gravity_scale;
-        settings.spawn_counter += 1;
-        let counter = settings.spawn_counter;
-        drop(settings);
+        let mut settings = world.get_resource_mut::<DemoSettings>();
+        if let Some(mut settings) = settings {
+            let gravity_scale = settings.gravity_scale;
+            settings.spawn_counter += 1;
+            let counter = settings.spawn_counter;
+            drop(settings);
 
-        spawn_dynamic_object_impl(world, ObjectType::Sphere, counter, gravity_scale);
+            spawn_dynamic_object_impl(world, ObjectType::Sphere, counter, gravity_scale);
+        }
     }
 
     if should_spawn_cube {
-        let mut settings = world.resource_mut::<DemoSettings>();
-        let gravity_scale = settings.gravity_scale;
-        settings.spawn_counter += 1;
-        let counter = settings.spawn_counter;
-        drop(settings);
+        let mut settings = world.get_resource_mut::<DemoSettings>();
+        if let Some(mut settings) = settings {
+            let gravity_scale = settings.gravity_scale;
+            settings.spawn_counter += 1;
+            let counter = settings.spawn_counter;
+            drop(settings);
 
-        spawn_dynamic_object_impl(world, ObjectType::Cube, counter, gravity_scale);
+            spawn_dynamic_object_impl(world, ObjectType::Cube, counter, gravity_scale);
+        }
     }
 
     if should_reset {
@@ -362,7 +376,7 @@ fn reset_dynamic_objects(world: &mut World) {
 
     // Collect entities with SpawnedObject marker
     for entity in world.entities() {
-        if world.has_component::<SpawnedObject>(entity) {
+        if world.get_component::<SpawnedObject>(entity).is_some() {
             to_remove.push(entity);
         }
     }
@@ -373,10 +387,11 @@ fn reset_dynamic_objects(world: &mut World) {
     }
 
     // Reset settings
-    let mut settings = world.resource_mut::<DemoSettings>();
-    settings.spawn_counter = 0;
-    settings.gravity_scale = 1.0;
-    settings.time_scale = 1.0;
+    if let Some(mut settings) = world.get_resource_mut::<DemoSettings>() {
+        settings.spawn_counter = 0;
+        settings.gravity_scale = 1.0;
+        settings.time_scale = 1.0;
+    }
 
     println!("Scene reset: removed {} spawned objects", count);
 }

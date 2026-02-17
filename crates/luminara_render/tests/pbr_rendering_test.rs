@@ -1,7 +1,7 @@
 // Unit tests for PBR rendering components
 use luminara_math::{Color, Mat4, Quat, Vec3};
 use luminara_render::{
-    DirectionalLight, ForwardPlusRenderer, PbrMaterial, PointLight, PostProcessResources,
+    DirectionalLight, forward_plus::ForwardPlusRenderer, PbrMaterial, PointLight, PostProcessResources,
     ShadowCascades, ShadowMapResources,
 };
 use luminara_scene::Transform;

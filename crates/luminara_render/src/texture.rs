@@ -1,10 +1,13 @@
 use luminara_asset::Asset;
+use luminara_asset::PlaceholderAsset;
 use luminara_core::shared_types::Component;
 use wgpu;
 
 /// Texture format enum for different image types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextureFormat {
+    R8,
+    Rg8,
     Rgba8,
     Rgba16F,
     Rgba32F,
@@ -135,6 +138,8 @@ impl Texture {
     /// Upload texture to GPU
     pub fn upload(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let (wgpu_format, bytes_per_pixel) = match self.data.format {
+            TextureFormat::R8 => (wgpu::TextureFormat::R8Unorm, 1),
+            TextureFormat::Rg8 => (wgpu::TextureFormat::Rg8Unorm, 2),
             TextureFormat::Rgba8 => (wgpu::TextureFormat::Rgba8UnormSrgb, 4),
             TextureFormat::Rgba16F => (wgpu::TextureFormat::Rgba16Float, 8),
             TextureFormat::Rgba32F => (wgpu::TextureFormat::Rgba32Float, 16),
@@ -257,5 +262,18 @@ mod tests {
         assert_eq!(texture.data.width, 1);
         assert_eq!(texture.data.height, 1);
         assert_eq!(texture.data.format, TextureFormat::Rgba8);
+    }
+}
+
+impl PlaceholderAsset for Texture {
+    /// Create a default placeholder texture (magenta/black checkerboard to indicate loading)
+    fn create_placeholder() -> Self {
+        // Create a 64x64 magenta/black checkerboard pattern
+        // Magenta is commonly used to indicate missing/loading textures in game engines
+        Texture::checkerboard(
+            64,
+            [255, 0, 255, 255], // Magenta
+            [0, 0, 0, 255],     // Black
+        )
     }
 }

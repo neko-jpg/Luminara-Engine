@@ -19,7 +19,7 @@ fn test_capture_format_compliance(w: u32, h: u32) -> TestResult {
     };
 
     let data = sys.capture_viewport(&world, config);
-    TestResult::from_bool(data.len() == (w * h * 3) as usize)
+    TestResult::from_bool(data.image_data.len() == (w * h * 3) as usize)
 }
 
 #[quickcheck]

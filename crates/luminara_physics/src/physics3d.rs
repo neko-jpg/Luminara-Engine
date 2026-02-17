@@ -120,13 +120,14 @@ impl Plugin for PhysicsPlugin {
             ResMut<'static, CollisionEvents>,
         )>(CoreStage::PostUpdate, collision_detection_system);
 
-        // Register debug render system
+        // Register debug render system with velocity and contact visualization
         app.add_system::<(
             luminara_core::system::FunctionMarker,
             Res<'static, crate::debug::PhysicsDebugConfig>,
             Res<'static, PhysicsWorld3D>,
             ResMut<'static, luminara_render::command::CommandBuffer>,
             Query<'static, (&Collider, &Transform)>,
+            Query<'static, (Entity, &Transform, &RigidBody)>,
         )>(
             CoreStage::PostRender,
             crate::debug::physics_debug_render_system,

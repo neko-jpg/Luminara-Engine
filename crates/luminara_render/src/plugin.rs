@@ -33,6 +33,8 @@ impl Plugin for RenderPlugin {
         app.insert_resource(crate::ShadowCascades::default());
         app.insert_resource(crate::PostProcessResources::default());
         app.insert_resource(crate::overlay::OverlayRenderer::new());
+        app.insert_resource(crate::FluidSolverResource::new());
+        app.insert_resource(crate::DebugRenderingResource::new());
 
         // Register startup system to initialize GPU context once Window is available
         app.add_system::<ExclusiveMarker>(CoreStage::Startup, setup_gpu_context);
@@ -67,6 +69,33 @@ impl Plugin for RenderPlugin {
             Res<'static, AssetServer>,
             Query<'static, &Handle<Mesh>>,
         )>(CoreStage::PreRender, crate::mesh_upload_system);
+
+        // Register fluid systems
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, (luminara_core::Entity, &crate::FluidRenderer)>,
+            ResMut<'static, crate::FluidSolverResource>,
+        )>(CoreStage::PreUpdate, crate::init_fluid_solvers_system);
+
+        app.add_system::<(
+            FunctionMarker,
+            Res<'static, luminara_core::Time>,
+            Query<'static, (luminara_core::Entity, &crate::FluidRenderer)>,
+            ResMut<'static, crate::FluidSolverResource>,
+        )>(CoreStage::Update, crate::update_fluid_simulation_system);
+
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, (luminara_core::Entity, &mut crate::FluidRenderer)>,
+            Res<'static, crate::FluidSolverResource>,
+            ResMut<'static, AssetServer>,
+        )>(CoreStage::PreRender, crate::sync_fluid_textures_system);
+
+        app.add_system::<(
+            FunctionMarker,
+            Query<'static, (luminara_core::Entity, &crate::FluidRenderer)>,
+            ResMut<'static, crate::FluidSolverResource>,
+        )>(CoreStage::PostUpdate, crate::cleanup_fluid_solvers_system);
 
         // Register Forward+ light update system
         app.add_system::<(
@@ -178,6 +207,13 @@ pub fn setup_gpu_context(world: &mut World) {
         forward_plus.initialize(&gpu.device, gpu.surface_config.format);
     } else {
         log::error!("ForwardPlusRenderer not found during GPU setup");
+    }
+
+    // Initialize debug rendering
+    if let Some(mut debug_rendering) = world.get_resource_mut::<crate::DebugRenderingResource>() {
+        debug_rendering.initialize(&gpu);
+    } else {
+        log::error!("DebugRenderingResource not found during GPU setup");
     }
 
     world.insert_resource(gpu);

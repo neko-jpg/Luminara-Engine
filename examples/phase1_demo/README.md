@@ -27,13 +27,13 @@ This demo showcases the Phase 1 core engine features of the Luminara Engine with
 From the workspace root:
 
 ```bash
-wsl -d ubuntu /home/arat2/.cargo/bin/cargo run --bin phase1_demo
+cargo run --bin phase1_demo
 ```
 
 Or from this directory:
 
 ```bash
-wsl -d ubuntu /home/arat2/.cargo/bin/cargo run
+cargo run
 ```
 
 ## Controls

@@ -2,8 +2,10 @@
 
 use crate::error::{DbError, DbResult};
 use crate::schema::{AssetRecord, ComponentRecord, EntityRecord, OperationRecord};
-use surrealdb::engine::local::{Db, Mem};
 use surrealdb::{RecordId, Surreal};
+
+#[cfg(feature = "memory")]
+use surrealdb::engine::local::{Db, Mem};
 
 #[cfg(target_arch = "wasm32")]
 use surrealdb::engine::local::IndxDb;
@@ -15,7 +17,10 @@ use surrealdb::engine::local::IndxDb;
 #[derive(Clone)]
 pub struct LuminaraDatabase {
     /// Embedded SurrealDB instance
+    #[cfg(feature = "memory")]
     db: Surreal<Db>,
+    #[cfg(not(feature = "memory"))]
+    db: Surreal<surrealdb::engine::local::Db>, 
 }
 
 impl LuminaraDatabase {
@@ -30,9 +35,10 @@ impl LuminaraDatabase {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "memory")]
     pub async fn new_memory() -> DbResult<Self> {
         // Create database with in-memory backend
-        let db = Surreal::new::<Mem>(()).await?;
+        let db: Surreal<Db> = Surreal::new::<Mem>(()).await?;
 
         // Use namespace and database
         db.use_ns("luminara").use_db("engine").await?;
@@ -795,12 +801,12 @@ impl LuminaraDatabase {
     ) -> DbResult<Vec<OperationRecord>> {
         let query = if let Some(branch_name) = branch {
             format!(
-                "SELECT * FROM operation WHERE branch = '{}' ORDER BY timestamp DESC LIMIT {}",
+                "SELECT * FROM operation WHERE branch = '{}' ORDER BY timestamp DESC, id DESC LIMIT {}",
                 branch_name, limit
             )
         } else {
             format!(
-                "SELECT * FROM operation ORDER BY timestamp DESC LIMIT {}",
+                "SELECT * FROM operation ORDER BY timestamp DESC, id DESC LIMIT {}",
                 limit
             )
         };

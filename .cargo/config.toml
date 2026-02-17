@@ -1,0 +1,85 @@
+# Cargo build configuration for Luminara Engine
+# Optimizes for fast incremental builds and developer experience
+
+[build]
+# Incremental compilation for faster rebuilds
+incremental = true
+
+# Note: jobs = 0 would use all cores, but some Cargo versions don't support it
+# Remove the jobs setting to use Cargo's default (all cores)
+
+# Target directory (can be overridden)
+# target-dir = "target"
+
+[target.x86_64-unknown-linux-gnu]
+# Use mold linker for faster linking on Linux (if available)
+# Install with: sudo apt install mold
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.x86_64-pc-windows-msvc]
+# Use lld linker for faster linking on Windows
+linker = "rust-lld.exe"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-gnu]
+# Use lld linker for faster linking on Windows GNU
+linker = "rust-lld.exe"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-apple-darwin]
+# Use zld linker for faster linking on macOS (if available)
+# Install with: brew install michaeleisel/zld/zld
+# rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
+
+# Shared compilation cache configuration
+# Uncomment to enable sccache (requires installation)
+# Install with: cargo install sccache
+# [build]
+# rustc-wrapper = "sccache"
+
+# Alternative: Use cargo-cache for cleaning old artifacts
+# Install with: cargo install cargo-cache
+
+# Profile-specific settings
+[profile.dev]
+# Optimize dependencies even in dev mode for better runtime performance
+# while keeping our code unoptimized for fast compilation
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"  # Faster on macOS
+incremental = true
+codegen-units = 256  # More units = faster compilation, larger binary
+
+[profile.dev.package."*"]
+# Optimize all dependencies in dev mode
+opt-level = 3
+debug = false
+
+# Fast development profile with optimized dependencies
+[profile.fast-dev]
+inherits = "dev"
+opt-level = 1  # Slight optimization for our code
+debug = true
+incremental = true
+
+[profile.fast-dev.package."*"]
+opt-level = 3
+debug = false
+
+# Alias for common commands
+[alias]
+# Fast check without building
+c = "check --workspace"
+# Fast build with dev profile
+b = "build --workspace"
+# Fast build with fast-dev profile
+fb = "build --workspace --profile fast-dev"
+# Run tests with fast compilation
+t = "test --workspace"
+# Run specific test
+tt = "test --workspace"
+# Clippy with all features
+cl = "clippy --workspace --all-features"
+# Clean build artifacts
+clean-all = "clean"

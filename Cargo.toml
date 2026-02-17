@@ -44,9 +44,35 @@ thiserror = "2.0"
 opt-level = 3
 lto = "thin"
 codegen-units = 1
+strip = true  # Strip symbols for smaller binaries
+panic = "abort"  # Smaller binaries, faster compilation
 
 [profile.bench]
 inherits = "release"
+
+# Development profile optimizations
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"  # Faster on macOS
+incremental = true
+codegen-units = 256  # More units = faster compilation
+
+# Optimize dependencies even in dev mode
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+# Fast development profile - balance between speed and performance
+[profile.fast-dev]
+inherits = "dev"
+opt-level = 1
+debug = true
+incremental = true
+
+[profile.fast-dev.package."*"]
+opt-level = 3
+debug = false
 
 # Enable target-specific optimizations
 [profile.release.package.luminara_math]

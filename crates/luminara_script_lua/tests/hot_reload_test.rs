@@ -4,6 +4,9 @@ use quickcheck_macros::quickcheck;
 use std::fs;
 use std::io::Write;
 
+/// **Validates: Requirements 17.3**
+/// Tests that hot-reload preserves entity references and component data across reloads
+
 #[quickcheck]
 fn test_hot_reload_state_preservation(initial_val: i32, new_val_ignore: i32) -> TestResult {
     let _ = new_val_ignore; // Unused
@@ -167,4 +170,318 @@ fn test_hot_reload_fallback(initial_val: i32) -> TestResult {
     // And if we implemented it right, it returned before swapping keys.
 
     TestResult::from_bool(reload_failed)
+}
+
+/// Test multiple consecutive hot-reloads preserve state correctly
+#[quickcheck]
+fn test_multiple_consecutive_reloads(values: Vec<i32>) -> TestResult {
+    if values.is_empty() || values.len() > 10 || values.len() < 2 {
+        return TestResult::discard();
+    }
+
+    let initial_val = values[0];
+    let script_v1 = format!(
+        r#"
+        local module = {{ x = {}, reload_count = 0 }}
+        function module.on_update()
+            _G.test_x = module.x
+            _G.test_reload_count = module.reload_count
+        end
+        return module
+    "#,
+        initial_val
+    );
+
+    let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
+    write!(temp_file, "{}", script_v1).unwrap();
+    let path = temp_file.path().to_path_buf();
+
+    let mut runtime = LuaScriptRuntime::new().unwrap();
+    let id = runtime.load_script(&path).unwrap();
+
+    // Verify initial state
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let val: i32 = runtime.get_lua().globals().get("test_x").unwrap();
+    if val != initial_val {
+        return TestResult::failed();
+    }
+
+    // Perform multiple reloads
+    for (i, _) in values.iter().enumerate().skip(1) {
+        // Note: reload_count will be overwritten by old value (0 initially, then preserved)
+        // Only new functions are taken from the new script
+        let script_reload = format!(
+            r#"
+            local module = {{ x = 0, reload_count = {} }}
+            function module.on_update()
+                _G.test_x = module.x
+                _G.test_reload_count = module.reload_count
+            end
+            return module
+        "#,
+            i
+        );
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        write!(file, "{}", script_reload).unwrap();
+
+        runtime.reload_script(id).unwrap();
+
+        // Verify state preserved (x should still be initial_val)
+        runtime.call_lifecycle(id, "on_update").unwrap();
+        let val_after: i32 = runtime.get_lua().globals().get("test_x").unwrap();
+        let reload_count: i32 = runtime.get_lua().globals().get("test_reload_count").unwrap();
+
+        // x should be preserved from original
+        // reload_count should also be preserved (0) because non-function fields are copied
+        if val_after != initial_val || reload_count != 0 {
+            return TestResult::failed();
+        }
+    }
+
+    TestResult::passed()
+}
+
+/// Test that entity references (stored as numbers/IDs) are preserved across reload
+#[quickcheck]
+fn test_entity_reference_preservation(entity_id: u64) -> TestResult {
+    // Avoid overflow issues with Lua number conversion
+    if entity_id > 1_000_000_000 {
+        return TestResult::discard();
+    }
+
+    let script_v1 = format!(
+        r#"
+        local module = {{ 
+            target_entity = {},
+            position = {{ x = 1.0, y = 2.0, z = 3.0 }}
+        }}
+        function module.on_update()
+            _G.test_entity = module.target_entity
+            _G.test_pos_x = module.position.x
+        end
+        return module
+    "#,
+        entity_id
+    );
+
+    let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
+    write!(temp_file, "{}", script_v1).unwrap();
+    let path = temp_file.path().to_path_buf();
+
+    let mut runtime = LuaScriptRuntime::new().unwrap();
+    let id = runtime.load_script(&path).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let entity_before: u64 = runtime.get_lua().globals().get("test_entity").unwrap();
+    let pos_x_before: f64 = runtime.get_lua().globals().get("test_pos_x").unwrap();
+
+    if entity_before != entity_id || (pos_x_before - 1.0).abs() > 0.001 {
+        return TestResult::failed();
+    }
+
+    // Reload with different code but entity reference should be preserved
+    // Note: The reload implementation copies non-function fields from old to new,
+    // so the old values will overwrite the new initial values
+    let script_v2 = r#"
+        local module = { 
+            target_entity = 999,  -- Will be overwritten by old value
+            position = { x = 0.0, y = 0.0, z = 0.0 }  -- Will be overwritten
+        }
+        function module.on_update()
+            _G.test_entity = module.target_entity
+            _G.test_pos_x = module.position.x
+        end
+        return module
+    "#;
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)
+        .unwrap();
+    write!(file, "{}", script_v2).unwrap();
+
+    runtime.reload_script(id).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let entity_after: u64 = runtime.get_lua().globals().get("test_entity").unwrap();
+    let pos_x_after: f64 = runtime.get_lua().globals().get("test_pos_x").unwrap();
+
+    // Entity reference and position should be preserved from v1
+    TestResult::from_bool(entity_after == entity_id && (pos_x_after - 1.0).abs() < 0.001)
+}
+
+/// Test that component data (nested tables) is preserved across reload
+#[quickcheck]
+fn test_component_data_preservation(health: i32, mana: i32) -> TestResult {
+    if health < 0 || mana < 0 {
+        return TestResult::discard();
+    }
+
+    let script_v1 = format!(
+        r#"
+        local module = {{ 
+            stats = {{
+                health = {},
+                mana = {},
+                level = 1
+            }},
+            inventory = {{
+                items = {{ "sword", "shield" }},
+                gold = 100
+            }}
+        }}
+        function module.on_update()
+            _G.test_health = module.stats.health
+            _G.test_mana = module.stats.mana
+            _G.test_gold = module.inventory.gold
+        end
+        return module
+    "#,
+        health, mana
+    );
+
+    let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
+    write!(temp_file, "{}", script_v1).unwrap();
+    let path = temp_file.path().to_path_buf();
+
+    let mut runtime = LuaScriptRuntime::new().unwrap();
+    let id = runtime.load_script(&path).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let health_before: i32 = runtime.get_lua().globals().get("test_health").unwrap();
+    let mana_before: i32 = runtime.get_lua().globals().get("test_mana").unwrap();
+    let gold_before: i32 = runtime.get_lua().globals().get("test_gold").unwrap();
+
+    if health_before != health || mana_before != mana || gold_before != 100 {
+        return TestResult::failed();
+    }
+
+    // Reload with different initial values
+    let script_v2 = r#"
+        local module = { 
+            stats = {
+                health = 0,
+                mana = 0,
+                level = 99
+            },
+            inventory = {
+                items = {},
+                gold = 0
+            }
+        }
+        function module.on_update()
+            _G.test_health = module.stats.health
+            _G.test_mana = module.stats.mana
+            _G.test_gold = module.inventory.gold
+        end
+        return module
+    "#;
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)
+        .unwrap();
+    write!(file, "{}", script_v2).unwrap();
+
+    runtime.reload_script(id).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let health_after: i32 = runtime.get_lua().globals().get("test_health").unwrap();
+    let mana_after: i32 = runtime.get_lua().globals().get("test_mana").unwrap();
+    let gold_after: i32 = runtime.get_lua().globals().get("test_gold").unwrap();
+
+    // All component data should be preserved from v1
+    TestResult::from_bool(health_after == health && mana_after == mana && gold_after == 100)
+}
+
+/// Test on_save/on_restore hooks for custom state preservation
+#[test]
+fn test_custom_state_preservation_hooks() {
+    let script_v1 = r#"
+        local module = { 
+            important_data = "secret",
+            transient_data = "temporary"
+        }
+        
+        function module.on_save()
+            -- Only save important data
+            return { important = module.important_data }
+        end
+        
+        function module.on_restore(state)
+            module.important_data = state.important
+        end
+        
+        function module.on_update()
+            _G.test_important = module.important_data
+            _G.test_transient = module.transient_data
+        end
+        
+        return module
+    "#;
+
+    let mut temp_file = tempfile::Builder::new().suffix(".lua").tempfile().unwrap();
+    write!(temp_file, "{}", script_v1).unwrap();
+    let path = temp_file.path().to_path_buf();
+
+    let mut runtime = LuaScriptRuntime::new().unwrap();
+    let id = runtime.load_script(&path).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let important_before: String = runtime.get_lua().globals().get("test_important").unwrap();
+    let transient_before: String = runtime.get_lua().globals().get("test_transient").unwrap();
+
+    assert_eq!(important_before, "secret");
+    assert_eq!(transient_before, "temporary");
+
+    // Reload with different values
+    let script_v2 = r#"
+        local module = { 
+            important_data = "new_secret",
+            transient_data = "new_temporary"
+        }
+        
+        function module.on_save()
+            return { important = module.important_data }
+        end
+        
+        function module.on_restore(state)
+            module.important_data = state.important
+        end
+        
+        function module.on_update()
+            _G.test_important = module.important_data
+            _G.test_transient = module.transient_data
+        end
+        
+        return module
+    "#;
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(&path)
+        .unwrap();
+    write!(file, "{}", script_v2).unwrap();
+
+    runtime.reload_script(id).unwrap();
+
+    runtime.call_lifecycle(id, "on_update").unwrap();
+    let important_after: String = runtime.get_lua().globals().get("test_important").unwrap();
+    let transient_after: String = runtime.get_lua().globals().get("test_transient").unwrap();
+
+    // The reload implementation:
+    // 1. Calls on_save on old table
+    // 2. Copies non-function fields from old to new (overwrites new values)
+    // 3. Calls on_restore on new table with saved state
+    // So both fields will be preserved from old table due to step 2
+    assert_eq!(important_after, "secret");
+    assert_eq!(transient_after, "temporary"); // Also preserved by field copy
 }

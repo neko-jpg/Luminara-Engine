@@ -1,18 +1,28 @@
+pub mod ai_shader_pipeline;
 pub mod animation;
 pub mod animation_system;
+pub mod audio_debug_systems;
 pub mod buffer_pool;
 pub mod camera;
 pub mod camera_systems;
 pub mod command;
 pub mod components;
+pub mod debug_rendering;
+pub mod draw_call_batcher;
 pub mod error;
+pub mod fluid;
+pub mod fluid_systems;
 pub mod forward_plus;
+pub mod frustum_culling;
 pub mod gizmo;
+pub mod gizmo_system;
 pub mod gpu;
 pub mod ik;
 pub mod instancing;
+pub mod lod_system;
 pub mod material;
 pub mod mesh;
+pub mod occlusion_culling;
 pub mod mesh_loader;
 pub mod overlay;
 pub mod particles;
@@ -21,25 +31,49 @@ pub mod plugin;
 pub mod post_process;
 pub mod render_graph;
 pub mod shader;
+pub mod shader_generator;
 pub mod shadow;
 pub mod sprite;
 pub mod sprite_systems;
 pub mod texture;
 
+pub use ai_shader_pipeline::{
+    AiShaderError, AiShaderPipeline, AiShaderResult, ExpressionGenerator, MockExpressionGenerator,
+};
 pub use animation::{AnimationClip, Bone, GltfLoader, GltfScene, Skeleton, SkinnedMesh};
 pub use animation_system::{AnimationPlayer, AnimationPlugin, SampledBoneTransform};
+pub use audio_debug_systems::visualize_audio_sources_system;
 pub use camera::{Camera, Camera2d, Camera3d, Projection};
 pub use camera_systems::{camera_projection_system, camera_resize_system};
 pub use command::{CommandBuffer, DrawCommand, GizmoType};
 pub use components::{DirectionalLight, Lod, MeshRenderer, PbrMaterial, PointLight};
+pub use debug_rendering::{DebugRenderMode, DebugRenderingResource};
+pub use draw_call_batcher::{
+    BatchedDrawCall, DrawCallBatcher, DrawCallBatcherStats, DrawCallSortKey, MaterialKey,
+};
 pub use error::RenderError;
+pub use fluid::{FluidRenderer, FluidSolverResource, FluidVisualizationMode};
+pub use fluid_systems::{
+    cleanup_fluid_solvers_system, init_fluid_solvers_system, sync_fluid_textures_system,
+    update_fluid_simulation_system,
+};
 pub use forward_plus::update_lights_system;
+pub use frustum_culling::{Cullable, Frustum, FrustumCullingSystem, Plane};
 pub use gizmo::{GizmoCategories, Gizmos};
+pub use gizmo_system::{
+    AudioVisualizationSettings, GizmoSystem, PhysicsVisualizationSettings,
+    RenderingVisualizationSettings, TransformVisualizationSettings, VisualizationMode,
+};
 pub use gpu::GpuContext;
 pub use ik::{TwoBoneIK, TwoBoneIKSolver};
 pub use instancing::{InstanceBatcher, InstanceBatcherStats, InstanceData, InstanceGroup};
+pub use lod_system::{LodConfig, LodGenerator, LodState, LodStats};
 pub use material::Material;
 pub use mesh::{Mesh, Vertex, AABB};
+pub use occlusion_culling::{
+    Occludable, OcclusionCullingSystem, OcclusionQuery, OcclusionState, OcclusionStats,
+    create_bbox_vertex_buffer, create_bbox_index_buffer,
+};
 pub use mesh_loader::MeshLoader;
 pub use overlay::{OverlayCommand, OverlayRenderer};
 pub use particles::{Particle, ParticleEmitter, ParticlePlugin, ParticleSystem};
@@ -47,6 +81,7 @@ pub use pipeline::{CachedPipeline, PipelineCache, RenderPipelineDescriptor};
 pub use plugin::RenderPlugin;
 pub use post_process::{init_post_process_system, PostProcessResources};
 pub use shader::Shader;
+pub use shader_generator::{CacheStats, ShaderGenerator};
 pub use shadow::{update_shadow_cascades_system, ShadowCascades, ShadowMapResources};
 pub use sprite::{Anchor, Rect, Sprite, SpriteBatcher, SpriteRenderResources, ZOrder};
 pub use sprite_systems::{init_sprite_system, prepare_sprite_batches, render_sprites};

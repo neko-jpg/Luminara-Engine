@@ -3,9 +3,9 @@
     "name": "BunnyMark",
     "metrics": {
       "benchmark_duration_secs": 0.000451062,
-      "target_fps": 60.0,
+      "spawn_batch_size": 100.0,
       "max_sprites_at_60fps": 211800.0,
-      "spawn_batch_size": 100.0
+      "target_fps": 60.0
     },
     "timestamp": {
       "secs_since_epoch": 1771138612,
@@ -24,10 +24,10 @@
     "name": "ECS Iteration",
     "metrics": {
       "100000_entities_per_ms": 814100.215736557,
-      "iterations_per_test": 10.0,
-      "100000_entities_passed": 1.0,
       "benchmark_duration_secs": 0.007598057,
-      "100000_entities_time_ms": 0.122835
+      "100000_entities_time_ms": 0.122835,
+      "iterations_per_test": 10.0,
+      "100000_entities_passed": 1.0
     },
     "timestamp": {
       "secs_since_epoch": 1771138612,
@@ -45,24 +45,24 @@
   {
     "name": "Startup Time",
     "metrics": {
-      "runs_per_test": 5.0,
-      "complex_plugin_init_ms": 1.14181,
-      "empty_passed": 1.0,
       "benchmark_duration_secs": 3.96490428,
       "empty_plugin_init_ms": 0.234747,
       "empty_total_ms": 67.012795,
-      "complex_first_render_ms": 51.853889,
-      "complex_asset_loading_ms": 516.989082,
-      "empty_ecs_init_ms": 0.16295700000000002,
-      "complex_scene_setup_ms": 51.803098,
+      "empty_scene_setup_ms": 0.6503519999999999,
       "empty_first_render_ms": 5.303356,
-      "complex_ecs_init_ms": 0.649785,
-      "empty_asset_loading_ms": 10.338615,
       "complex_passed": 1.0,
-      "empty_gpu_init_ms": 50.322768,
-      "complex_gpu_init_ms": 103.301501,
+      "complex_ecs_init_ms": 0.649785,
       "complex_total_ms": 725.7391650000001,
-      "empty_scene_setup_ms": 0.6503519999999999
+      "runs_per_test": 5.0,
+      "complex_scene_setup_ms": 51.803098,
+      "empty_gpu_init_ms": 50.322768,
+      "complex_first_render_ms": 51.853889,
+      "empty_ecs_init_ms": 0.16295700000000002,
+      "empty_asset_loading_ms": 10.338615,
+      "empty_passed": 1.0,
+      "complex_asset_loading_ms": 516.989082,
+      "complex_gpu_init_ms": 103.301501,
+      "complex_plugin_init_ms": 1.14181
     },
     "timestamp": {
       "secs_since_epoch": 1771138616,
@@ -80,16 +80,16 @@
   {
     "name": "Rendering Stress",
     "metrics": {
-      "frames_per_test": 100.0,
-      "stress_culling_efficiency": 74.0,
       "stress_entity_count": 10000.0,
-      "stress_gpu_time_ms": 12.31755256652832,
+      "stress_fps": 65.3243408203125,
+      "stress_culling_efficiency": 74.0,
       "stress_passed": 1.0,
-      "stress_entities_culled": 7400.0,
       "stress_draw_calls": 135.0,
-      "benchmark_duration_secs": 0.000036169,
+      "stress_entities_culled": 7400.0,
+      "stress_gpu_time_ms": 12.31755256652832,
       "stress_light_count": 100.0,
-      "stress_fps": 65.3243408203125
+      "benchmark_duration_secs": 0.000036169,
+      "frames_per_test": 100.0
     },
     "timestamp": {
       "secs_since_epoch": 1771138616,
@@ -107,14 +107,14 @@
   {
     "name": "Physics Simulation",
     "metrics": {
-      "meets_60fps_target": 1.0,
-      "deterministic": 1.0,
       "num_colliders": 10000.0,
       "num_frames": 300.0,
-      "avg_frame_time_ms": 10.433243,
-      "num_bodies": 1000.0,
+      "total_collisions": 93500.0,
+      "meets_60fps_target": 1.0,
+      "deterministic": 1.0,
       "benchmark_duration_secs": 12.324471189,
-      "total_collisions": 93500.0
+      "avg_frame_time_ms": 10.433243,
+      "num_bodies": 1000.0
     },
     "timestamp": {
       "secs_since_epoch": 1771138627,
@@ -132,10 +132,10 @@
   {
     "name": "BunnyMark",
     "metrics": {
-      "benchmark_duration_secs": 0.00049409,
       "target_fps": 60.0,
-      "spawn_batch_size": 100.0,
-      "max_sprites_at_60fps": 211800.0
+      "benchmark_duration_secs": 0.00049409,
+      "max_sprites_at_60fps": 211800.0,
+      "spawn_batch_size": 100.0
     },
     "timestamp": {
       "secs_since_epoch": 1771143212,
@@ -153,10 +153,10 @@
   {
     "name": "ECS Iteration",
     "metrics": {
-      "iterations_per_test": 10.0,
       "100000_entities_per_ms": 817801.9120208703,
-      "100000_entities_passed": 1.0,
       "benchmark_duration_secs": 0.005087394,
+      "iterations_per_test": 10.0,
+      "100000_entities_passed": 1.0,
       "100000_entities_time_ms": 0.122279
     },
     "timestamp": {
@@ -175,23 +175,23 @@
   {
     "name": "Startup Time",
     "metrics": {
-      "empty_gpu_init_ms": 50.243207,
-      "empty_asset_loading_ms": 10.222642,
-      "empty_total_ms": 66.518916,
-      "empty_ecs_init_ms": 0.119108,
-      "complex_ecs_init_ms": 0.701192,
-      "empty_passed": 1.0,
-      "empty_plugin_init_ms": 0.18014300000000005,
       "complex_scene_setup_ms": 50.207054,
+      "empty_total_ms": 66.518916,
       "complex_gpu_init_ms": 100.200543,
-      "benchmark_duration_secs": 3.847127386,
-      "complex_total_ms": 702.774102,
       "complex_passed": 1.0,
-      "empty_scene_setup_ms": 0.6471979999999999,
-      "complex_asset_loading_ms": 500.25862,
-      "complex_first_render_ms": 50.24247200000001,
-      "empty_first_render_ms": 5.106618,
+      "complex_total_ms": 702.774102,
       "runs_per_test": 5.0,
+      "empty_ecs_init_ms": 0.119108,
+      "empty_scene_setup_ms": 0.6471979999999999,
+      "empty_passed": 1.0,
+      "empty_gpu_init_ms": 50.243207,
+      "complex_asset_loading_ms": 500.25862,
+      "complex_ecs_init_ms": 0.701192,
+      "empty_first_render_ms": 5.106618,
+      "empty_plugin_init_ms": 0.18014300000000005,
+      "benchmark_duration_secs": 3.847127386,
+      "empty_asset_loading_ms": 10.222642,
+      "complex_first_render_ms": 50.24247200000001,
       "complex_plugin_init_ms": 1.164221
     },
     "timestamp": {
@@ -210,16 +210,16 @@
   {
     "name": "Rendering Stress",
     "metrics": {
-      "stress_fps": 65.3243408203125,
       "stress_draw_calls": 135.0,
-      "stress_entities_culled": 7400.0,
-      "frames_per_test": 100.0,
       "stress_gpu_time_ms": 12.31755256652832,
-      "stress_passed": 1.0,
-      "benchmark_duration_secs": 0.00003349,
+      "stress_fps": 65.3243408203125,
+      "stress_entities_culled": 7400.0,
       "stress_culling_efficiency": 74.0,
+      "stress_entity_count": 10000.0,
+      "benchmark_duration_secs": 0.00003349,
       "stress_light_count": 100.0,
-      "stress_entity_count": 10000.0
+      "frames_per_test": 100.0,
+      "stress_passed": 1.0
     },
     "timestamp": {
       "secs_since_epoch": 1771143216,
@@ -237,14 +237,14 @@
   {
     "name": "Physics Simulation",
     "metrics": {
-      "total_collisions": 93500.0,
       "num_frames": 300.0,
-      "deterministic": 1.0,
-      "num_bodies": 1000.0,
       "meets_60fps_target": 1.0,
+      "num_bodies": 1000.0,
       "num_colliders": 10000.0,
       "avg_frame_time_ms": 9.354255,
-      "benchmark_duration_secs": 11.620625988
+      "benchmark_duration_secs": 11.620625988,
+      "deterministic": 1.0,
+      "total_collisions": 93500.0
     },
     "timestamp": {
       "secs_since_epoch": 1771143227,
@@ -262,10 +262,10 @@
   {
     "name": "BunnyMark",
     "metrics": {
-      "benchmark_duration_secs": 0.000470493,
       "spawn_batch_size": 100.0,
+      "target_fps": 60.0,
       "max_sprites_at_60fps": 211800.0,
-      "target_fps": 60.0
+      "benchmark_duration_secs": 0.000470493
     },
     "timestamp": {
       "secs_since_epoch": 1771144220,
@@ -284,10 +284,10 @@
     "name": "ECS Iteration",
     "metrics": {
       "100000_entities_passed": 1.0,
-      "100000_entities_per_ms": 859520.0440074262,
       "100000_entities_time_ms": 0.116344,
       "benchmark_duration_secs": 0.004176571,
-      "iterations_per_test": 10.0
+      "iterations_per_test": 10.0,
+      "100000_entities_per_ms": 859520.0440074262
     },
     "timestamp": {
       "secs_since_epoch": 1771144220,
@@ -305,24 +305,24 @@
   {
     "name": "Startup Time",
     "metrics": {
-      "complex_asset_loading_ms": 500.40986799999996,
-      "complex_scene_setup_ms": 50.364536,
-      "empty_gpu_init_ms": 50.320181999999996,
-      "empty_ecs_init_ms": 0.1867,
-      "complex_first_render_ms": 50.260413,
-      "complex_passed": 1.0,
-      "empty_first_render_ms": 5.268363,
-      "empty_asset_loading_ms": 10.259915999999999,
-      "empty_scene_setup_ms": 0.758763,
-      "complex_ecs_init_ms": 0.6426719999999999,
-      "complex_plugin_init_ms": 1.14258,
-      "empty_plugin_init_ms": 0.245217,
-      "complex_gpu_init_ms": 100.359712,
+      "complex_asset_loading_ms": 500.409868,
       "empty_passed": 1.0,
       "benchmark_duration_secs": 3.851983858,
-      "complex_total_ms": 703.179781,
       "runs_per_test": 5.0,
-      "empty_total_ms": 67.039141
+      "empty_ecs_init_ms": 0.1867,
+      "complex_ecs_init_ms": 0.6426719999999999,
+      "empty_total_ms": 67.039141,
+      "complex_first_render_ms": 50.260413,
+      "complex_passed": 1.0,
+      "complex_total_ms": 703.179781,
+      "complex_plugin_init_ms": 1.14258,
+      "complex_scene_setup_ms": 50.364536,
+      "empty_plugin_init_ms": 0.245217,
+      "complex_gpu_init_ms": 100.359712,
+      "empty_asset_loading_ms": 10.259916,
+      "empty_first_render_ms": 5.268363,
+      "empty_scene_setup_ms": 0.758763,
+      "empty_gpu_init_ms": 50.320182
     },
     "timestamp": {
       "secs_since_epoch": 1771144224,
@@ -340,16 +340,16 @@
   {
     "name": "Rendering Stress",
     "metrics": {
-      "stress_culling_efficiency": 74.0,
-      "stress_light_count": 100.0,
-      "stress_entity_count": 10000.0,
       "stress_fps": 65.3243408203125,
-      "stress_draw_calls": 135.0,
-      "frames_per_test": 100.0,
-      "stress_passed": 1.0,
-      "stress_gpu_time_ms": 12.31755256652832,
+      "stress_entity_count": 10000.0,
+      "stress_light_count": 100.0,
       "stress_entities_culled": 7400.0,
-      "benchmark_duration_secs": 0.000049788
+      "frames_per_test": 100.0,
+      "stress_culling_efficiency": 74.0,
+      "benchmark_duration_secs": 0.000049788,
+      "stress_gpu_time_ms": 12.31755256652832,
+      "stress_draw_calls": 135.0,
+      "stress_passed": 1.0
     },
     "timestamp": {
       "secs_since_epoch": 1771144224,
@@ -367,18 +367,148 @@
   {
     "name": "Physics Simulation",
     "metrics": {
+      "num_frames": 300.0,
+      "meets_60fps_target": 1.0,
       "num_bodies": 1000.0,
       "deterministic": 1.0,
       "total_collisions": 93500.0,
+      "num_colliders": 10000.0,
       "avg_frame_time_ms": 9.116496,
-      "meets_60fps_target": 1.0,
-      "num_frames": 300.0,
-      "benchmark_duration_secs": 10.709823459,
-      "num_colliders": 10000.0
+      "benchmark_duration_secs": 10.709823459
     },
     "timestamp": {
       "secs_since_epoch": 1771144235,
       "nanos_since_epoch": 287548960
+    },
+    "hardware_info": {
+      "cpu": "x86_64",
+      "cpu_cores": 16,
+      "gpu": null,
+      "ram_gb": 8.0,
+      "os": "linux"
+    },
+    "passed": true
+  },
+  {
+    "name": "BunnyMark",
+    "metrics": {
+      "target_fps": 60.0,
+      "spawn_batch_size": 100.0,
+      "max_sprites_at_60fps": 211800.0,
+      "benchmark_duration_secs": 0.000503272
+    },
+    "timestamp": {
+      "secs_since_epoch": 1771290727,
+      "nanos_since_epoch": 782328547
+    },
+    "hardware_info": {
+      "cpu": "x86_64",
+      "cpu_cores": 16,
+      "gpu": null,
+      "ram_gb": 8.0,
+      "os": "linux"
+    },
+    "passed": true
+  },
+  {
+    "name": "ECS Iteration",
+    "metrics": {
+      "100000_entities_per_ms": 850535.4120418804,
+      "benchmark_duration_secs": 0.004666725,
+      "100000_entities_passed": 1.0,
+      "100000_entities_time_ms": 0.117573,
+      "iterations_per_test": 10.0
+    },
+    "timestamp": {
+      "secs_since_epoch": 1771290727,
+      "nanos_since_epoch": 787891898
+    },
+    "hardware_info": {
+      "cpu": "x86_64",
+      "cpu_cores": 16,
+      "gpu": null,
+      "ram_gb": 8.0,
+      "os": "linux"
+    },
+    "passed": true
+  },
+  {
+    "name": "Startup Time",
+    "metrics": {
+      "empty_plugin_init_ms": 0.204488,
+      "complex_scene_setup_ms": 50.113963999999996,
+      "complex_ecs_init_ms": 0.6025320000000001,
+      "empty_gpu_init_ms": 50.131139,
+      "empty_total_ms": 66.470791,
+      "complex_gpu_init_ms": 100.089637,
+      "empty_passed": 1.0,
+      "complex_plugin_init_ms": 1.099663,
+      "complex_asset_loading_ms": 500.18380900000005,
+      "empty_first_render_ms": 5.139678,
+      "complex_total_ms": 702.291706,
+      "complex_passed": 1.0,
+      "empty_asset_loading_ms": 10.205186,
+      "runs_per_test": 5.0,
+      "empty_scene_setup_ms": 0.661687,
+      "empty_ecs_init_ms": 0.128613,
+      "complex_first_render_ms": 50.202101,
+      "benchmark_duration_secs": 3.8445516619999998
+    },
+    "timestamp": {
+      "secs_since_epoch": 1771290731,
+      "nanos_since_epoch": 632523360
+    },
+    "hardware_info": {
+      "cpu": "x86_64",
+      "cpu_cores": 16,
+      "gpu": null,
+      "ram_gb": 8.0,
+      "os": "linux"
+    },
+    "passed": true
+  },
+  {
+    "name": "Rendering Stress",
+    "metrics": {
+      "frames_per_test": 100.0,
+      "stress_fps": 65.3243408203125,
+      "stress_entity_count": 10000.0,
+      "stress_light_count": 100.0,
+      "stress_entities_culled": 7400.0,
+      "stress_culling_efficiency": 74.0,
+      "stress_draw_calls": 135.0,
+      "stress_passed": 1.0,
+      "stress_gpu_time_ms": 12.31755256652832,
+      "benchmark_duration_secs": 0.000030832
+    },
+    "timestamp": {
+      "secs_since_epoch": 1771290731,
+      "nanos_since_epoch": 632618592
+    },
+    "hardware_info": {
+      "cpu": "x86_64",
+      "cpu_cores": 16,
+      "gpu": null,
+      "ram_gb": 8.0,
+      "os": "linux"
+    },
+    "passed": true
+  },
+  {
+    "name": "Physics Simulation",
+    "metrics": {
+      "avg_frame_time_ms": 9.995777,
+      "benchmark_duration_secs": 12.172372977,
+      "num_frames": 300.0,
+      "total_collisions": 93500.0,
+      "meets_60fps_target": 1.0,
+      "num_bodies": 1000.0,
+      "num_colliders": 10000.0,
+      "deterministic": 1.0
+    },
+    "timestamp": {
+      "secs_since_epoch": 1771290743,
+      "nanos_since_epoch": 805033645
     },
     "hardware_info": {
       "cpu": "x86_64",

@@ -109,6 +109,9 @@ async fn test_branch_creation_and_switching() {
         .await
         .unwrap();
 
+    // Small delay to ensure different timestamps
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
     timeline
         .record_operation(
             "MainOp2",
@@ -270,11 +273,11 @@ async fn test_persistent_undo_redo() {
         .unwrap();
 
     // Simulate session restart by creating new timeline with same database
-    let db2 = timeline.db.clone();
+    let db2 = timeline.get_db().clone();
     let mut timeline2 = OperationTimeline::new(db2, None);
 
     // Set position to the last operation
-    timeline2.current_position = Some(op2.clone());
+    timeline2.set_position(Some(op2.clone()));
 
     // Should be able to undo across sessions
     let undo_result = timeline2.undo().await.unwrap();
@@ -476,4 +479,308 @@ async fn test_complex_branch_workflow() {
     // Verify total operations across all branches
     let all_ops = timeline.get_all_operations(100).await.unwrap();
     assert_eq!(all_ops.len(), 5);
+}
+
+#[tokio::test]
+async fn test_operation_with_intent() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db.clone(), None);
+
+    // Record operation with intent
+    let op_id = timeline
+        .record_operation_with_intent(
+            "SpawnEntity",
+            "Spawned enemy at position",
+            vec![json!({"type": "spawn"})],
+            vec![json!({"type": "despawn"})],
+            vec![],
+            Some("Create an enemy character near the player".to_string()),
+        )
+        .await
+        .unwrap();
+
+    // Load and verify intent is stored
+    let operation = db.load_operation(&op_id).await.unwrap();
+    assert!(operation.intent.is_some());
+    assert_eq!(
+        operation.intent.unwrap(),
+        "Create an enemy character near the player"
+    );
+}
+
+#[tokio::test]
+async fn test_selective_undo_without_conflicts() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db.clone(), None);
+
+    // Create two entities
+    let entity1 = db
+        .store_entity(luminara_db::EntityRecord::new(Some("Entity1".to_string())))
+        .await
+        .unwrap();
+
+    let entity2 = db
+        .store_entity(luminara_db::EntityRecord::new(Some("Entity2".to_string())))
+        .await
+        .unwrap();
+
+    // Record operations affecting different entities
+    let op1 = timeline
+        .record_operation(
+            "ModifyEntity1",
+            "Modified entity 1",
+            vec![json!({"entity": "entity1"})],
+            vec![json!({"restore": "entity1"})],
+            vec![entity1.clone()],
+        )
+        .await
+        .unwrap();
+
+    let _op2 = timeline
+        .record_operation(
+            "ModifyEntity2",
+            "Modified entity 2",
+            vec![json!({"entity": "entity2"})],
+            vec![json!({"restore": "entity2"})],
+            vec![entity2.clone()],
+        )
+        .await
+        .unwrap();
+
+    // Selective undo of op1 should have no conflicts
+    let result = timeline.selective_undo(&op1).await.unwrap();
+    assert!(result.is_some());
+
+    let (conflicts, inverse_commands) = result.unwrap();
+    assert!(conflicts.is_empty(), "Expected no conflicts");
+    assert_eq!(inverse_commands.len(), 1);
+    assert_eq!(inverse_commands[0]["restore"], "entity1");
+}
+
+#[tokio::test]
+async fn test_selective_undo_with_conflicts() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db.clone(), None);
+
+    // Create entity
+    let entity = db
+        .store_entity(luminara_db::EntityRecord::new(Some("TestEntity".to_string())))
+        .await
+        .unwrap();
+
+    // Record operations affecting the same entity
+    let op1 = timeline
+        .record_operation(
+            "ModifyEntity",
+            "First modification",
+            vec![json!({"value": 1})],
+            vec![json!({"value": 0})],
+            vec![entity.clone()],
+        )
+        .await
+        .unwrap();
+
+    // Delay to ensure different timestamps (timestamps are in seconds)
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    let op2 = timeline
+        .record_operation(
+            "ModifyEntity",
+            "Second modification",
+            vec![json!({"value": 2})],
+            vec![json!({"value": 1})],
+            vec![entity.clone()],
+        )
+        .await
+        .unwrap();
+
+    // Verify operations were recorded
+    let op1_data = db.load_operation(&op1).await.unwrap();
+    let op2_data = db.load_operation(&op2).await.unwrap();
+    
+    assert!(op2_data.timestamp > op1_data.timestamp, "Op2 should have later timestamp");
+
+    // Selective undo of op1 should detect conflict
+    let result = timeline.selective_undo(&op1).await.unwrap();
+    assert!(result.is_some());
+
+    let (conflicts, _) = result.unwrap();
+    assert!(!conflicts.is_empty(), "Expected conflicts");
+    assert!(conflicts[0].contains("Second modification"));
+}
+
+#[tokio::test]
+async fn test_ai_context_generation() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db, None);
+
+    // Record operations with intents
+    timeline
+        .record_operation_with_intent(
+            "SpawnEntity",
+            "Spawned player",
+            vec![],
+            vec![],
+            vec![],
+            Some("Create the player character".to_string()),
+        )
+        .await
+        .unwrap();
+
+    timeline
+        .record_operation_with_intent(
+            "AddComponent",
+            "Added health component",
+            vec![],
+            vec![],
+            vec![],
+            Some("Give the player health tracking".to_string()),
+        )
+        .await
+        .unwrap();
+
+    // Generate AI context
+    let context = timeline.generate_ai_context(10, false).await.unwrap();
+
+    assert!(context.contains("Operation History"));
+    assert!(context.contains("SpawnEntity"));
+    assert!(context.contains("AddComponent"));
+    assert!(context.contains("Intent: Create the player character"));
+    assert!(context.contains("Intent: Give the player health tracking"));
+}
+
+#[tokio::test]
+async fn test_compact_summary_generation() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db, None);
+
+    // Record operations
+    timeline
+        .record_operation_with_intent(
+            "Op1",
+            "First operation",
+            vec![],
+            vec![],
+            vec![],
+            Some("Do first thing".to_string()),
+        )
+        .await
+        .unwrap();
+
+    timeline
+        .record_operation_with_intent(
+            "Op2",
+            "Second operation",
+            vec![],
+            vec![],
+            vec![],
+            Some("Do second thing".to_string()),
+        )
+        .await
+        .unwrap();
+
+    // Generate compact summary
+    let summary = timeline.generate_compact_summary(10).await.unwrap();
+
+    assert!(summary.contains("Recent ops"));
+    assert!(summary.contains("Op1: Do first thing"));
+    assert!(summary.contains("Op2: Do second thing"));
+    assert!(summary.contains("→")); // Arrow separator
+}
+
+#[tokio::test]
+async fn test_ai_context_with_no_operations() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let timeline = OperationTimeline::new(db, None);
+
+    let context = timeline.generate_ai_context(10, false).await.unwrap();
+    assert_eq!(context, "No operations in history.");
+
+    let summary = timeline.generate_compact_summary(10).await.unwrap();
+    assert_eq!(summary, "No operations.");
+}
+
+#[tokio::test]
+async fn test_selective_undo_nonexistent_operation() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let timeline = OperationTimeline::new(db, None);
+
+    // Try to undo an operation that doesn't exist
+    let fake_id = surrealdb::RecordId::from(("operation", "nonexistent"));
+    let result = timeline.selective_undo(&fake_id).await.unwrap();
+    assert!(result.is_none());
+}
+
+#[tokio::test]
+async fn test_operation_metadata_completeness() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db.clone(), None);
+
+    let entity = db
+        .store_entity(luminara_db::EntityRecord::new(Some("TestEntity".to_string())))
+        .await
+        .unwrap();
+
+    // Record operation with all metadata
+    let op_id = timeline
+        .record_operation_with_intent(
+            "CompleteOperation",
+            "Operation with all metadata",
+            vec![json!({"action": "forward"})],
+            vec![json!({"action": "backward"})],
+            vec![entity.clone()],
+            Some("AI intent for this operation".to_string()),
+        )
+        .await
+        .unwrap();
+
+    // Load and verify all metadata is present
+    let operation = db.load_operation(&op_id).await.unwrap();
+
+    // Verify all required fields
+    assert_eq!(operation.operation_type, "CompleteOperation");
+    assert_eq!(operation.description, "Operation with all metadata");
+    assert_eq!(operation.commands.len(), 1);
+    assert_eq!(operation.inverse_commands.len(), 1);
+    assert_eq!(operation.affected_entities.len(), 1);
+    assert!(operation.timestamp > 0);
+    assert_eq!(operation.branch, Some("main".to_string()));
+    assert_eq!(
+        operation.intent,
+        Some("AI intent for this operation".to_string())
+    );
+}
+
+#[tokio::test]
+async fn test_undo_redo_preserves_state() {
+    let db = LuminaraDatabase::new_memory().await.unwrap();
+    let mut timeline = OperationTimeline::new(db.clone(), None);
+
+    // Record operation with specific state
+    let original_state = json!({"position": [1.0, 2.0, 3.0], "health": 100});
+    let modified_state = json!({"position": [4.0, 5.0, 6.0], "health": 80});
+
+    let op_id = timeline
+        .record_operation(
+            "ModifyState",
+            "Modified entity state",
+            vec![modified_state.clone()],
+            vec![original_state.clone()],
+            vec![],
+        )
+        .await
+        .unwrap();
+
+    // Undo
+    let undo_result = timeline.undo().await.unwrap();
+    assert!(undo_result.is_some());
+    let (undone_id, inverse_commands) = undo_result.unwrap();
+    assert_eq!(undone_id, op_id);
+    assert_eq!(inverse_commands[0], original_state);
+
+    // Redo
+    let redo_result = timeline.redo().await.unwrap();
+    assert!(redo_result.is_some());
+    let (_redone_id, commands) = redo_result.unwrap();
+    assert_eq!(commands[0], modified_state);
 }

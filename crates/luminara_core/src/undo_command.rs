@@ -8,7 +8,6 @@
 //! - Requirement 9.1: Command trait with execute and undo methods
 //! - Requirement 9.2: Record sufficient state to enable undo
 
-use crate::error::WorldError;
 use crate::world::World;
 use std::fmt;
 
@@ -19,7 +18,7 @@ pub type CommandResult<T = ()> = Result<T, CommandError>;
 #[derive(Debug, thiserror::Error)]
 pub enum CommandError {
     #[error("World error: {0}")]
-    WorldError(#[from] WorldError),
+    WorldError(#[from] crate::error::WorldError),
     #[error("Command error: {0}")]
     CommandError(String),
     #[error("No commands to undo")]

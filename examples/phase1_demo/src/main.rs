@@ -14,6 +14,11 @@ use log::info;
 use luminara::asset::AssetServer;
 use luminara::prelude::*;
 use luminara::scene::TypeRegistry;
+use luminara_audio::AudioListener;
+use luminara_math::Color;
+use luminara_physics::{ColliderShape, RigidBodyType};
+use luminara_render::Projection;
+use luminara_scene::Name;
 
 mod camera_controller;
 use camera_controller::{

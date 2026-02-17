@@ -6,6 +6,7 @@
 //! Target: <500 draw calls for 1000+ objects (Requirement 19.3)
 
 use crate::{Handle, Mesh, PbrMaterial};
+use luminara_core::Query;
 use luminara_math::Transform;
 use std::collections::HashMap;
 
@@ -147,6 +148,24 @@ struct MaterialSortKey {
     texture_id: Option<u64>,
 }
 
+impl MaterialSortKey {
+    /// Create sort key from material
+    fn from_material(material: &PbrMaterial) -> Self {
+        Self {
+            metallic: (material.metallic * 1000.0) as u32,
+            roughness: (material.roughness * 1000.0) as u32,
+            texture_id: material.albedo_texture.as_ref().map(|h| {
+                // Use a hash of the asset ID for sorting
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                h.id().hash(&mut hasher);
+                hasher.finish()
+            }),
+        }
+    }
+}
+
 
 /// Instance batcher - groups objects by mesh for instanced rendering
 pub struct InstanceBatcher {
@@ -156,6 +175,10 @@ pub struct InstanceBatcher {
     pub total_objects: usize,
     pub total_draw_calls: usize,
     pub instancing_ratio: f32,
+    /// Automatic instancing threshold (minimum instances to enable instancing)
+    pub auto_instancing_threshold: usize,
+    /// Enable aggressive merging of compatible materials
+    pub enable_material_merging: bool,
 }
 
 impl InstanceBatcher {
@@ -165,10 +188,24 @@ impl InstanceBatcher {
             total_objects: 0,
             total_draw_calls: 0,
             instancing_ratio: 1.0,
+            auto_instancing_threshold: 2, // Instance if 2+ objects share same mesh
+            enable_material_merging: true,
         }
     }
 
-    /// Prepare instance groups from mesh query
+    /// Create with custom configuration
+    pub fn with_config(threshold: usize, enable_merging: bool) -> Self {
+        Self {
+            groups: Vec::new(),
+            total_objects: 0,
+            total_draw_calls: 0,
+            instancing_ratio: 1.0,
+            auto_instancing_threshold: threshold,
+            enable_material_merging: enable_merging,
+        }
+    }
+
+    /// Prepare instance groups from mesh query with automatic instancing detection
     pub fn prepare(&mut self, meshes: Query<(&Handle<Mesh>, &Transform, &PbrMaterial)>) {
         self.groups.clear();
         self.total_objects = 0;
@@ -178,18 +215,30 @@ impl InstanceBatcher {
 
         for (mesh_handle, transform, material) in meshes.iter() {
             let instance_data = InstanceData::new(transform, material);
+            let mesh_key: Handle<Mesh> = mesh_handle.clone();
 
             groups_map
-                .entry(mesh_handle.clone())
-                .or_insert_with(|| InstanceGroup::new(mesh_handle.clone()))
+                .entry(mesh_key.clone())
+                .or_insert_with(|| InstanceGroup::new(mesh_key))
                 .add_instance(instance_data);
 
             self.total_objects += 1;
         }
 
-        // Convert to vec and sort by material for better batching
-        self.groups = groups_map.into_values().collect();
+        // Filter groups based on auto-instancing threshold
+        // Only create instance groups for meshes that appear multiple times
+        self.groups = groups_map
+            .into_values()
+            .filter(|group| group.instances.len() >= self.auto_instancing_threshold)
+            .collect();
+
+        // Sort by material for better batching
         self.sort_by_material();
+
+        // Optionally merge compatible materials
+        if self.enable_material_merging {
+            self.merge_compatible_materials();
+        }
 
         // Calculate statistics
         self.total_draw_calls = self.groups.len();
@@ -243,6 +292,76 @@ impl InstanceBatcher {
                 }
                 _ => {
                     // Different mesh - push current and start new
+                    if let Some(prev) = current.take() {
+                        merged.push(prev);
+                    }
+                    current = Some(group);
+                }
+            }
+        }
+
+        if let Some(last) = current {
+            merged.push(last);
+        }
+
+        self.groups = merged;
+        self.total_draw_calls = self.groups.len();
+        self.instancing_ratio = if self.total_draw_calls > 0 {
+            self.total_objects as f32 / self.total_draw_calls as f32
+        } else {
+            1.0
+        };
+    }
+
+    /// Merge groups with similar materials (more aggressive than merge_compatible_groups)
+    /// This allows instancing even when materials differ slightly
+    fn merge_compatible_materials(&mut self) {
+        if self.groups.len() < 2 {
+            return;
+        }
+
+        // Sort by mesh first (using hash for ordering), then by material similarity
+        self.groups.sort_by(|a, b| {
+            // First compare mesh handles by hash
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            
+            let mut hasher_a = DefaultHasher::new();
+            a.mesh.id().hash(&mut hasher_a);
+            let hash_a = hasher_a.finish();
+            
+            let mut hasher_b = DefaultHasher::new();
+            b.mesh.id().hash(&mut hasher_b);
+            let hash_b = hasher_b.finish();
+            
+            match hash_a.cmp(&hash_b) {
+                std::cmp::Ordering::Equal => {
+                    // Same mesh - compare material properties
+                    if a.instances.is_empty() || b.instances.is_empty() {
+                        return std::cmp::Ordering::Equal;
+                    }
+                    let mat_a = &a.instances[0];
+                    let mat_b = &b.instances[0];
+                    
+                    // Compare material properties for similarity
+                    mat_a.metallic.partial_cmp(&mat_b.metallic)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                }
+                other => other,
+            }
+        });
+
+        // Merge adjacent groups with same mesh
+        let mut merged = Vec::new();
+        let mut current: Option<InstanceGroup> = None;
+
+        for group in self.groups.drain(..) {
+            match &mut current {
+                Some(curr) if curr.mesh == group.mesh => {
+                    // Same mesh - merge instances
+                    curr.instances.extend(group.instances);
+                }
+                _ => {
                     if let Some(prev) = current.take() {
                         merged.push(prev);
                     }
@@ -334,7 +453,8 @@ impl InstanceBatcherStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use luminara_math::{Color, Vec3};
+    use luminara_asset::AssetId;
+    use luminara_math::Color;
 
     #[test]
     fn test_instance_data_size() {

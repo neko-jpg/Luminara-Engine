@@ -3,6 +3,24 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasmtime::{Config, Engine, Instance, Linker, Module, Store};
 
+// Helper function to create runtime errors
+fn runtime_error(message: impl Into<String>) -> ScriptError {
+    ScriptError::Runtime {
+        script_path: "wasm_runtime".to_string(),
+        message: message.into(),
+        stack_trace: String::new(),
+    }
+}
+
+// Helper function to create compilation errors
+fn compilation_error(message: impl Into<String>) -> ScriptError {
+    ScriptError::Compilation {
+        script_path: "wasm_module".to_string(),
+        message: message.into(),
+        stack_trace: String::new(),
+    }
+}
+
 // WIT Bindgen generated traits would go here if we ran `wit-bindgen`.
 // Since we don't have `wit-bindgen` CLI tool installed in environment usually,
 // we can use `wasmtime::component::bindgen!` macro if we were using Component Model fully.
@@ -10,8 +28,8 @@ use wasmtime::{Config, Engine, Instance, Linker, Module, Store};
 
 pub struct WasmScriptRuntime {
     engine: Engine,
-    store: Store<HostState>,
-    modules: HashMap<ScriptId, WasmModule>,
+    pub store: Store<HostState>,
+    pub modules: HashMap<ScriptId, WasmModule>,
     linker: Linker<HostState>,
     next_id: u64,
 }
@@ -44,7 +62,7 @@ impl WasmScriptRuntime {
         }
         config.epoch_interruption(true);
 
-        let engine = Engine::new(&config).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+        let engine = Engine::new(&config).map_err(|e| runtime_error(e.to_string()))?;
         let mut store = Store::new(
             &engine,
             HostState {
@@ -56,7 +74,7 @@ impl WasmScriptRuntime {
         if limits.max_instructions > 0 {
             store
                 .set_fuel(limits.max_instructions)
-                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+                .map_err(|e| runtime_error(e.to_string()))?;
         }
         store.set_epoch_deadline(1);
 
@@ -78,7 +96,7 @@ impl WasmScriptRuntime {
                     (0.0, 0.0, 0.0)
                 },
             )
-            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            .map_err(|e| runtime_error(e.to_string()))?;
 
         linker
             .func_wrap(
@@ -92,7 +110,7 @@ impl WasmScriptRuntime {
                     println!("WASM: set_position({}, {}, {}, {})", entity_id, x, y, z);
                 },
             )
-            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            .map_err(|e| runtime_error(e.to_string()))?;
 
         // Input API
         // Strings in WASM are pointer+len. `func_wrap` doesn't support String directly unless using component model or typed func with manual read.
@@ -116,7 +134,7 @@ impl WasmScriptRuntime {
                     }
                 },
             )
-            .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            .map_err(|e| runtime_error(e.to_string()))?;
 
         Ok(Self {
             engine,
@@ -138,13 +156,13 @@ impl WasmScriptRuntime {
 
     pub fn load_module(&mut self, bytes: &[u8]) -> Result<ScriptId, ScriptError> {
         let module = Module::from_binary(&self.engine, bytes)
-            .map_err(|e| ScriptError::Compilation(e.to_string()))?;
+            .map_err(|e| compilation_error(e.to_string()))?;
 
         let instance = self
             .linker
             .instantiate(&mut self.store, &module)
             .map_err(|e| {
-                ScriptError::Runtime(format!("Failed to instantiate WASM module: {}", e))
+                runtime_error(format!("Failed to instantiate WASM module: {}", e))
             })?;
 
         let id = ScriptId(self.next_id);
@@ -163,24 +181,24 @@ impl WasmScriptRuntime {
         let module = self
             .modules
             .get(&script_id)
-            .ok_or_else(|| ScriptError::Runtime("Module not found".into()))?;
+            .ok_or_else(|| runtime_error("Module not found"))?;
         let instance = module.instance;
 
         let alloc = instance
             .get_typed_func::<i32, i32>(&mut self.store, "alloc")
-            .map_err(|_| ScriptError::Runtime("Module does not export 'alloc'".into()))?;
+            .map_err(|_| runtime_error("Module does not export 'alloc'"))?;
 
         let ptr = alloc
             .call(&mut self.store, data.len() as i32)
-            .map_err(|e| ScriptError::Runtime(format!("Alloc failed: {}", e)))?;
+            .map_err(|e| runtime_error(format!("Alloc failed: {}", e)))?;
 
         let memory = instance
             .get_memory(&mut self.store, "memory")
-            .ok_or_else(|| ScriptError::Runtime("Module does not export 'memory'".into()))?;
+            .ok_or_else(|| runtime_error("Module does not export 'memory'"))?;
 
         memory
             .write(&mut self.store, ptr as usize, data)
-            .map_err(|e| ScriptError::Runtime(format!("Memory write failed: {}", e)))?;
+            .map_err(|e| runtime_error(format!("Memory write failed: {}", e)))?;
 
         Ok((ptr, data.len() as i32))
     }
@@ -194,17 +212,17 @@ impl WasmScriptRuntime {
         let module = self
             .modules
             .get(&script_id)
-            .ok_or_else(|| ScriptError::Runtime("Module not found".into()))?;
+            .ok_or_else(|| runtime_error("Module not found"))?;
         let instance = module.instance;
 
         let memory = instance
             .get_memory(&mut self.store, "memory")
-            .ok_or_else(|| ScriptError::Runtime("Module does not export 'memory'".into()))?;
+            .ok_or_else(|| runtime_error("Module does not export 'memory'"))?;
 
         let mut buffer = vec![0u8; len as usize];
         memory
             .read(&mut self.store, ptr as usize, &mut buffer)
-            .map_err(|e| ScriptError::Runtime(format!("Memory read failed: {}", e)))?;
+            .map_err(|e| runtime_error(format!("Memory read failed: {}", e)))?;
 
         Ok(buffer)
     }
@@ -224,18 +242,18 @@ impl WasmScriptRuntime {
         self.store.set_epoch_deadline(1);
 
         let json_bytes =
-            serde_json::to_vec(&args).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            serde_json::to_vec(&args).map_err(|e| runtime_error(e.to_string()))?;
         let (ptr, len) = self.write_to_memory(script_id, &json_bytes)?;
 
         let module = self
             .modules
             .get(&script_id)
-            .ok_or_else(|| ScriptError::Runtime("Module not found".into()))?;
+            .ok_or_else(|| runtime_error("Module not found"))?;
         let func = module
             .instance
             .get_typed_func::<(i32, i32), (i32, i32)>(&mut self.store, func_name)
             .map_err(|_| {
-                ScriptError::Runtime(format!(
+                runtime_error(format!(
                     "Function {} not found or signature mismatch",
                     func_name
                 ))
@@ -243,13 +261,38 @@ impl WasmScriptRuntime {
 
         let (ret_ptr, ret_len) = func
             .call(&mut self.store, (ptr, len))
-            .map_err(|e| ScriptError::Runtime(format!("Call failed: {}", e)))?;
+            .map_err(|e| runtime_error(format!("Call failed: {}", e)))?;
 
         let ret_bytes = self.read_from_memory(script_id, ret_ptr, ret_len)?;
 
         let ret: Ret =
-            serde_json::from_slice(&ret_bytes).map_err(|e| ScriptError::Runtime(e.to_string()))?;
+            serde_json::from_slice(&ret_bytes).map_err(|e| runtime_error(e.to_string()))?;
 
         Ok(ret)
+    }
+
+    /// Reload a WASM module with new bytecode
+    /// Note: WASM modules are stateless, so there's no state to preserve
+    /// Any state must be managed externally (e.g., in ECS components)
+    pub fn reload_module(&mut self, script_id: ScriptId, bytes: &[u8]) -> Result<(), ScriptError> {
+        // Compile new module
+        let module = Module::from_binary(&self.engine, bytes)
+            .map_err(|e| compilation_error(e.to_string()))?;
+
+        // Instantiate new module
+        let instance = self
+            .linker
+            .instantiate(&mut self.store, &module)
+            .map_err(|e| {
+                runtime_error(format!("Failed to instantiate WASM module: {}", e))
+            })?;
+
+        // Replace old module with new one
+        if let Some(wasm_module) = self.modules.get_mut(&script_id) {
+            wasm_module.instance = instance;
+            Ok(())
+        } else {
+            Err(runtime_error("Module not found"))
+        }
     }
 }

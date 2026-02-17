@@ -15,6 +15,7 @@ pub struct SandboxConfig {
     pub max_memory: usize,
     pub max_execution_time: Duration,
     pub max_instructions: u64,
+    pub max_entity_spawns: usize,
     pub allow_filesystem: bool,
     pub allow_network: bool,
     pub whitelisted_scripts: Vec<ScriptId>,
@@ -23,9 +24,25 @@ pub struct SandboxConfig {
 impl Default for SandboxConfig {
     fn default() -> Self {
         Self {
+            max_memory: 64 * 1024 * 1024, // 64MB as per requirement 25.1
+            max_execution_time: Duration::from_secs(5), // 5s as per requirement 25.1
+            max_instructions: 1_000_000,
+            max_entity_spawns: 1000, // 1000 entity spawn limit as per requirement 25.1
+            allow_filesystem: false,
+            allow_network: false,
+            whitelisted_scripts: Vec::new(),
+        }
+    }
+}
+
+impl SandboxConfig {
+    /// Create config for code verification (stricter limits)
+    pub fn for_verification() -> Self {
+        Self {
             max_memory: 64 * 1024 * 1024,
-            max_execution_time: Duration::from_millis(100),
-            max_instructions: 100_000,
+            max_execution_time: Duration::from_secs(5),
+            max_instructions: 1_000_000,
+            max_entity_spawns: 1000,
             allow_filesystem: false,
             allow_network: false,
             whitelisted_scripts: Vec::new(),
@@ -60,10 +77,18 @@ impl ScriptSandbox {
         if !self.config.allow_filesystem {
             globals
                 .set("io", mlua::Value::Nil)
-                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+                .map_err(|e| ScriptError::Runtime {
+                    script_path: "sandbox".to_string(),
+                    message: e.to_string(),
+                    stack_trace: String::new(),
+                })?;
             globals
                 .set("os", mlua::Value::Nil)
-                .map_err(|e| ScriptError::Runtime(e.to_string()))?;
+                .map_err(|e| ScriptError::Runtime {
+                    script_path: "sandbox".to_string(),
+                    message: e.to_string(),
+                    stack_trace: String::new(),
+                })?;
         }
 
         if self.config.max_instructions > 0 {
@@ -87,7 +112,11 @@ impl ScriptSandbox {
             .get_lua()
             .load(code)
             .exec()
-            .map_err(|e| ScriptError::Runtime(e.to_string()))
+            .map_err(|e| ScriptError::Runtime {
+                script_path: "sandbox".to_string(),
+                message: e.to_string(),
+                stack_trace: String::new(),
+            })
     }
 
     pub fn whitelist_script(&mut self, id: ScriptId) {
