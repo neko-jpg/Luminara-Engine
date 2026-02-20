@@ -5,7 +5,7 @@
 //! This test verifies that component updates through the EngineHandle
 //! correctly modify the ECS World state.
 
-use luminara_editor::engine::EngineHandle;
+use luminara_editor::EngineHandle;
 use luminara_core::{Component, impl_component};
 use proptest::prelude::*;
 
@@ -191,3 +191,24 @@ mod unit_tests {
         assert!(world.get_component::<TestComponent>(entity).is_none());
     }
 }
+
+    #[test]
+    fn test_duplicate_entity_command() {
+        use luminara_editor::core::commands::DuplicateEntityCommand;
+        use luminara_editor::services::engine_bridge::{EngineHandle, EditorCommand};
+
+        let handle = EngineHandle::mock();
+        let entity = handle.spawn_entity();
+
+        // Initial count
+        let count_before = handle.world().entities().len();
+
+        // Execute command
+        let command = Box::new(DuplicateEntityCommand::new(entity));
+        handle.execute_command(command);
+
+        // Final count
+        let count_after = handle.world().entities().len();
+
+        assert_eq!(count_after, count_before + 1, "Entity count should increase by 1 after duplication");
+    }

@@ -3,7 +3,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Persistent {
     pub auto_save: bool,
     pub db_id: Option<String>,
@@ -20,19 +20,31 @@ impl Default for Persistent {
     }
 }
 
-impl_component!(Persistent);
+impl Component for Persistent {
+    fn type_name() -> &'static str {
+        "Persistent"
+    }
+}
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct SaveExclude;
 
-impl_component!(SaveExclude);
+impl Component for SaveExclude {
+    fn type_name() -> &'static str {
+        "SaveExclude"
+    }
+}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DbDirty {
     pub changed_components: Vec<String>,
 }
 
-impl_component!(DbDirty);
+impl Component for DbDirty {
+    fn type_name() -> &'static str {
+        "DbDirty"
+    }
+}
 
 // Temporarily disabled - incomplete implementation
 // pub mod snapshot;
@@ -56,7 +68,7 @@ pub trait ComponentSerializer: Send + Sync {
     ) -> Result<(), crate::error::DbError>;
     fn type_name(&self) -> &'static str;
 }
-
+/*
 #[derive(Clone, Default)]
 pub struct ComponentRegistry {
     serializers: Arc<RwLock<HashMap<String, Arc<dyn ComponentSerializer>>>>,
@@ -91,7 +103,7 @@ impl ComponentRegistry {
         serializers.values().cloned().collect()
     }
 }
-
+*/
 struct TypedComponentSerializer<T> {
     _marker: std::marker::PhantomData<T>,
 }

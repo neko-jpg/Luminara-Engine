@@ -4,12 +4,12 @@
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
-    InteractiveElement, MouseButton, MouseDownEvent,
+    InteractiveElement, MouseButton, MouseDownEvent, View, prelude::*,
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
 use std::collections::HashSet;
-use crate::ui::components::{Button, PanelHeader};
+use crate::ui::components::{Button, PanelHeader, Dropdown};
 use crate::ui::theme::Theme;
 use crate::services::engine_bridge::EngineHandle;
 use luminara_core::Entity;
@@ -51,6 +51,7 @@ pub struct InspectorPanel {
     entity_name: String,
     is_active: bool,
     tags: Vec<String>,
+    layer_dropdown: View<Dropdown>,
 }
 
 impl InspectorPanel {
@@ -59,7 +60,14 @@ impl InspectorPanel {
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
         selected_entities: Arc<RwLock<HashSet<Entity>>>,
+        cx: &mut ViewContext<Self>,
     ) -> Self {
+        let layer_dropdown = cx.new_view(|_cx| Dropdown::new(
+            "layer_dropdown",
+            vec!["Default".into(), "TransparentFX".into(), "Ignore Raycast".into(), "Water".into(), "UI".into()],
+            Some(0)
+        ));
+
         Self {
             theme,
             engine_handle,
@@ -67,6 +75,7 @@ impl InspectorPanel {
             entity_name: "Player".to_string(),
             is_active: true,
             tags: vec!["Player".to_string(), "Character".to_string()],
+            layer_dropdown,
         }
     }
 
@@ -269,6 +278,32 @@ impl InspectorPanel {
                             .flex_row()
                             .w_full()
                             .items_center()
+                            .justify_between()
+                            .mb(theme.spacing.sm)
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(theme.spacing.md)
+                                    .child(
+                                        div()
+                                            .text_color(theme.colors.text_secondary)
+                                            .text_size(theme.typography.sm)
+                                            .child("Layer")
+                                    )
+                                    .child(
+                                        div()
+                                            .w(px(140.0))
+                                            .child(self.layer_dropdown.clone())
+                                    )
+                            )
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .w_full()
+                            .items_center()
                             .gap(theme.spacing.md)
                             .child(
                                 // Active checkbox
@@ -365,7 +400,6 @@ impl InspectorPanel {
 
 impl Render for InspectorPanel {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let theme = self.theme.clone();
         let theme = self.theme.clone();
 
         div()

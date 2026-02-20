@@ -1,2 +1,4 @@
 pub mod global_search;
-pub use global_search::GlobalSearchCommand;
+pub mod duplicate_entity;
+
+pub use duplicate_entity::DuplicateEntityCommand;
