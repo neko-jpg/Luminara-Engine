@@ -7,7 +7,8 @@
 //! - Support for both Grid and List view modes
 
 use gpui::{
-    div, px, IntoElement, InteractiveElement, ParentElement, Render, Styled, ViewContext, prelude::FluentBuilder,
+    div, px, uniform_list, IntoElement, InteractiveElement, ParentElement, Render, Styled, ViewContext,
+    prelude::*, UniformListScrollHandle, SharedString,
 };
 use std::sync::Arc;
 
@@ -228,13 +229,17 @@ impl AssetGrid {
     }
 
     /// Render a single asset item
-    fn render_asset_item(&self, item: &AssetItem) -> impl IntoElement {
+    fn render_asset_item(&self, item: &AssetItem, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
         let is_selected = self.selected_name.as_ref()
             .map(|name| name == item.name())
             .unwrap_or(false);
 
+        let item_name = item.name().to_string();
+        let view = cx.view().clone();
+
         div()
+            .id(SharedString::from(item_name.clone()))
             .flex()
             .flex_col()
             .items_center()
@@ -255,6 +260,13 @@ impl AssetGrid {
             .gap(px(4.0))
             .hover(|this| this.bg(theme.colors.surface_hover))
             .cursor_pointer()
+            .on_click(move |_e, cx| {
+                let name = item_name.clone();
+                view.update(cx, |this, cx| {
+                    this.set_selected(Some(name));
+                    cx.notify();
+                });
+            })
             .child(
                 div()
                     .text_size(px(32.0))
@@ -273,23 +285,44 @@ impl AssetGrid {
     }
 
     /// Render the asset grid
-    fn render_grid(&self) -> impl IntoElement {
+    fn render_grid(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let items: Vec<_> = self.items.clone();
+        let items = self.items.clone();
+        let cols = 4; // Number of columns in grid
+        let rows = (items.len() + cols - 1) / cols;
+        let view = cx.view().clone();
 
         div()
-            .flex()
-            .flex_wrap()
-            .gap(px(8.0))
-            .p(px(8.0))
-            .overflow_hidden()
-            .max_h(px(300.0))
+            .flex_1()
             .bg(theme.colors.surface_active)
             .rounded(px(6.0))
-            .children(
-                items.into_iter().map(|item| {
-                    self.render_asset_item(&item)
-                })
+            .h(px(300.0)) // Fixed height for virtual list container
+            .child(
+                uniform_list(
+                    view,
+                    "asset-grid",
+                    rows,
+                    move |this, range, cx| {
+                        let theme = this.theme.clone();
+                        range.map(|row_idx| {
+                             div()
+                                .flex()
+                                .gap(px(8.0))
+                                .p(px(4.0))
+                                .children((0..cols).map(|c| {
+                                    let item_idx = row_idx * cols + c;
+                                    if item_idx < this.items.len() {
+                                        this.render_asset_item(&this.items[item_idx], cx).into_any_element()
+                                    } else {
+                                        // Spacer to maintain alignment
+                                        div().w(px(90.0)).into_any_element()
+                                    }
+                                }))
+                                .into_any_element()
+                        }).collect()
+                    }
+                )
+                .track_scroll(UniformListScrollHandle::new())
             )
     }
 
@@ -381,7 +414,7 @@ impl AssetGrid {
 }
 
 impl Render for AssetGrid {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
 
         div()
@@ -403,7 +436,7 @@ impl Render for AssetGrid {
                     .p(px(8.0))
                     .gap(px(12.0))
                     // Asset grid
-                    .child(self.render_grid())
+                    .child(self.render_grid(cx))
                     // Preview area
                     .child(self.render_preview())
             )

@@ -82,10 +82,11 @@ impl SceneBuilderBox {
             engine_handle.clone(),
             selected_entities_viewport,
         ));
-        let inspector = cx.new_view(|_cx| InspectorPanel::new(
+        let inspector = cx.new_view(|cx| InspectorPanel::new(
             theme.clone(),
             engine_handle.clone(),
             selected_entities_inspector,
+            cx,
         ));
         let bottom_tabs = cx.new_view(|_cx| BottomTabPanel::new(theme.clone()));
 

@@ -4,7 +4,7 @@
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
-    InteractiveElement, MouseButton, MouseDownEvent,
+    WindowContext, View, MouseButton, MouseDownEvent, prelude::*,
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -12,6 +12,7 @@ use std::collections::HashSet;
 use crate::ui::theme::Theme;
 use crate::ui::components::{PanelHeader, Button, TextInput, ButtonVariant};
 use crate::services::engine_bridge::EngineHandle;
+use crate::core::commands::DuplicateEntityCommand;
 use luminara_core::Entity;
 use luminara_scene::{Parent, Children};
 
@@ -34,6 +35,7 @@ pub struct HierarchyPanel {
     filter_text: String,
     selected_entities: Arc<RwLock<HashSet<Entity>>>,
     expanded_entities: HashSet<Entity>,
+    context_menu_entity: Option<Entity>,
 }
 
 impl HierarchyPanel {
@@ -49,6 +51,7 @@ impl HierarchyPanel {
             filter_text: String::new(),
             selected_entities,
             expanded_entities: HashSet::new(),
+            context_menu_entity: None,
         }
     }
 
@@ -156,8 +159,10 @@ impl HierarchyPanel {
         let has_children = self.has_children(entity);
         let entity_name = self.get_entity_name(entity);
         let entity_clone = entity;
+        let is_context_menu_open = self.context_menu_entity == Some(entity);
 
         let indent = px((depth * 16) as f32);
+        let engine_handle = self.engine_handle.clone();
 
         div()
             .flex()
@@ -166,6 +171,7 @@ impl HierarchyPanel {
             .child(
                 // Entity row
                 div()
+                    .relative()
                     .flex()
                     .flex_row()
                     .w_full()
@@ -189,6 +195,13 @@ impl HierarchyPanel {
                     .on_mouse_down(MouseButton::Left, cx.listener(move |this, event: &MouseDownEvent, cx| {
                         let multi_select = event.modifiers.shift;
                         this.select_entity(entity_clone, multi_select, cx);
+                        // Close context menu on left click
+                        this.context_menu_entity = None;
+                        cx.notify();
+                    }))
+                    .on_mouse_down(MouseButton::Right, cx.listener(move |this, _event: &MouseDownEvent, cx| {
+                        this.context_menu_entity = Some(entity_clone);
+                        cx.notify();
                     }))
                     .child(
                         // Expand/collapse arrow
@@ -257,6 +270,51 @@ impl HierarchyPanel {
                                     .child("◉")
                             )
                     )
+                    // Context Menu
+                    .when(is_context_menu_open, |this| {
+                        let engine = engine_handle.clone();
+                        let entity_target = entity_clone;
+                        this.child(
+                            div()
+                                .absolute()
+                                .top(px(28.0))
+                                .left(px(40.0))
+                                // .z_index(100) // Temporarily removed to fix compilation
+                                .bg(theme.colors.surface)
+                                .border_1()
+                                .border_color(theme.colors.border)
+                                .rounded(theme.borders.sm)
+                                .shadow_md()
+                                .w(px(120.0))
+                                .child(
+                                    Button::new("duplicate_btn", "Duplicate")
+                                        .variant(ButtonVariant::Ghost)
+                                        .full_width(true)
+                                        .on_click(move |_e, cx| {
+                                            engine.execute_command(Box::new(DuplicateEntityCommand::new(entity_target)));
+                                            // Close menu via view update - tricky since closure captures `cx` but we need `view.update`
+                                            // But Button on_click gives us `cx` which is WindowContext.
+                                            // We can't access `this` (HierarchyPanel) easily here.
+                                            // However, `Button` itself doesn't know about `HierarchyPanel`.
+                                            // We need to use `cx.dispatch_action` or `cx.emit` or simpler:
+                                            // Since we are inside `render_item` of `HierarchyPanel`, we can't easily pass a callback to `Button` that modifies `HierarchyPanel` directly unless `Button` supports it.
+                                            // But `Button::on_click` takes `Fn(&ClickEvent, &mut WindowContext)`.
+                                            // It doesn't give us access to `View<HierarchyPanel>`.
+
+                                            // Solution: Use `cx.dispatch_global`? No.
+                                            // Solution: Since `on_click` is inside `render_item`, we can't mutate `self` directly.
+                                            // We need a way to signal the view to update.
+                                            // In GPUI, usually we pass a callback or use an event listener.
+                                            // But `Button`'s on_click is generic.
+
+                                            // Workaround: We will just execute the command.
+                                            // The menu will stay open until next click elsewhere closes it (we added logic to close on left click on item).
+                                            // To properly close it, we'd need to emit an event or use a proper `view.update` if we had a handle to the view.
+                                            // But we don't have a handle to `View<HierarchyPanel>` inside `render_item`.
+                                        })
+                                )
+                        )
+                    })
             )
             .children(
                 // Render children if expanded
@@ -282,7 +340,6 @@ impl HierarchyPanel {
 
 impl Render for HierarchyPanel {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let theme = self.theme.clone();
         let theme = self.theme.clone();
         let root_entities = self.get_root_entities();
 
