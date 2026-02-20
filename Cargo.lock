@@ -5439,6 +5439,7 @@ name = "luminara_editor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "dirs 5.0.1",
  "futures",
  "gpui",
