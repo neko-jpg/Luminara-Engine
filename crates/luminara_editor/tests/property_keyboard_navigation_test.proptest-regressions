@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 80dfc1b1256642f3146d3f2253d46c725acbd31597ea94746fd0747cef314d78 # shrinks to results = [SearchResult { category: Entity, name: "a", description: None }, SearchResult { category: Entity, name: "a", description: None }], start_pos = 0
+cc 0de03d47f5f7feb00b00b01e7b1b951db02ff25f664f58af7defa67929fc9e3b # shrinks to results = [SearchResult { category: Symbol, name: "v", description: None }, SearchResult { category: Symbol, name: "v", description: None }]

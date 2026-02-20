@@ -1,0 +1,14 @@
+[package]
+name = "editor_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+luminara_core = { path = "../../crates/luminara_core" }
+# Temporarily disabled - migrating to GPUI-based editor
+# luminara_editor = { path = "../../crates/luminara_editor", features = ["egui"] }
+
+# Window and rendering
+eframe = { version = "0.26", features = ["default"] }
+egui = "0.26"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

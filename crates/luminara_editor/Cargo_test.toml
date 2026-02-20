@@ -1,0 +1,15 @@
+[package]
+name = "luminara_editor_test"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+proptest = "1.0"
+
+[[test]]
+name = "verify_grouping_logic"
+path = "tests/verify_grouping_logic.rs"
+
+[[test]]
+name = "property_search_result_grouping_test"
+path = "tests/property_search_result_grouping_test.rs"
