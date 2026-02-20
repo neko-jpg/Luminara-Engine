@@ -294,7 +294,7 @@ pub struct ViewportElement {
     /// Engine handle for routing events to Luminara's input system
     pub(crate) engine_handle: Option<Arc<EngineHandle>>,
     /// Currently selected entities (for highlighting in viewport)
-    pub(crate) selected_entities: Option<Arc<RwLock<HashSet<luminara_core::Entity>>>>,
+    pub(crate) selected_entities: Option<HashSet<luminara_core::Entity>>,
     pub(crate) theme: Arc<crate::ui::theme::Theme>,
 }
 
@@ -351,11 +351,11 @@ impl ViewportElement {
     /// Set the selected entities for highlighting in the viewport
     ///
     /// # Arguments
-    /// * `selected_entities` - Arc-wrapped shared selection state
+    /// * `selected_entities` - Shared selection state
     ///
     /// # Requirements
     /// - Requirement 4.8: Sync selection between hierarchy and viewport
-    pub fn with_selected_entities(mut self, selected_entities: Arc<RwLock<HashSet<luminara_core::Entity>>>) -> Self {
+    pub fn with_selected_entities(mut self, selected_entities: HashSet<luminara_core::Entity>) -> Self {
         self.selected_entities = Some(selected_entities);
         self
     }

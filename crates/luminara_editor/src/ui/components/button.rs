@@ -139,11 +139,24 @@ impl IntoElement for Button {
         }
 
         if let Some(icon) = self.icon {
-            el = el.child(
-                div().child(icon).flex_none()
-            );
+            let icon_view = div()
+                .flex_none()
+                .w(px(16.0))
+                .h(px(16.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(icon);
+            
+            if self.label.is_empty() {
+                el = el.child(icon_view);
+            } else {
+                el = el.child(icon_view).child(self.label);
+            }
+        } else {
+            el = el.child(self.label);
         }
 
-        el.child(self.label).into_any_element()
+        el.into_any_element()
     }
 }

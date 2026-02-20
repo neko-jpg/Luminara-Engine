@@ -1,24 +1,27 @@
 //! Inspector Panel Component
 //!
-//! Right panel showing selected entity properties
+//! Right panel showing selected entity properties with editable fields
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
-    InteractiveElement, MouseButton, MouseDownEvent, View, prelude::*,
+    InteractiveElement, MouseButton, MouseDownEvent, ClickEvent, prelude::*,
 };
 use std::sync::Arc;
-use parking_lot::RwLock;
 use std::collections::HashSet;
-use crate::ui::components::{Button, PanelHeader, Dropdown};
+use crate::ui::components::{PanelHeader, Dropdown, TextInput, Button, ButtonVariant};
 use crate::ui::theme::Theme;
 use crate::services::engine_bridge::EngineHandle;
+use crate::services::component_binding::{CommandHistory, EditCommand};
 use luminara_core::Entity;
 use luminara_math::{Transform, Vec3, Quat};
+use luminara_scene::{Name, Tag};
+use crate::features::scene_builder::SceneBuilderState;
 
 /// Transform property editor
+#[derive(Debug, Clone)]
 pub struct TransformEditor {
     pub position: Vec3,
-    pub rotation: Quat,
+    pub rotation: Vec3, // Euler angles for easier editing
     pub scale: Vec3,
 }
 
@@ -26,7 +29,7 @@ impl Default for TransformEditor {
     fn default() -> Self {
         Self {
             position: Vec3::ZERO,
-            rotation: Quat::IDENTITY,
+            rotation: Vec3::ZERO,
             scale: Vec3::ONE,
         }
     }
@@ -35,10 +38,30 @@ impl Default for TransformEditor {
 impl TransformEditor {
     /// Create from Transform component
     pub fn from_transform(transform: &Transform) -> Self {
+        // Convert quaternion to Euler angles for editing
+        let (yaw, pitch, roll) = transform.rotation.to_euler(luminara_math::EulerRot::YXZ);
         Self {
             position: transform.translation,
-            rotation: transform.rotation,
+            rotation: Vec3::new(
+                pitch.to_degrees(),
+                yaw.to_degrees(),
+                roll.to_degrees()
+            ),
             scale: transform.scale,
+        }
+    }
+
+    /// Convert back to Transform
+    pub fn to_transform(&self) -> Transform {
+        Transform {
+            translation: self.position,
+            rotation: Quat::from_euler(
+                luminara_math::EulerRot::YXZ,
+                self.rotation.y.to_radians(),
+                self.rotation.x.to_radians(),
+                self.rotation.z.to_radians()
+            ),
+            scale: self.scale,
         }
     }
 }
@@ -47,11 +70,18 @@ impl TransformEditor {
 pub struct InspectorPanel {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
-    selected_entities: Arc<RwLock<HashSet<Entity>>>,
-    entity_name: String,
-    is_active: bool,
-    tags: Vec<String>,
-    layer_dropdown: View<Dropdown>,
+    state: gpui::Model<SceneBuilderState>,
+    // For tracking edit history
+    command_history: CommandHistory,
+    // For tracking which component is being added
+    show_add_component_menu: bool,
+    // Editing state
+    editing_name: String,
+    is_editing_name: bool,
+    // Pending transform updates
+    pending_position: Option<Vec3>,
+    pending_rotation: Option<Vec3>,
+    pending_scale: Option<Vec3>,
 }
 
 impl InspectorPanel {
@@ -59,30 +89,56 @@ impl InspectorPanel {
     pub fn new(
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
-        selected_entities: Arc<RwLock<HashSet<Entity>>>,
+        state: gpui::Model<SceneBuilderState>,
         cx: &mut ViewContext<Self>,
     ) -> Self {
-        let layer_dropdown = cx.new_view(|_cx| Dropdown::new(
-            "layer_dropdown",
-            vec!["Default".into(), "TransparentFX".into(), "Ignore Raycast".into(), "Water".into(), "UI".into()],
-            Some(0)
-        ));
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::time::Duration;
+        use crate::services::engine_bridge::Event;
+
+        // Flag to tracking if inspector needs UI update
+        let needs_update = Arc::new(AtomicBool::new(true)); // True initially
+        let needs_update_ev = needs_update.clone();
+
+        // Subscribe to engine events that affect inspector (component changes on selected entities)
+        engine_handle.subscribe_events(move |event| {
+            match event {
+                Event::ComponentAdded { .. } |
+                Event::ComponentRemoved { .. } => {
+                    needs_update_ev.store(true, Ordering::Release);
+                }
+                _ => {}
+            }
+        });
+
+        // Background task to poll the update flag at ~30Hz
+        cx.spawn(|this, mut cx| async move {
+            loop {
+                cx.background_executor().timer(Duration::from_millis(32)).await;
+                if needs_update.swap(false, Ordering::Acquire) {
+                    let _ = this.update(&mut cx, |_, cx| cx.notify());
+                }
+            }
+        }).detach();
 
         Self {
             theme,
             engine_handle,
-            selected_entities,
-            entity_name: "Player".to_string(),
-            is_active: true,
-            tags: vec!["Player".to_string(), "Character".to_string()],
-            layer_dropdown,
+            state,
+            command_history: CommandHistory::new(100),
+            show_add_component_menu: false,
+            editing_name: String::new(),
+            is_editing_name: false,
+            pending_position: None,
+            pending_rotation: None,
+            pending_scale: None,
         }
     }
 
     /// Get selected entity
-    fn get_selected_entity(&self) -> Option<Entity> {
-        let selected = self.selected_entities.read();
-        selected.iter().next().copied()
+    fn get_selected_entity(&self, cx: &ViewContext<Self>) -> Option<Entity> {
+        let state = self.state.read(cx);
+        state.selected_entities.iter().next().copied()
     }
 
     /// Get entity transform if available
@@ -92,15 +148,127 @@ impl InspectorPanel {
             .map(|t| TransformEditor::from_transform(t))
     }
 
-    /// Toggle active state
-    pub fn toggle_active(&mut self) {
-        self.is_active = !self.is_active;
+    /// Update entity transform
+    fn update_transform(&mut self, entity: Entity, editor: &TransformEditor, cx: &mut ViewContext<Self>) {
+        let transform = editor.to_transform();
+        
+        // Store old value for undo
+        let world = self.engine_handle.world();
+        let old_transform = world.get_component::<Transform>(entity).copied();
+        drop(world);
+
+        // Apply update
+        let _ = self.engine_handle.update_component(entity, transform);
+
+        // Record in history if this is a significant change
+        if let Some(old) = old_transform {
+            let cmd = EditCommand::new(
+                "Update Transform",
+                entity,
+                "Transform",
+                serde_json::to_value(&old).unwrap_or_default(),
+                serde_json::to_value(&transform).unwrap_or_default(),
+            );
+            self.command_history.push(cmd);
+        }
+
+        cx.notify();
+    }
+
+    /// Apply pending transform updates
+    fn apply_pending_updates(&mut self, entity: Entity, cx: &mut ViewContext<Self>) {
+        if let Some(mut editor) = self.get_transform(entity) {
+            if let Some(pos) = self.pending_position {
+                editor.position = pos;
+                self.pending_position = None;
+            }
+            if let Some(rot) = self.pending_rotation {
+                editor.rotation = rot;
+                self.pending_rotation = None;
+            }
+            if let Some(scale) = self.pending_scale {
+                editor.scale = scale;
+                self.pending_scale = None;
+            }
+            self.update_transform(entity, &editor, cx);
+        }
+    }
+
+    /// Update entity name
+    fn update_entity_name(&mut self, entity: Entity, name: String, cx: &mut ViewContext<Self>) {
+        let _ = self.engine_handle.update_component(entity, Name::new(&name));
+        self.is_editing_name = false;
+        cx.notify();
+    }
+
+    /// Add a component to entity
+    fn add_component_to_entity(&mut self, entity: Entity, component_type: &str, cx: &mut ViewContext<Self>) {
+        match component_type {
+            "Transform" => {
+                let _ = self.engine_handle.update_component(entity, Transform::IDENTITY);
+            }
+            "Name" => {
+                let _ = self.engine_handle.update_component(entity, Name::new("New Entity"));
+            }
+            _ => {}
+        }
+        self.show_add_component_menu = false;
+        cx.notify();
+    }
+
+    /// Check if undo is available
+    pub fn can_undo(&self) -> bool {
+        self.command_history.can_undo()
+    }
+
+    /// Check if redo is available
+    pub fn can_redo(&self) -> bool {
+        self.command_history.can_redo()
+    }
+
+    /// Undo last operation
+    pub fn undo(&mut self, cx: &mut ViewContext<Self>) {
+        let entity = self.get_selected_entity(cx);
+        if let Some(cmd) = self.command_history.undo() {
+            // Restore old value
+            if let Some(entity) = entity {
+                if cmd.component_type == "Transform" {
+                    if let Ok(old_transform) = serde_json::from_value::<Transform>(cmd.old_value.clone()) {
+                        let _ = self.engine_handle.update_component(entity, old_transform);
+                    }
+                }
+            }
+            cx.notify();
+        }
+    }
+
+    /// Redo last undone operation
+    pub fn redo(&mut self, cx: &mut ViewContext<Self>) {
+        let entity = self.get_selected_entity(cx);
+        if let Some(cmd) = self.command_history.redo() {
+            // Apply new value
+            if let Some(entity) = entity {
+                if cmd.component_type == "Transform" {
+                    if let Ok(new_transform) = serde_json::from_value::<Transform>(cmd.new_value.clone()) {
+                        let _ = self.engine_handle.update_component(entity, new_transform);
+                    }
+                }
+            }
+            cx.notify();
+        }
     }
 
     /// Render vector3 input (Position, Rotation, Scale)
-    fn render_vector3_input(&self, label: &str, values: [f32; 3], _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_vector3_input(
+        &self, 
+        label: &str, 
+        values: Vec3, 
+        on_change: impl Fn(f32, usize) + 'static,
+        _cx: &mut ViewContext<Self>
+    ) -> impl IntoElement {
         let theme = self.theme.clone();
         let label = label.to_string();
+        let on_change = Arc::new(on_change);
 
         div()
             .flex()
@@ -126,70 +294,68 @@ impl InspectorPanel {
                     .flex_row()
                     .items_center()
                     .gap(theme.spacing.xs)
+                    .child(self.render_float_input("x", values.x, theme.colors.error, {
+                        let on_change = on_change.clone();
+                        move |val| on_change(val, 0)
+                    }))
+                    .child(self.render_float_input("y", values.y, theme.colors.success, {
+                        let on_change = on_change.clone();
+                        move |val| on_change(val, 1)
+                    }))
+                    .child(self.render_float_input("z", values.z, theme.colors.accent, {
+                        let on_change = on_change.clone();
+                        move |val| on_change(val, 2)
+                    }))
+            )
+    }
+
+    /// Render a single float input field
+    fn render_float_input(
+        &self,
+        label: &str,
+        value: f32,
+        color: gpui::Hsla,
+        on_change: impl Fn(f32) + 'static,
+    ) -> impl IntoElement {
+        let theme = self.theme.clone();
+        let label = label.to_string();
+        let value_str = format!("{:.2}", value);
+
+        div()
+            .flex()
+            .flex_row()
+            .items_center()
+            .gap(theme.spacing.xs)
+            .child(
+                div()
+                    .text_color(color)
+                    .text_size(theme.typography.xs)
+                    .child(label)
+            )
+            .child(
+                div()
+                    .w(px(60.0))
+                    .h(px(24.0))
+                    .px(theme.spacing.xs)
+                    .bg(theme.colors.background)
+                    .border_1()
+                    .border_color(theme.colors.border)
+                    .rounded(theme.borders.xs)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_text()
                     .child(
-                        // X input
                         div()
-                            .flex_1()
-                            .h(px(28.0))
-                            .px(theme.spacing.sm)
-                            .bg(theme.colors.background)
-                            .border_1()
-                            .border_color(theme.colors.border)
-                            .rounded(theme.borders.xs)
-                            .flex()
-                            .items_center()
-                            .child(
-                                div()
-                                    .text_color(theme.colors.text)
-                                    .text_size(theme.typography.sm)
-                                    .child(format!("{:.1}", values[0]))
-                            )
-                    )
-                    .child(div().text_color(theme.colors.text_secondary).child(","))
-                    .child(
-                        // Y input
-                        div()
-                            .flex_1()
-                            .h(px(28.0))
-                            .px(theme.spacing.sm)
-                            .bg(theme.colors.background)
-                            .border_1()
-                            .border_color(theme.colors.border)
-                            .rounded(theme.borders.xs)
-                            .flex()
-                            .items_center()
-                            .child(
-                                div()
-                                    .text_color(theme.colors.text)
-                                    .text_size(theme.typography.sm)
-                                    .child(format!("{:.1}", values[1]))
-                            )
-                    )
-                    .child(div().text_color(theme.colors.text_secondary).child(","))
-                    .child(
-                        // Z input
-                        div()
-                            .flex_1()
-                            .h(px(28.0))
-                            .px(theme.spacing.sm)
-                            .bg(theme.colors.background)
-                            .border_1()
-                            .border_color(theme.colors.border)
-                            .rounded(theme.borders.xs)
-                            .flex()
-                            .items_center()
-                            .child(
-                                div()
-                                    .text_color(theme.colors.text)
-                                    .text_size(theme.typography.sm)
-                                    .child(format!("{:.1}", values[2]))
-                            )
+                            .text_color(theme.colors.text)
+                            .text_size(theme.typography.sm)
+                            .child(value_str)
                     )
             )
     }
 
     /// Render component header
-    fn render_component_header(&self, title: &str, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_component_header(&self, title: &str, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
         let title = title.to_string();
 
@@ -205,8 +371,11 @@ impl InspectorPanel {
     }
 
     /// Render Transform component
-    fn render_transform_component(&self, editor: &TransformEditor, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_transform_component(&mut self, entity: Entity, editor: &TransformEditor, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
+        let position = editor.position;
+        let rotation = editor.rotation;
+        let scale = editor.scale;
 
         div()
             .flex()
@@ -218,9 +387,33 @@ impl InspectorPanel {
             .child(
                 div()
                     .p(theme.spacing.md)
-                    .child(self.render_vector3_input("Position", [editor.position.x, editor.position.y, editor.position.z], cx))
-                    .child(self.render_vector3_input("Rotation", [editor.rotation.x, editor.rotation.y, editor.rotation.z], cx))
-                    .child(self.render_vector3_input("Scale", [editor.scale.x, editor.scale.y, editor.scale.z], cx))
+                    .child(self.render_vector3_input("Position", position, {
+                        let entity = entity;
+                        move |val, idx| {
+                            // Queue position update - would need proper state management
+                            println!("Position {}: {}", idx, val);
+                        }
+                    }, cx))
+                    .child(self.render_vector3_input("Rotation", rotation, {
+                        let entity = entity;
+                        move |val, idx| {
+                            println!("Rotation {}: {}", idx, val);
+                        }
+                    }, cx))
+                    .child(self.render_vector3_input("Scale", scale, {
+                        let entity = entity;
+                        move |val, idx| {
+                            println!("Scale {}: {}", idx, val);
+                        }
+                    }, cx))
+                    .child(
+                        Button::new("apply_transform", "Apply Changes")
+                            .variant(ButtonVariant::Primary)
+                            .full_width(true)
+                            .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                this.apply_pending_updates(entity, cx);
+                            }))
+                    )
             )
     }
 
@@ -251,12 +444,33 @@ impl InspectorPanel {
     }
 
     /// Render entity inspector
-    fn render_entity_inspector(&self, entity: Entity, cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_entity_inspector(&mut self, entity: Entity, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
+        
+        // Fetch actual data from ECS
+        let world = self.engine_handle.world();
+        
+        let entity_name = if let Some(name_comp) = world.get_component::<Name>(entity) {
+            name_comp.0.clone()
+        } else {
+            format!("Entity {:?}", entity)
+        };
+        
+        let tags: Vec<String> = if let Some(tag_comp) = world.get_component::<Tag>(entity) {
+            tag_comp.0.iter().cloned().collect()
+        } else {
+            Vec::new()
+        };
+        
+        // Drop the read lock before rendering components that might need it
+        drop(world);
+
         let transform_editor = self.get_transform(entity).unwrap_or_default();
-        let is_active = self.is_active;
-        let entity_name = self.entity_name.clone();
-        let tags = self.tags.clone();
+
+        // Update editing name if not currently editing
+        if !self.is_editing_name {
+            self.editing_name = entity_name.clone();
+        }
 
         div()
             .flex()
@@ -294,7 +508,15 @@ impl InspectorPanel {
                                     .child(
                                         div()
                                             .w(px(140.0))
-                                            .child(self.layer_dropdown.clone())
+                                            .px(theme.spacing.sm)
+                                            .py(theme.spacing.xs)
+                                            .bg(theme.colors.surface)
+                                            .border_1()
+                                            .border_color(theme.colors.border)
+                                            .rounded(theme.borders.xs)
+                                            .text_color(theme.colors.text)
+                                            .text_size(theme.typography.sm)
+                                            .child("Default")
                                     )
                             )
                     )
@@ -313,7 +535,7 @@ impl InspectorPanel {
                                     .gap(theme.spacing.xs)
                                     .cursor_pointer()
                                     .on_mouse_down(MouseButton::Left, cx.listener(|this, _event: &MouseDownEvent, cx| {
-                                        this.toggle_active();
+                                        // Toggle active state - would need an Active component
                                         cx.notify();
                                     }))
                                     .child(
@@ -325,9 +547,9 @@ impl InspectorPanel {
                                             .justify_center()
                                             .child(
                                                 div()
-                                                    .text_color(if is_active { theme.colors.success } else { theme.colors.text_secondary })
+                                                    .text_color(theme.colors.success)
                                                     .text_size(theme.typography.md)
-                                                    .child(if is_active { "☑" } else { "☐" })
+                                                    .child("☑")
                                             )
                                     )
                                     .child(
@@ -341,20 +563,23 @@ impl InspectorPanel {
                                 // Entity name input
                                 div()
                                     .flex_1()
-                                    .h(px(28.0))
-                                    .px(theme.spacing.sm)
-                                    .bg(theme.colors.background)
-                                    .border_1()
-                                    .border_color(theme.colors.border)
-                                    .rounded(theme.borders.xs)
-                                    .flex()
-                                    .items_center()
                                     .child(
-                                        div()
-                                            .text_color(theme.colors.text)
-                                            .text_size(theme.typography.sm)
-                                            .child(entity_name)
+                                        TextInput::new("entity_name_input")
+                                            .value(self.editing_name.clone())
+                                            .on_change(cx.listener(|this, text: &str, _cx| {
+                                                this.editing_name = text.to_string();
+                                                this.is_editing_name = true;
+                                            }))
                                     )
+                            )
+                            .child(
+                                // Save name button
+                                Button::new("save_name", "✓")
+                                    .variant(ButtonVariant::Ghost)
+                                    .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                        let new_name = this.editing_name.clone();
+                                        this.update_entity_name(entity, new_name, cx);
+                                    }))
                             )
                     )
                     .child(
@@ -383,16 +608,86 @@ impl InspectorPanel {
                             }))
                     )
             )
-            .child(self.render_transform_component(&transform_editor, cx))
+            .child(self.render_transform_component(entity, &transform_editor, cx))
             .child(
-                // Add Component button
+                // Add Component section
                 div()
                     .mt(theme.spacing.md)
                     .p(theme.spacing.md)
                     .child(
-                        Button::new("add_component", "Add Component")
-                            .icon("+")
-                            .full_width(true)
+                        if self.show_add_component_menu {
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(theme.spacing.xs)
+                                .child(
+                                    div()
+                                        .text_color(theme.colors.text_secondary)
+                                        .text_size(theme.typography.sm)
+                                        .child("Add Component:")
+                                )
+                                .child(
+                                    Button::new("add_transform", "Transform")
+                                        .variant(ButtonVariant::Secondary)
+                                        .full_width(true)
+                                        .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                            this.add_component_to_entity(entity, "Transform", cx);
+                                        }))
+                                )
+                                .child(
+                                    Button::new("add_name", "Name")
+                                        .variant(ButtonVariant::Secondary)
+                                        .full_width(true)
+                                        .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                            this.add_component_to_entity(entity, "Name", cx);
+                                        }))
+                                )
+                                .child(
+                                    Button::new("cancel_add", "Cancel")
+                                        .variant(ButtonVariant::Ghost)
+                                        .full_width(true)
+                                        .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                            this.show_add_component_menu = false;
+                                            cx.notify();
+                                        }))
+                                )
+                        } else {
+                            div().child(
+                                Button::new("add_component", "Add Component")
+                                    .icon("+")
+                                    .full_width(true)
+                                    .variant(ButtonVariant::Secondary)
+                                    .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                        this.show_add_component_menu = true;
+                                        cx.notify();
+                                    }))
+                            )
+                        }
+                    )
+            )
+            .child(
+                // Undo/Redo buttons
+                div()
+                    .mt(theme.spacing.md)
+                    .p(theme.spacing.md)
+                    .flex()
+                    .flex_row()
+                    .gap(theme.spacing.sm)
+                    .child(
+                        Button::new("undo_btn", "Undo")
+                            .variant(ButtonVariant::Ghost)
+                            .disabled(!self.can_undo())
+                            .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                this.undo(cx);
+                            }))
+                    )
+                    .child(
+                        Button::new("redo_btn", "Redo")
+                            .variant(ButtonVariant::Ghost)
+                            .disabled(!self.can_redo())
+                            .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                this.redo(cx);
+                            }))
                     )
             )
     }
@@ -426,6 +721,10 @@ impl Render for InspectorPanel {
                                     .mr(theme.spacing.md)
                                     .cursor_pointer()
                                     .hover(|this| this.bg(theme.colors.surface_hover))
+                                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _event: &MouseDownEvent, cx| {
+                                        // Toggle DB sync
+                                        cx.notify();
+                                    }))
                                     .child(
                                         div()
                                             .text_color(theme.colors.accent)
@@ -456,7 +755,7 @@ impl Render for InspectorPanel {
                     .w_full()
                     .overflow_hidden()
                     .child({
-                        if let Some(entity) = self.get_selected_entity() {
+                        if let Some(entity) = self.get_selected_entity(cx) {
                             div().child(self.render_entity_inspector(entity, cx))
                         } else {
                             div().child(self.render_no_selection())

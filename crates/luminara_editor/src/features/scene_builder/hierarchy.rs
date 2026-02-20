@@ -1,10 +1,10 @@
 //! Hierarchy Panel Component
 //!
-//! Left panel showing scene hierarchy tree with filtering
+//! Left panel showing scene hierarchy tree with filtering and entity management
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
-    WindowContext, View, MouseButton, MouseDownEvent, prelude::*,
+    WindowContext, View, MouseButton, MouseDownEvent, ClickEvent, prelude::*,
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
@@ -12,9 +12,12 @@ use std::collections::HashSet;
 use crate::ui::theme::Theme;
 use crate::ui::components::{PanelHeader, Button, TextInput, ButtonVariant};
 use crate::services::engine_bridge::EngineHandle;
+use crate::services::component_binding::ComponentUpdateCommand;
 use crate::core::commands::DuplicateEntityCommand;
 use luminara_core::Entity;
-use luminara_scene::{Parent, Children};
+use luminara_scene::{Parent, Children, Name};
+use luminara_math::Transform;
+use crate::features::scene_builder::SceneBuilderState;
 
 /// Hierarchy item representing an entity in the tree
 #[derive(Debug, Clone)]
@@ -33,9 +36,11 @@ pub struct HierarchyPanel {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
     filter_text: String,
-    selected_entities: Arc<RwLock<HashSet<Entity>>>,
+    state: gpui::Model<SceneBuilderState>,
     expanded_entities: HashSet<Entity>,
     context_menu_entity: Option<Entity>,
+    // For creating new entities
+    next_entity_number: usize,
 }
 
 impl HierarchyPanel {
@@ -43,15 +48,48 @@ impl HierarchyPanel {
     pub fn new(
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
-        selected_entities: Arc<RwLock<HashSet<Entity>>>,
+        state: gpui::Model<SceneBuilderState>,
+        cx: &mut ViewContext<Self>,
     ) -> Self {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::time::Duration;
+        use crate::services::engine_bridge::Event;
+
+        // Flag to tracking if hierarchy needs UI update
+        let needs_update = Arc::new(AtomicBool::new(true)); // True initially to render first time
+        let needs_update_ev = needs_update.clone();
+
+        // Subscribe to engine events that affect hierarchy
+        engine_handle.subscribe_events(move |event| {
+            match event {
+                Event::EntitySpawned { .. } |
+                Event::EntityDespawned { .. } |
+                Event::ComponentAdded { .. } |
+                Event::ComponentRemoved { .. } => {
+                    needs_update_ev.store(true, Ordering::Release);
+                }
+                _ => {}
+            }
+        });
+
+        // Background task to poll the update flag at ~30Hz
+        cx.spawn(|this, mut cx| async move {
+            loop {
+                cx.background_executor().timer(Duration::from_millis(32)).await;
+                if needs_update.swap(false, Ordering::Acquire) {
+                    let _ = this.update(&mut cx, |_, cx| cx.notify());
+                }
+            }
+        }).detach();
+
         Self {
             theme,
             engine_handle,
             filter_text: String::new(),
-            selected_entities,
+            state,
             expanded_entities: HashSet::new(),
             context_menu_entity: None,
+            next_entity_number: 1,
         }
     }
 
@@ -65,6 +103,11 @@ impl HierarchyPanel {
         &self.filter_text
     }
 
+    /// Clear filter
+    pub fn clear_filter(&mut self) {
+        self.filter_text.clear();
+    }
+
     /// Toggle entity expansion
     pub fn toggle_expansion(&mut self, entity: Entity) {
         if self.expanded_entities.contains(&entity) {
@@ -76,20 +119,69 @@ impl HierarchyPanel {
 
     /// Select an entity
     pub fn select_entity(&mut self, entity: Entity, multi_select: bool, cx: &mut ViewContext<Self>) {
-        let mut selected = self.selected_entities.write();
-
-        if multi_select {
-            if selected.contains(&entity) {
-                selected.remove(&entity);
+        self.state.update(cx, |state, cx| {
+            if multi_select {
+                if state.selected_entities.contains(&entity) {
+                    state.selected_entities.remove(&entity);
+                } else {
+                    state.selected_entities.insert(entity);
+                }
             } else {
-                selected.insert(entity);
+                state.selected_entities.clear();
+                state.selected_entities.insert(entity);
             }
-        } else {
-            selected.clear();
-            selected.insert(entity);
+            cx.notify();
+        });
+    }
+
+    /// Create a new entity with default components
+    pub fn create_new_entity(&mut self, cx: &mut ViewContext<Self>) {
+        let entity_name = format!("GameObject {}", self.next_entity_number);
+        self.next_entity_number += 1;
+
+        // Spawn entity with components
+        let world = self.engine_handle.world();
+        let entity_count = world.entities().len();
+        drop(world);
+
+        // Create entity with transform and name
+        let entity = self.engine_handle.spawn_entity_with((
+            Transform::IDENTITY,
+            Name::new(&entity_name),
+        ));
+
+        if let Ok(entity) = entity {
+            // Select the new entity
+            self.select_entity(entity, false, cx);
+            
+            // Expand to show the new entity
+            self.expanded_entities.insert(entity);
         }
 
-        drop(selected);
+        cx.notify();
+    }
+
+    /// Delete selected entities
+    pub fn delete_selected_entities(&mut self, cx: &mut ViewContext<Self>) {
+        let selected: Vec<Entity> = self.state.read(cx).selected_entities.iter().copied().collect();
+        
+        for entity in selected {
+            let _ = self.engine_handle.despawn_entity(entity);
+        }
+
+        // Clear selection
+        self.state.update(cx, |state, cx| {
+            state.selected_entities.clear();
+            cx.notify();
+        });
+
+        cx.notify();
+    }
+
+    /// Duplicate an entity
+    pub fn duplicate_entity(&mut self, entity: Entity, cx: &mut ViewContext<Self>) {
+        // Use the engine bridge to execute duplicate command
+        self.engine_handle.execute_command(Box::new(DuplicateEntityCommand::new(entity)));
         cx.notify();
     }
 
@@ -106,7 +198,21 @@ impl HierarchyPanel {
 
     /// Get entity name
     fn get_entity_name(&self, entity: Entity) -> String {
-        format!("Entity {:?}", entity)
+        let world = self.engine_handle.world();
+        if let Some(name) = world.get_component::<Name>(entity) {
+            name.0.clone()
+        } else {
+            format!("Entity {:?}", entity)
+        }
+    }
+
+    /// Check if entity matches filter
+    fn entity_matches_filter(&self, entity: Entity) -> bool {
+        if self.filter_text.is_empty() {
+            return true;
+        }
+        let name = self.get_entity_name(entity);
+        name.to_lowercase().contains(&self.filter_text.to_lowercase())
     }
 
     /// Check if entity has children
@@ -125,9 +231,35 @@ impl HierarchyPanel {
             .unwrap_or_default()
     }
 
+    /// Check if entity should be visible (matches filter or has visible children)
+    fn is_entity_visible(&self, entity: Entity) -> bool {
+        if self.filter_text.is_empty() {
+            return true;
+        }
+
+        // Check if entity matches filter
+        if self.entity_matches_filter(entity) {
+            return true;
+        }
+
+        // Check if any children match filter
+        let children = self.get_children(entity);
+        children.iter().any(|&child| self.is_entity_visible_recursive(child))
+    }
+
+    fn is_entity_visible_recursive(&self, entity: Entity) -> bool {
+        if self.entity_matches_filter(entity) {
+            return true;
+        }
+        let children = self.get_children(entity);
+        children.iter().any(|&child| self.is_entity_visible_recursive(child))
+    }
+
     /// Render the toolbar (filter + buttons)
-    fn render_toolbar(&self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+    fn render_toolbar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
+        let filter_text = self.filter_text.clone();
+        let has_filter = !filter_text.is_empty();
 
         div()
             .flex()
@@ -135,25 +267,54 @@ impl HierarchyPanel {
             .w_full()
             .gap(theme.spacing.xs)
             .mb(theme.spacing.md)
-            .child(TextInput::new("filter").placeholder("Filter..."))
             .child(
-                // DB button
-                Button::new("db_btn", "◉")
-                    .variant(ButtonVariant::Ghost)
+                // Filter input with clear button
+                div()
+                    .flex_1()
+                    .flex()
+                    .flex_row()
+                    .items_center()
+                    .gap(theme.spacing.xs)
+                    .child(
+                        TextInput::new("hierarchy_filter")
+                            .placeholder("Filter...")
+                            .value(filter_text)
+                            .on_change(cx.listener(|this, text: &str, _cx| {
+                                this.filter_text = text.to_string();
+                            }))
+                    )
+                    .when(has_filter, |this| {
+                        this.child(
+                            Button::new("clear_filter", "×")
+                                .variant(ButtonVariant::Ghost)
+                                .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                    this.clear_filter();
+                                    cx.notify();
+                                }))
+                        )
+                    })
             )
             .child(
-                // Plus button
-                Button::new("plus_btn", "+")
+                // Create entity button (Plus)
+                Button::new("create_entity", "+")
                     .variant(ButtonVariant::Ghost)
+                    .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                        this.create_new_entity(cx);
+                    }))
             )
     }
 
     /// Render a single hierarchy item
     fn render_item(&self, entity: Entity, depth: usize, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let selected = self.selected_entities.read();
-        let is_selected = selected.contains(&entity);
-        drop(selected);
+        
+        // Check visibility based on filter
+        if !self.is_entity_visible(entity) {
+            return div().into_any_element();
+        }
+        
+        // Read selection from global state
+        let is_selected = self.state.read(cx).selected_entities.contains(&entity);
 
         let is_expanded = self.expanded_entities.contains(&entity);
         let has_children = self.has_children(entity);
@@ -274,44 +435,53 @@ impl HierarchyPanel {
                     .when(is_context_menu_open, |this| {
                         let engine = engine_handle.clone();
                         let entity_target = entity_clone;
+                        let entity_duplicate = entity_clone;
                         this.child(
                             div()
                                 .absolute()
                                 .top(px(28.0))
                                 .left(px(40.0))
-                                // .z_index(100) // Temporarily removed to fix compilation
                                 .bg(theme.colors.surface)
                                 .border_1()
                                 .border_color(theme.colors.border)
                                 .rounded(theme.borders.sm)
                                 .shadow_md()
-                                .w(px(120.0))
+                                .w(px(140.0))
+                                .flex()
+                                .flex_col()
                                 .child(
                                     Button::new("duplicate_btn", "Duplicate")
                                         .variant(ButtonVariant::Ghost)
                                         .full_width(true)
-                                        .on_click(move |_e, cx| {
-                                            engine.execute_command(Box::new(DuplicateEntityCommand::new(entity_target)));
-                                            // Close menu via view update - tricky since closure captures `cx` but we need `view.update`
-                                            // But Button on_click gives us `cx` which is WindowContext.
-                                            // We can't access `this` (HierarchyPanel) easily here.
-                                            // However, `Button` itself doesn't know about `HierarchyPanel`.
-                                            // We need to use `cx.dispatch_action` or `cx.emit` or simpler:
-                                            // Since we are inside `render_item` of `HierarchyPanel`, we can't easily pass a callback to `Button` that modifies `HierarchyPanel` directly unless `Button` supports it.
-                                            // But `Button::on_click` takes `Fn(&ClickEvent, &mut WindowContext)`.
-                                            // It doesn't give us access to `View<HierarchyPanel>`.
-
-                                            // Solution: Use `cx.dispatch_global`? No.
-                                            // Solution: Since `on_click` is inside `render_item`, we can't mutate `self` directly.
-                                            // We need a way to signal the view to update.
-                                            // In GPUI, usually we pass a callback or use an event listener.
-                                            // But `Button`'s on_click is generic.
-
-                                            // Workaround: We will just execute the command.
-                                            // The menu will stay open until next click elsewhere closes it (we added logic to close on left click on item).
-                                            // To properly close it, we'd need to emit an event or use a proper `view.update` if we had a handle to the view.
-                                            // But we don't have a handle to `View<HierarchyPanel>` inside `render_item`.
-                                        })
+                                        .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                            this.duplicate_entity(entity_duplicate, cx);
+                                            this.context_menu_entity = None;
+                                            cx.notify();
+                                        }))
+                                )
+                                .child(
+                                    Button::new("delete_btn", "Delete")
+                                        .variant(ButtonVariant::Ghost)
+                                        .full_width(true)
+                                        .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                            let _ = engine.despawn_entity(entity_target);
+                                            this.state.update(cx, |state, cx| {
+                                                state.selected_entities.remove(&entity_target);
+                                                cx.notify();
+                                            });
+                                            this.context_menu_entity = None;
+                                            cx.notify();
+                                        }))
+                                )
+                                .child(
+                                    Button::new("rename_btn", "Rename")
+                                        .variant(ButtonVariant::Ghost)
+                                        .full_width(true)
+                                        .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
+                                            // TODO: Implement rename dialog
+                                            this.context_menu_entity = None;
+                                            cx.notify();
+                                        }))
                                 )
                         )
                     })
@@ -319,29 +489,41 @@ impl HierarchyPanel {
             .children(
                 // Render children if expanded
                 if is_expanded && has_children {
-                    let children = self.get_children(entity);
-                    Some(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .w_full()
-                            .children(
-                                children.into_iter().map(|child| {
-                                    self.render_item(child, depth + 1, cx)
-                                })
-                            )
-                    )
+                    let children: Vec<_> = self.get_children(entity)
+                        .into_iter()
+                        .filter(|&c| self.is_entity_visible(c))
+                        .collect();
+                    
+                    if !children.is_empty() {
+                        Some(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .w_full()
+                                .children(
+                                    children.into_iter().map(|child| {
+                                        self.render_item(child, depth + 1, cx)
+                                    })
+                                )
+                        )
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             )
+            .into_any_element()
     }
 }
 
 impl Render for HierarchyPanel {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let root_entities = self.get_root_entities();
+        let root_entities: Vec<_> = self.get_root_entities()
+            .into_iter()
+            .filter(|&e| self.is_entity_visible(e))
+            .collect();
 
         div()
             .flex()
@@ -369,6 +551,19 @@ impl Render for HierarchyPanel {
                                         .text_color(theme.colors.text_secondary)
                                         .text_size(theme.typography.sm)
                                         .child("No entities in scene")
+                                )
+                                .child(
+                                    div()
+                                        .mt(theme.spacing.md)
+                                        .flex()
+                                        .justify_center()
+                                        .child(
+                                            Button::new("create_first_entity", "Create Entity")
+                                                .variant(ButtonVariant::Primary)
+                                                .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
+                                                    this.create_new_entity(cx);
+                                                }))
+                                        )
                                 )
                         } else {
                             div()

@@ -5,9 +5,22 @@
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext, InteractiveElement,
+    MouseButton, MouseDownEvent, ClickEvent, AnyElement,
 };
+use gpui::prelude::FluentBuilder;
 use std::sync::Arc;
 use crate::ui::theme::Theme;
+use crate::ui::components::Button;
+use crate::services::engine_bridge::EngineHandle;
+use crate::features::scene_builder::SceneBuilderState;
+use luminara_scene::Name;
+use luminara_math::Transform;
+
+/// Action emitted when a menu item is clicked
+#[derive(Clone)]
+pub struct MenuExecute {
+    pub action: MenuActionType,
+}
 
 /// Menu item definition
 #[derive(Debug, Clone)]
@@ -53,10 +66,14 @@ pub enum MenuActionType {
 /// Menu Bar component
 pub struct MenuBar {
     theme: Arc<Theme>,
+    engine_handle: Option<Arc<EngineHandle>>,
+    state: Option<gpui::Model<SceneBuilderState>>,
     items: Vec<MenuItem>,
-    #[allow(dead_code)]
     active_menu: Option<usize>,
+    show_menu_index: Option<usize>,
 }
+
+impl gpui::EventEmitter<MenuExecute> for MenuBar {}
 
 impl MenuBar {
     /// Create a new menu bar with default items
@@ -136,42 +153,190 @@ impl MenuBar {
 
         Self {
             theme,
+            engine_handle: None,
+            state: None,
             items,
             active_menu: None,
+            show_menu_index: None,
         }
     }
 
+    /// Set engine handle for menu actions
+    pub fn with_engine_handle(mut self, engine_handle: Arc<EngineHandle>) -> Self {
+        self.engine_handle = Some(engine_handle);
+        self
+    }
+
+    /// Set state model for menu actions
+    pub fn with_state(mut self, state: gpui::Model<SceneBuilderState>) -> Self {
+        self.state = Some(state);
+        self
+    }
+
     /// Handle menu action
-    #[allow(dead_code)]
-    fn handle_action(&self, action: &MenuActionType) {
+    fn handle_action(&self, action: &MenuActionType, cx: &mut ViewContext<Self>) {
         match action {
-            MenuActionType::NewScene => println!("New Scene"),
-            MenuActionType::OpenScene => println!("Open Scene"),
-            MenuActionType::SaveScene => println!("Save Scene"),
-            MenuActionType::SaveAs => println!("Save As"),
-            MenuActionType::Exit => println!("Exit"),
-            MenuActionType::Undo => println!("Undo"),
-            MenuActionType::Redo => println!("Redo"),
+            MenuActionType::NewScene => {
+                println!("New Scene - Creating empty scene");
+                // Clear current scene and create new
+                if let Some(engine) = &self.engine_handle {
+                    let mut world = engine.world_mut();
+                    // Despawn all entities
+                    let entities: Vec<_> = world.entities().into_iter().collect();
+                    for entity in entities {
+                        world.despawn(entity);
+                    }
+                }
+                cx.notify();
+            }
+            MenuActionType::OpenScene => {
+                println!("Open Scene - Would open file dialog");
+            }
+            MenuActionType::SaveScene => {
+                println!("Save Scene - Saving current scene");
+                if let Some(engine) = &self.engine_handle {
+                    let world = engine.world();
+                    let scene = luminara_scene::Scene::from_world(&world);
+                    if let Ok(json) = scene.to_json() {
+                        println!("Scene JSON: {}", json.len());
+                        // In real implementation, save to file
+                    }
+                }
+            }
+            MenuActionType::SaveAs => {
+                println!("Save As - Would open save dialog");
+            }
+            MenuActionType::Exit => {
+                println!("Exit - Closing application");
+                std::process::exit(0);
+            }
+            MenuActionType::Undo => {
+                println!("Undo");
+                // Would trigger undo in inspector or global undo
+            }
+            MenuActionType::Redo => {
+                println!("Redo");
+                // Would trigger redo in inspector or global redo
+            }
             MenuActionType::Cut => println!("Cut"),
             MenuActionType::Copy => println!("Copy"),
             MenuActionType::Paste => println!("Paste"),
-            MenuActionType::Delete => println!("Delete"),
-            MenuActionType::SelectAll => println!("Select All"),
-            MenuActionType::CreateEmpty => println!("Create Empty"),
-            MenuActionType::CreateLight => println!("Create Light"),
-            MenuActionType::CreateCamera => println!("Create Camera"),
+            MenuActionType::Delete => {
+                println!("Delete - Removing selected entities");
+                if let (Some(engine), Some(state)) = (&self.engine_handle, &self.state) {
+                    let selected: Vec<_> = state.read(cx).selected_entities.iter().copied().collect();
+                    for entity in selected {
+                        let _ = engine.despawn_entity(entity);
+                    }
+                    state.update(cx, |state, cx| {
+                        state.selected_entities.clear();
+                        cx.notify();
+                    });
+                }
+            }
+            MenuActionType::SelectAll => {
+                println!("Select All");
+                if let (Some(engine), Some(state)) = (&self.engine_handle, &self.state) {
+                    let world = engine.world();
+                    let entities: Vec<_> = world.entities().into_iter().collect();
+                    drop(world);
+                    state.update(cx, |state, cx| {
+                        state.selected_entities = entities.iter().copied().collect();
+                        cx.notify();
+                    });
+                }
+            }
+            MenuActionType::CreateEmpty => {
+                println!("Create Empty GameObject");
+                if let Some(engine) = &self.engine_handle {
+                    let entity = engine.spawn_entity_with((
+                        Transform::IDENTITY,
+                        Name::new("GameObject"),
+                    ));
+                    if let Ok(entity) = entity {
+                        if let Some(state) = &self.state {
+                            state.update(cx, |state, cx| {
+                                state.selected_entities.clear();
+                                state.selected_entities.insert(entity);
+                                cx.notify();
+                            });
+                        }
+                    }
+                }
+            }
+            MenuActionType::CreateLight => {
+                println!("Create Light");
+                if let Some(engine) = &self.engine_handle {
+                    let entity = engine.spawn_entity_with((
+                        Transform::from_xyz(0.0, 5.0, 0.0),
+                        Name::new("Light"),
+                    ));
+                    if let Ok(entity) = entity {
+                        if let Some(state) = &self.state {
+                            state.update(cx, |state, cx| {
+                                state.selected_entities.clear();
+                                state.selected_entities.insert(entity);
+                                cx.notify();
+                            });
+                        }
+                    }
+                }
+            }
+            MenuActionType::CreateCamera => {
+                println!("Create Camera");
+                if let Some(engine) = &self.engine_handle {
+                    let entity = engine.spawn_entity_with((
+                        Transform::from_xyz(0.0, 2.0, -10.0).looking_at(luminara_math::Vec3::ZERO, luminara_math::Vec3::Y),
+                        Name::new("Camera"),
+                    ));
+                    if let Ok(entity) = entity {
+                        if let Some(state) = &self.state {
+                            state.update(cx, |state, cx| {
+                                state.selected_entities.clear();
+                                state.selected_entities.insert(entity);
+                                cx.notify();
+                            });
+                        }
+                    }
+                }
+            }
             MenuActionType::ImportAsset => println!("Import Asset"),
             MenuActionType::ExportAsset => println!("Export Asset"),
             MenuActionType::Settings => println!("Settings"),
             MenuActionType::Help => println!("Help"),
-            MenuActionType::About => println!("About"),
+            MenuActionType::About => {
+                println!("About Luminara Editor");
+            }
             MenuActionType::Custom(action) => println!("Custom action: {}", action),
         }
     }
+
+    /// Toggle menu visibility
+    fn toggle_menu(&mut self, index: usize) {
+        if self.show_menu_index == Some(index) {
+            self.show_menu_index = None;
+        } else {
+            self.show_menu_index = Some(index);
+        }
+    }
+
+    /// Close menu
+    fn close_menu(&mut self) {
+        self.show_menu_index = None;
+    }
 }
 
-impl Render for MenuBar {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+impl IntoElement for MenuBar {
+    type Element = AnyElement;
+
+    fn into_element(self) -> Self::Element {
+        self.render_element()
+    }
+}
+
+impl MenuBar {
+    fn render_element(&self) -> AnyElement {
+        // Simple non-interactive version for now
         let theme = self.theme.clone();
         let items = self.items.clone();
 
@@ -203,6 +368,105 @@ impl Render for MenuBar {
                                 .text_size(theme.typography.md)
                                 .child(label)
                         )
+                })
+            )
+            .into_any_element()
+    }
+}
+
+impl Render for MenuBar {
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        let theme = self.theme.clone();
+        let items = self.items.clone();
+        let show_menu_index = self.show_menu_index;
+
+        div()
+            .flex()
+            .flex_row()
+            .w_full()
+            .h(px(32.0))
+            .bg(theme.colors.surface)
+            .border_b_1()
+            .border_color(theme.colors.border)
+            .items_center()
+            .px(theme.spacing.md)
+            .gap(theme.spacing.md)
+            .children(
+                items.into_iter().enumerate().map(|(index, item)| {
+                    let theme = theme.clone();
+                    let label = item.label.clone();
+                    let is_active = show_menu_index == Some(index);
+                    let items_clone = item.items.clone();
+
+                    div()
+                        .relative()
+                        .child(
+                            div()
+                                .px(theme.spacing.md)
+                                .py(theme.spacing.xs)
+                                .rounded(theme.borders.xs)
+                                .bg(if is_active { theme.colors.surface_hover } else { gpui::transparent_black() })
+                                .hover(|this| this.bg(theme.colors.surface_hover))
+                                .cursor_pointer()
+                                .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, _cx| {
+                                    this.toggle_menu(index);
+                                }))
+                                .child(
+                                    div()
+                                        .text_color(theme.colors.text)
+                                        .text_size(theme.typography.md)
+                                        .child(label.clone())
+                                )
+                        )
+                        .when(is_active, |this| {
+                            // Render dropdown menu
+                            this.child(
+                                div()
+                                    .absolute()
+                                    .top(px(28.0))
+                                    .left(px(0.0))
+                                    .min_w(px(200.0))
+                                    .bg(theme.colors.surface)
+                                    .border_1()
+                                    .border_color(theme.colors.border)
+                                    .rounded(theme.borders.sm)
+                                    .shadow_md()
+                                    .py(theme.spacing.xs)
+                                    .children(items_clone.into_iter().map(|action| {
+                                        let theme = theme.clone();
+                                        let action_type = action.action.clone();
+                                        let shortcut_text = action.shortcut.clone().unwrap_or_default();
+                                        
+                                        div()
+                                            .flex()
+                                            .flex_row()
+                                            .items_center()
+                                            .justify_between()
+                                            .px(theme.spacing.md)
+                                            .py(theme.spacing.sm)
+                                            .hover(|this| this.bg(theme.colors.surface_hover))
+                                            .cursor_pointer()
+                                            .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
+                                                cx.emit(MenuExecute { action: action_type.clone() });
+                                                this.close_menu();
+                                            }))
+                                            .child(
+                                                div()
+                                                    .text_color(theme.colors.text)
+                                                    .text_size(theme.typography.sm)
+                                                    .child(action.label.clone())
+                                            )
+                                            .when(!shortcut_text.is_empty(), |this| {
+                                                this.child(
+                                                    div()
+                                                        .text_color(theme.colors.text_secondary)
+                                                        .text_size(theme.typography.xs)
+                                                        .child(shortcut_text)
+                                                )
+                                            })
+                                    }))
+                            )
+                        })
                 })
             )
     }

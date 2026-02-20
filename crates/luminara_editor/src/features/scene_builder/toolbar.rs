@@ -4,9 +4,12 @@
 
 use gpui::{
     div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
+    ClickEvent,
 };
 use std::sync::Arc;
 use crate::ui::theme::Theme;
+use crate::ui::components::Button;
+use crate::features::scene_builder::{SceneBuilderState, EditorMode};
 
 /// Tool mode for transform tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,13 +38,21 @@ impl ToolMode {
             ToolMode::Select => "Select",
         }
     }
+
+    pub fn shortcut(&self) -> &'static str {
+        match self {
+            ToolMode::Move => "W",
+            ToolMode::Rotate => "E",
+            ToolMode::Scale => "R",
+            ToolMode::Select => "Q",
+        }
+    }
 }
 
 /// Main toolbar component
 pub struct MainToolbar {
     theme: Arc<Theme>,
-    active_tool: ToolMode,
-    is_playing: bool,
+    state: gpui::Model<SceneBuilderState>,
     fps: u32,
     entity_count: u32,
     database_name: String,
@@ -50,26 +61,15 @@ pub struct MainToolbar {
 
 impl MainToolbar {
     /// Create a new toolbar
-    pub fn new(theme: Arc<Theme>) -> Self {
+    pub fn new(theme: Arc<Theme>, state: gpui::Model<SceneBuilderState>) -> Self {
         Self {
             theme,
-            active_tool: ToolMode::Move,
-            is_playing: false,
+            state,
             fps: 120,
             entity_count: 32,
             database_name: "scenes".to_string(),
             ai_status: "ready".to_string(),
         }
-    }
-
-    /// Set active tool
-    pub fn set_active_tool(&mut self, tool: ToolMode) {
-        self.active_tool = tool;
-    }
-
-    /// Toggle play mode
-    pub fn toggle_play(&mut self) {
-        self.is_playing = !self.is_playing;
     }
 
     /// Update FPS
@@ -82,17 +82,71 @@ impl MainToolbar {
         self.entity_count = count;
     }
 
+    /// Enter play mode
+    fn enter_play_mode(&self, cx: &mut ViewContext<Self>) {
+        self.state.update(cx, |state, cx| {
+            state.editor_mode = EditorMode::Play;
+            cx.notify();
+        });
+    }
+
+    /// Enter pause mode
+    fn enter_pause_mode(&self, cx: &mut ViewContext<Self>) {
+        self.state.update(cx, |state, cx| {
+            state.editor_mode = EditorMode::Pause;
+            cx.notify();
+        });
+    }
+
+    /// Stop play mode (return to edit)
+    fn stop_play_mode(&self, cx: &mut ViewContext<Self>) {
+        self.state.update(cx, |state, cx| {
+            state.editor_mode = EditorMode::Edit;
+            cx.notify();
+        });
+    }
+
     /// Render play button
     fn render_play_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_playing = self.is_playing;
-        let view = cx.view().clone();
+        let is_playing = self.state.read(cx).editor_mode == EditorMode::Play;
+        let is_paused = self.state.read(cx).editor_mode == EditorMode::Pause;
+        let state_clone = self.state.clone();
 
-        crate::ui::components::Button::new("play_button", if is_playing { "Pause" } else { "Play" })
-            .icon(if is_playing { "⏸" } else { "▶" })
-            .variant(if is_playing { crate::ui::components::ButtonVariant::Primary } else { crate::ui::components::ButtonVariant::Secondary })
+        let (icon, label, variant) = if is_playing {
+            ("⏸", "Pause", crate::ui::components::ButtonVariant::Primary)
+        } else if is_paused {
+            ("▶", "Resume", crate::ui::components::ButtonVariant::Primary)
+        } else {
+            ("▶", "Play", crate::ui::components::ButtonVariant::Secondary)
+        };
+
+        crate::ui::components::Button::new("play_button", label)
+            .icon(icon)
+            .variant(variant)
             .on_click(move |_e, cx| {
-                view.update(cx, |this, cx| {
-                    this.toggle_play();
+                state_clone.update(cx, |state, cx| {
+                    match state.editor_mode {
+                        EditorMode::Play => state.editor_mode = EditorMode::Pause,
+                        EditorMode::Pause => state.editor_mode = EditorMode::Play,
+                        EditorMode::Edit => state.editor_mode = EditorMode::Play,
+                    }
+                    cx.notify();
+                });
+            })
+    }
+
+    /// Render stop button
+    fn render_stop_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        let is_editing = self.state.read(cx).editor_mode == EditorMode::Edit;
+        let state_clone = self.state.clone();
+
+        crate::ui::components::Button::new("stop_button", "Stop")
+            .icon("⏹")
+            .variant(crate::ui::components::ButtonVariant::Secondary)
+            .disabled(is_editing)
+            .on_click(move |_e, cx| {
+                state_clone.update(cx, |state, cx| {
+                    state.editor_mode = EditorMode::Edit;
                     cx.notify();
                 });
             })
@@ -100,23 +154,23 @@ impl MainToolbar {
 
     /// Render tool button
     fn render_tool_button(&self, tool: ToolMode, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_active = self.active_tool == tool;
+        let is_active = self.state.read(cx).active_tool == tool;
         let tool_clone = tool;
-        let view = cx.view().clone();
+        let state_clone = self.state.clone();
 
         crate::ui::components::Button::new(
             "tool_button",
-            tool.label(),
+            "",
         )
         .icon(tool.icon())
         .variant(if is_active {
             crate::ui::components::ButtonVariant::Primary
         } else {
-            crate::ui::components::ButtonVariant::Ghost
+            crate::ui::components::ButtonVariant::Secondary
         })
         .on_click(move |_e, cx| {
-            view.update(cx, |this, cx| {
-                this.set_active_tool(tool_clone);
+            state_clone.update(cx, |state, cx| {
+                state.active_tool = tool_clone;
                 cx.notify();
             });
         })
@@ -132,8 +186,21 @@ impl MainToolbar {
     }
 
     /// Render status bar
-    fn render_status_bar(&self) -> impl IntoElement {
+    fn render_status_bar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
+        let editor_mode = self.state.read(cx).editor_mode;
+
+        let mode_color = match editor_mode {
+            EditorMode::Edit => theme.colors.success,
+            EditorMode::Play => theme.colors.accent,
+            EditorMode::Pause => theme.colors.warning,
+        };
+
+        let mode_text = match editor_mode {
+            EditorMode::Edit => "EDIT",
+            EditorMode::Play => "PLAY",
+            EditorMode::Pause => "PAUSE",
+        };
 
         div()
             .ml_auto()
@@ -144,6 +211,20 @@ impl MainToolbar {
             .py(theme.spacing.xs)
             .rounded(theme.borders.rounded)
             .bg(theme.colors.background)
+            .child(
+                // Mode indicator
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(theme.spacing.xs)
+                    .child(
+                        div()
+                            .text_color(mode_color)
+                            .text_size(theme.typography.sm)
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .child(mode_text)
+                    )
+            )
             .child(
                 // FPS indicator
                 div()
@@ -226,7 +307,6 @@ impl MainToolbar {
 impl Render for MainToolbar {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let theme = self.theme.clone();
 
         div()
             .flex()
@@ -241,15 +321,7 @@ impl Render for MainToolbar {
             .gap(theme.spacing.sm)
             // Play/Pause/Stop buttons group
             .child(self.render_play_button(cx))
-            .child(
-                crate::ui::components::Button::new("stop_button", "Stop")
-                    .icon("⏹")
-                    .variant(crate::ui::components::ButtonVariant::Secondary)
-                    .on_click(|_e, _cx| {
-                        // Dummy click handler for stop button mockup
-                        // Note: cx.notify() requires EntityId in this GPUI version
-                    })
-            )
+            .child(self.render_stop_button(cx))
             // Separator
             .child(self.render_separator())
             // Transform tools group
@@ -258,6 +330,6 @@ impl Render for MainToolbar {
             .child(self.render_tool_button(ToolMode::Scale, cx))
             .child(self.render_tool_button(ToolMode::Select, cx))
             // Spacer and status bar
-            .child(self.render_status_bar())
+            .child(self.render_status_bar(cx))
     }
 }

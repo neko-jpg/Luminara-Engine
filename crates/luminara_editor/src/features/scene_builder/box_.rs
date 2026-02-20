@@ -9,13 +9,14 @@
 //! - Bottom Tab Panel (bottom, 200px)
 
 use gpui::{
-    IntoElement, Render, View, ViewContext, VisualContext as _,
+    IntoElement, Render, View, ViewContext, VisualContext as _, Context,
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
 use std::collections::HashSet;
 use crate::ui::theme::Theme;
-use crate::ui::layouts::{WorkspaceLayout, MenuBar};
+use crate::ui::layouts::WorkspaceLayout;
+use crate::features::scene_builder::menu_bar::MenuBar;
 use crate::services::engine_bridge::EngineHandle;
 use crate::features::scene_builder::{
     toolbar::{MainToolbar, ToolMode},
@@ -26,20 +27,34 @@ use crate::features::scene_builder::{
 };
 use luminara_core::Entity;
 
+/// Editor play mode state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorMode {
+    Edit,
+    Play,
+    Pause,
+}
+
+impl Default for EditorMode {
+    fn default() -> Self { Self::Edit }
+}
+
 /// State for the Scene Builder
 #[derive(Debug, Clone)]
 pub struct SceneBuilderState {
-    pub selected_entities: Arc<RwLock<HashSet<Entity>>>,
+    pub selected_entities: HashSet<Entity>,
     pub active_tool: ToolMode,
     pub active_bottom_tab: BottomTab,
+    pub editor_mode: EditorMode,
 }
 
 impl Default for SceneBuilderState {
     fn default() -> Self {
         Self {
-            selected_entities: Arc::new(RwLock::new(HashSet::new())),
+            selected_entities: HashSet::new(),
             active_tool: ToolMode::Move,
             active_bottom_tab: BottomTab::Console,
+            editor_mode: EditorMode::Edit,
         }
     }
 }
@@ -48,7 +63,7 @@ impl Default for SceneBuilderState {
 pub struct SceneBuilderBox {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
-    state: SceneBuilderState,
+    pub state: gpui::Model<SceneBuilderState>,
     // Child views
     toolbar: View<MainToolbar>,
     hierarchy: View<HierarchyPanel>,
@@ -64,28 +79,25 @@ impl SceneBuilderBox {
         theme: Arc<Theme>,
         cx: &mut ViewContext<Self>,
     ) -> Self {
-        // Create shared selection state
-        let selected_entities = Arc::new(RwLock::new(HashSet::new()));
-        let selected_entities_hierarchy = selected_entities.clone();
-        let selected_entities_viewport = selected_entities.clone();
-        let selected_entities_inspector = selected_entities.clone();
+        let state = cx.new_model(|_cx| SceneBuilderState::default());
 
         // Create child views
-        let toolbar = cx.new_view(|_cx| MainToolbar::new(theme.clone()));
-        let hierarchy = cx.new_view(|_cx| HierarchyPanel::new(
+        let toolbar = cx.new_view(|_cx| MainToolbar::new(theme.clone(), state.clone()));
+        let hierarchy = cx.new_view(|cx| HierarchyPanel::new(
             theme.clone(),
             engine_handle.clone(),
-            selected_entities_hierarchy,
+            state.clone(),
+            cx,
         ));
         let viewport = cx.new_view(|_cx| Viewport3D::new(
             theme.clone(),
             engine_handle.clone(),
-            selected_entities_viewport,
+            state.clone(),
         ));
         let inspector = cx.new_view(|cx| InspectorPanel::new(
             theme.clone(),
             engine_handle.clone(),
-            selected_entities_inspector,
+            state.clone(),
             cx,
         ));
         let bottom_tabs = cx.new_view(|_cx| BottomTabPanel::new(theme.clone()));
@@ -93,7 +105,7 @@ impl SceneBuilderBox {
         Self {
             theme,
             engine_handle,
-            state: SceneBuilderState::default(),
+            state,
             toolbar,
             hierarchy,
             viewport,
@@ -112,61 +124,65 @@ impl SceneBuilderBox {
         &self.engine_handle
     }
 
-    /// Get state reference
-    pub fn state(&self) -> &SceneBuilderState {
+    /// Get state model reference
+    pub fn state(&self) -> &gpui::Model<SceneBuilderState> {
         &self.state
     }
 
     /// Select an entity
     pub fn select_entity(&mut self, entity: Entity, multi_select: bool, cx: &mut ViewContext<Self>) {
-        let mut selected = self.state.selected_entities.write();
-
-        if multi_select {
-            if selected.contains(&entity) {
-                selected.remove(&entity);
+        self.state.update(cx, |state, cx| {
+            if multi_select {
+                if state.selected_entities.contains(&entity) {
+                    state.selected_entities.remove(&entity);
+                } else {
+                    state.selected_entities.insert(entity);
+                }
             } else {
-                selected.insert(entity);
+                state.selected_entities.clear();
+                state.selected_entities.insert(entity);
             }
-        } else {
-            selected.clear();
-            selected.insert(entity);
-        }
-
-        drop(selected);
-        cx.notify();
+            cx.notify();
+        });
     }
 
     /// Clear selection
     pub fn clear_selection(&mut self, cx: &mut ViewContext<Self>) {
-        self.state.selected_entities.write().clear();
-        cx.notify();
+        self.state.update(cx, |state, cx| {
+            state.selected_entities.clear();
+            cx.notify();
+        });
     }
 
     /// Get selected entities
-    pub fn selected_entities(&self) -> HashSet<Entity> {
-        self.state.selected_entities.read().clone()
+    pub fn selected_entities(&self, cx: &gpui::AppContext) -> HashSet<Entity> {
+        self.state.read(cx).selected_entities.clone()
     }
 
     /// Set active tool
     pub fn set_active_tool(&mut self, tool: ToolMode, cx: &mut ViewContext<Self>) {
-        self.state.active_tool = tool;
-        cx.notify();
+        self.state.update(cx, |state, cx| {
+            state.active_tool = tool;
+            cx.notify();
+        });
     }
 
     /// Get active tool
-    pub fn active_tool(&self) -> ToolMode {
-        self.state.active_tool
+    pub fn active_tool(&self, cx: &gpui::AppContext) -> ToolMode {
+        self.state.read(cx).active_tool
     }
 
     /// Set active bottom tab
     pub fn set_active_bottom_tab(&mut self, tab: BottomTab, cx: &mut ViewContext<Self>) {
-        self.state.active_bottom_tab = tab;
-        cx.notify();
+        self.state.update(cx, |state, cx| {
+            state.active_bottom_tab = tab;
+            cx.notify();
+        });
     }
 
     /// Get active bottom tab
-    pub fn active_bottom_tab(&self) -> BottomTab {
-        self.state.active_bottom_tab
+    pub fn active_bottom_tab(&self, cx: &gpui::AppContext) -> BottomTab {
+        self.state.read(cx).active_bottom_tab
     }
 }
 
@@ -178,7 +194,8 @@ impl Render for SceneBuilderBox {
         WorkspaceLayout::new(theme.clone())
             .menu_bar(
                 MenuBar::new(theme.clone())
-                    .items(vec!["File", "Edit", "Assets", "GameObject", "Component", "Window", "AI", "Help"])
+                    .with_engine_handle(self.engine_handle.clone())
+                    .with_state(self.state.clone())
             )
             .toolbar(self.toolbar.clone())
             .left_panel(self.hierarchy.clone())
@@ -195,9 +212,10 @@ mod tests {
     #[test]
     fn test_scene_builder_state_default() {
         let state = SceneBuilderState::default();
-        assert!(state.selected_entities.read().is_empty());
+        assert!(state.selected_entities.is_empty());
         assert!(matches!(state.active_tool, ToolMode::Move));
         assert!(matches!(state.active_bottom_tab, BottomTab::Console));
+        assert!(matches!(state.editor_mode, EditorMode::Edit));
     }
 
     #[test]

@@ -20,8 +20,27 @@ use gpui::{
 };
 
 fn main() {
-    // Initialize Luminara Engine
-    let engine_app = App::new();
+    // Custom initialization of Luminara Engine
+    let mut engine_app = App::new();
+    
+    // Setup some dummy entities to test the Hierarchy
+    use luminara_scene::scene::Name;
+    use luminara_scene::hierarchy::{Parent, Children};
+    
+    let camera = engine_app.world.spawn();
+    let _ = engine_app.world.add_component(camera, Name::new("Main Camera"));
+    
+    let light = engine_app.world.spawn();
+    let _ = engine_app.world.add_component(light, Name::new("Directional Light"));
+    
+    let player = engine_app.world.spawn();
+    let _ = engine_app.world.add_component(player, Name::new("Player Character"));
+    
+    let mesh = engine_app.world.spawn();
+    let _ = engine_app.world.add_component(mesh, Name::new("Body Mesh"));
+    let _ = engine_app.world.add_component(mesh, Parent(player));
+    let _ = engine_app.world.add_component(player, Children(vec![mesh]));
+
     let world = Arc::new(RwLock::new(engine_app.world));
     
     // Initialize subsystems

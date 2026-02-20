@@ -21,7 +21,7 @@ pub mod toolbar;
 pub mod viewport;
 
 // Re-export main types
-pub use box_::{SceneBuilderBox, SceneBuilderState};
+pub use box_::{SceneBuilderBox, SceneBuilderState, EditorMode};
 pub use bottom_tabs::{BottomTab, BottomTabPanel};
 pub use hierarchy::{HierarchyPanel, HierarchyItem};
 pub use inspector::{InspectorPanel, TransformEditor};

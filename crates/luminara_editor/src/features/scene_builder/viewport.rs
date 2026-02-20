@@ -8,11 +8,11 @@ use gpui::{
 };
 use std::sync::Arc;
 use parking_lot::RwLock;
-use std::collections::HashSet;
 use crate::ui::theme::Theme;
 use crate::services::engine_bridge::EngineHandle;
 use crate::core::viewport::{ViewportElement, Camera, SharedRenderTarget, GizmoMode};
-use luminara_core::Entity;
+use crate::features::scene_builder::SceneBuilderState;
+use crate::features::scene_builder::toolbar::ToolMode;
 
 /// Grid background pattern for viewport
 pub struct GridBackground;
@@ -41,39 +41,12 @@ impl GridBackground {
     }
 }
 
-/// Viewport tool mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ViewportTool {
-    Move,
-    Rotate,
-    Scale,
-}
-
-impl ViewportTool {
-    pub fn icon(&self) -> &'static str {
-        match self {
-            ViewportTool::Move => "↔",
-            ViewportTool::Rotate => "↻",
-            ViewportTool::Scale => "⤢",
-        }
-    }
-
-    pub fn label(&self) -> &'static str {
-        match self {
-            ViewportTool::Move => "Move",
-            ViewportTool::Rotate => "Rotate",
-            ViewportTool::Scale => "Scale",
-        }
-    }
-}
-
 /// 3D Viewport component
 pub struct Viewport3D {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
     viewport_element: ViewportElement,
-    active_tool: ViewportTool,
-    selected_entities: Arc<RwLock<HashSet<Entity>>>,
+    state: gpui::Model<SceneBuilderState>,
 }
 
 impl Viewport3D {
@@ -81,7 +54,7 @@ impl Viewport3D {
     pub fn new(
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
-        selected_entities: Arc<RwLock<HashSet<Entity>>>,
+        state: gpui::Model<SceneBuilderState>,
     ) -> Self {
         // Create shared render target
         let render_target = Arc::new(RwLock::new(SharedRenderTarget::new((800, 600))));
@@ -96,42 +69,20 @@ impl Viewport3D {
             GizmoMode::Translate,
             theme.clone(),
         )
-        .with_engine_handle(engine_handle.clone())
-        .with_selected_entities(selected_entities.clone());
+        .with_engine_handle(engine_handle.clone());
 
         Self {
             theme,
             engine_handle,
             viewport_element,
-            active_tool: ViewportTool::Move,
-            selected_entities,
+            state,
         }
-    }
-
-    /// Set active tool
-    pub fn set_active_tool(&mut self, tool: ViewportTool) {
-        self.active_tool = tool;
-        // Update viewport element gizmo mode
-        let render_target = self.viewport_element.render_target.clone();
-        let camera = self.viewport_element.camera.clone();
-        let gizmo_mode = match tool {
-            ViewportTool::Move => GizmoMode::Translate,
-            ViewportTool::Rotate => GizmoMode::Rotate,
-            ViewportTool::Scale => GizmoMode::Scale,
-        };
-        self.viewport_element = ViewportElement::new(
-            render_target,
-            camera,
-            gizmo_mode,
-            self.theme.clone(),
-        )
-        .with_engine_handle(self.engine_handle.clone())
-        .with_selected_entities(self.selected_entities.clone());
     }
 
     /// Render viewport toolbar
     fn render_toolbar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
+        let active_tool = self.state.read(cx).active_tool;
 
         div()
             .absolute()
@@ -147,13 +98,14 @@ impl Viewport3D {
             .border_color(theme.colors.border)
             .rounded(theme.borders.rounded)
             .children([
-                (ViewportTool::Move, "W"),
-                (ViewportTool::Rotate, "E"),
-                (ViewportTool::Scale, "R"),
+                (ToolMode::Move, "W"),
+                (ToolMode::Rotate, "E"),
+                (ToolMode::Scale, "R"),
             ].into_iter().map(move |(tool, _shortcut)| {
                 let theme = theme.clone();
-                let is_active = self.active_tool == tool;
+                let is_active = active_tool == tool;
                 let tool_clone = tool;
+                let state_clone = self.state.clone();
 
                 div()
                     .flex()
@@ -171,9 +123,11 @@ impl Viewport3D {
                         }
                     })
                     .cursor_pointer()
-                    .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
-                        this.set_active_tool(tool_clone);
-                        cx.notify();
+                    .on_mouse_down(MouseButton::Left, cx.listener(move |_this, _event: &MouseDownEvent, cx| {
+                        state_clone.update(cx, |state, cx| {
+                            state.active_tool = tool_clone;
+                            cx.notify();
+                        });
                     }))
                     .child(
                         div()
@@ -191,8 +145,8 @@ impl Viewport3D {
     }
 
     /// Get selected entity name for display
-    fn get_selection_text(&self) -> String {
-        let selected = self.selected_entities.read();
+    fn get_selection_text(&self, cx: &ViewContext<Self>) -> String {
+        let selected = &self.state.read(cx).selected_entities;
         if selected.is_empty() {
             "No selection".to_string()
         } else if selected.len() == 1 {
@@ -203,9 +157,9 @@ impl Viewport3D {
     }
 
     /// Render selection indicator
-    fn render_selection_indicator(&self) -> impl IntoElement {
+    fn render_selection_indicator(&self, cx: &ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let text = self.get_selection_text();
+        let text = self.get_selection_text(cx);
 
         div()
             .absolute()
@@ -245,7 +199,19 @@ impl Viewport3D {
 impl Render for Viewport3D {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let theme = self.theme.clone();
+        
+        let state = self.state.read(cx);
+        let active_tool = state.active_tool;
+        let selected_entities = state.selected_entities.clone();
+        
+        let mut element = self.viewport_element.clone()
+            .with_selected_entities(selected_entities);
+        element.gizmo_mode = match active_tool {
+            ToolMode::Move => GizmoMode::Translate,
+            ToolMode::Rotate => GizmoMode::Rotate,
+            ToolMode::Scale => GizmoMode::Scale,
+            ToolMode::Select => GizmoMode::None,
+        };
 
         div()
             .flex()
@@ -311,7 +277,7 @@ impl Render for Viewport3D {
                     .relative()
                     .child(GridBackground::render(theme.clone()))
                     .child(self.render_toolbar(cx))
-                    .child(self.render_selection_indicator())
+                    .child(self.render_selection_indicator(cx))
                     .child(
                         // 3D viewport element placeholder
                         div()
@@ -320,7 +286,7 @@ impl Render for Viewport3D {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .child(self.viewport_element.clone())
+                            .child(element)
                     )
             )
     }
