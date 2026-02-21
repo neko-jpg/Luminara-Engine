@@ -14,7 +14,7 @@ luminara_asset = { path = "../luminara_asset" }
 luminara_render = { path = "../luminara_render" }
 luminara_scene = { path = "../luminara_scene" }
 luminara_input = { path = "../luminara_input" }
-# luminara_db = { path = "../luminara_db" }  # Temporarily disabled due to compilation issues
+luminara_db = { path = "../luminara_db" }
 
 # GPUI framework
 # Note: GPUI is part of the Zed repository, using a specific stable release
@@ -38,6 +38,8 @@ anyhow = "1.0"
 parking_lot = "0.12"
 dirs = "5.0"
 chrono = "0.4"
+surrealdb = "2.1.2"
+log = "0.4"
 
 # Windows API (for keyboard input)
 [target.'cfg(windows)'.dependencies]

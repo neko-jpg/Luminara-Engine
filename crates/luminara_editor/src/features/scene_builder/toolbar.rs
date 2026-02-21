@@ -9,7 +9,7 @@ use gpui::{
 use std::sync::Arc;
 use crate::ui::theme::Theme;
 use crate::ui::components::Button;
-use crate::features::scene_builder::{SceneBuilderState, EditorMode};
+use crate::core::state::EditorStateManager;
 
 /// Tool mode for transform tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +52,7 @@ impl ToolMode {
 /// Main toolbar component
 pub struct MainToolbar {
     theme: Arc<Theme>,
-    state: gpui::Model<SceneBuilderState>,
+    state: gpui::Model<EditorStateManager>,
     fps: u32,
     entity_count: u32,
     database_name: String,
@@ -61,7 +61,11 @@ pub struct MainToolbar {
 
 impl MainToolbar {
     /// Create a new toolbar
-    pub fn new(theme: Arc<Theme>, state: gpui::Model<SceneBuilderState>) -> Self {
+    pub fn new(theme: Arc<Theme>, state: gpui::Model<EditorStateManager>, cx: &mut ViewContext<Self>) -> Self {
+        cx.observe(&state, |_this: &mut MainToolbar, _model, cx| {
+            cx.notify();
+        }).detach();
+
         Self {
             theme,
             state,
@@ -85,31 +89,28 @@ impl MainToolbar {
     /// Enter play mode
     fn enter_play_mode(&self, cx: &mut ViewContext<Self>) {
         self.state.update(cx, |state, cx| {
-            state.editor_mode = EditorMode::Play;
-            cx.notify();
+            state.set_editor_mode("Play".to_string(), cx);
         });
     }
 
     /// Enter pause mode
     fn enter_pause_mode(&self, cx: &mut ViewContext<Self>) {
         self.state.update(cx, |state, cx| {
-            state.editor_mode = EditorMode::Pause;
-            cx.notify();
+            state.set_editor_mode("Pause".to_string(), cx);
         });
     }
 
     /// Stop play mode (return to edit)
     fn stop_play_mode(&self, cx: &mut ViewContext<Self>) {
         self.state.update(cx, |state, cx| {
-            state.editor_mode = EditorMode::Edit;
-            cx.notify();
+            state.set_editor_mode("Edit".to_string(), cx);
         });
     }
 
     /// Render play button
     fn render_play_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_playing = self.state.read(cx).editor_mode == EditorMode::Play;
-        let is_paused = self.state.read(cx).editor_mode == EditorMode::Pause;
+        let is_playing = self.state.read(cx).session.editor_mode == "Play";
+        let is_paused = self.state.read(cx).session.editor_mode == "Pause";
         let state_clone = self.state.clone();
 
         let (icon, label, variant) = if is_playing {
@@ -125,19 +126,20 @@ impl MainToolbar {
             .variant(variant)
             .on_click(move |_e, cx| {
                 state_clone.update(cx, |state, cx| {
-                    match state.editor_mode {
-                        EditorMode::Play => state.editor_mode = EditorMode::Pause,
-                        EditorMode::Pause => state.editor_mode = EditorMode::Play,
-                        EditorMode::Edit => state.editor_mode = EditorMode::Play,
-                    }
-                    cx.notify();
+                    let next_mode = match state.session.editor_mode.as_str() {
+                        "Play" => "Pause",
+                        "Pause" => "Play",
+                        "Edit" => "Play",
+                        _ => "Play",
+                    };
+                    state.set_editor_mode(next_mode.to_string(), cx);
                 });
             })
     }
 
     /// Render stop button
     fn render_stop_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_editing = self.state.read(cx).editor_mode == EditorMode::Edit;
+        let is_editing = self.state.read(cx).session.editor_mode == "Edit";
         let state_clone = self.state.clone();
 
         crate::ui::components::Button::new("stop_button", "Stop")
@@ -146,15 +148,14 @@ impl MainToolbar {
             .disabled(is_editing)
             .on_click(move |_e, cx| {
                 state_clone.update(cx, |state, cx| {
-                    state.editor_mode = EditorMode::Edit;
-                    cx.notify();
+                    state.set_editor_mode("Edit".to_string(), cx);
                 });
             })
     }
 
     /// Render tool button
     fn render_tool_button(&self, tool: ToolMode, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_active = self.state.read(cx).active_tool == tool;
+        let is_active = self.state.read(cx).session.active_tool == tool.label();
         let tool_clone = tool;
         let state_clone = self.state.clone();
 
@@ -170,8 +171,7 @@ impl MainToolbar {
         })
         .on_click(move |_e, cx| {
             state_clone.update(cx, |state, cx| {
-                state.active_tool = tool_clone;
-                cx.notify();
+                state.set_active_tool(tool_clone.label().to_string(), cx);
             });
         })
     }
@@ -188,19 +188,16 @@ impl MainToolbar {
     /// Render status bar
     fn render_status_bar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let editor_mode = self.state.read(cx).editor_mode;
+        let editor_mode = self.state.read(cx).session.editor_mode.clone();
 
-        let mode_color = match editor_mode {
-            EditorMode::Edit => theme.colors.success,
-            EditorMode::Play => theme.colors.accent,
-            EditorMode::Pause => theme.colors.warning,
+        let mode_color = match editor_mode.as_str() {
+            "Edit" => theme.colors.success,
+            "Play" => theme.colors.accent,
+            "Pause" => theme.colors.warning,
+            _ => theme.colors.success,
         };
 
-        let mode_text = match editor_mode {
-            EditorMode::Edit => "EDIT",
-            EditorMode::Play => "PLAY",
-            EditorMode::Pause => "PAUSE",
-        };
+        let mode_text = editor_mode.to_uppercase();
 
         div()
             .ml_auto()

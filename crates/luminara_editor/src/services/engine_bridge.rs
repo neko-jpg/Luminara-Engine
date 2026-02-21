@@ -8,22 +8,142 @@ use luminara_asset::AssetServer;
 use parking_lot::{RwLock, Mutex};
 use std::sync::Arc;
 use std::collections::VecDeque;
+use std::collections::HashSet;
+use std::time::Instant;
+use luminara_math::Vec3;
+use luminara_math::Transform;
+use luminara_scene::Name;
 
-// Temporary mock Database until luminara_db compilation issues are resolved
-pub struct Database;
+// Use real Database now that luminara_db is ready
+pub use luminara_db::database::LuminaraDatabase as Database;
 
-impl Database {
-    pub fn memory() -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Database)
-    }
+#[derive(Debug, Clone)]
+pub struct PreviewBillboard {
+    pub id: String,
+    pub name: String,
+    pub x: f32,
+    pub y: f32,
+    pub radius: f32,
+    pub depth: f32,
+    pub selected: bool,
 }
 
-// Temporary mock RenderPipeline
-pub struct RenderPipeline;
+#[derive(Debug, Clone, Copy)]
+pub struct RenderFrameStats {
+    pub fps: f32,
+    pub frame_time_ms: f32,
+    pub frame_count: u64,
+}
+
+pub struct RenderPipeline {
+    frame_count: u64,
+    last_frame_instant: Instant,
+    fps: f32,
+    frame_time_ms: f32,
+}
 
 impl RenderPipeline {
     pub fn mock() -> Self {
-        RenderPipeline
+        Self {
+            frame_count: 0,
+            last_frame_instant: Instant::now(),
+            fps: 0.0,
+            frame_time_ms: 0.0,
+        }
+    }
+
+    pub fn tick_frame(&mut self) -> RenderFrameStats {
+        let now = Instant::now();
+        let dt = now.duration_since(self.last_frame_instant).as_secs_f32();
+        self.last_frame_instant = now;
+        self.frame_count = self.frame_count.saturating_add(1);
+
+        if dt > 0.0 {
+            let instant_fps = 1.0 / dt;
+            self.fps = if self.fps == 0.0 {
+                instant_fps
+            } else {
+                self.fps * 0.9 + instant_fps * 0.1
+            };
+            self.frame_time_ms = dt * 1000.0;
+        }
+
+        RenderFrameStats {
+            fps: self.fps,
+            frame_time_ms: self.frame_time_ms,
+            frame_count: self.frame_count,
+        }
+    }
+
+    pub fn project_scene_billboards(
+        &mut self,
+        world: &World,
+        camera_pos: Vec3,
+        camera_target: Vec3,
+        camera_up: Vec3,
+        camera_fov_deg: f32,
+        viewport_width: f32,
+        viewport_height: f32,
+        selected_entities: &HashSet<String>,
+    ) -> Vec<PreviewBillboard> {
+        let _ = self.tick_frame();
+
+        if viewport_width <= 1.0 || viewport_height <= 1.0 {
+            return Vec::new();
+        }
+
+        let forward = (camera_target - camera_pos).normalize();
+        let right = forward.cross(camera_up).normalize();
+        let up = right.cross(forward).normalize();
+        let aspect = (viewport_width / viewport_height).max(0.1);
+        let f = 1.0 / (camera_fov_deg.to_radians() * 0.5).tan();
+
+        let mut out = Vec::new();
+
+        for entity in world.entities() {
+            let id = format!("{}:{}", entity.id(), entity.generation());
+            let name = world
+                .get_component::<Name>(entity)
+                .map(|n| n.0.clone())
+                .unwrap_or_else(|| format!("Entity {}", entity.id()));
+            let position = world
+                .get_component::<Transform>(entity)
+                .map(|t| t.translation)
+                .unwrap_or(Vec3::ZERO);
+
+            let rel = position - camera_pos;
+            let cam_x = rel.dot(right);
+            let cam_y = rel.dot(up);
+            let cam_z = rel.dot(forward);
+
+            if cam_z <= 0.05 {
+                continue;
+            }
+
+            let ndc_x = (cam_x / cam_z) * (f / aspect);
+            let ndc_y = (cam_y / cam_z) * f;
+
+            if ndc_x.abs() > 1.8 || ndc_y.abs() > 1.8 {
+                continue;
+            }
+
+            let sx = (ndc_x * 0.5 + 0.5) * viewport_width;
+            let sy = (1.0 - (ndc_y * 0.5 + 0.5)) * viewport_height;
+            let radius = (8.0 / cam_z.max(0.4)).clamp(3.0, 10.0);
+
+            out.push(PreviewBillboard {
+                id: id.clone(),
+                name,
+                x: sx,
+                y: sy,
+                radius,
+                depth: cam_z,
+                selected: selected_entities.contains(&id),
+            });
+        }
+
+        out.sort_by(|a, b| b.depth.partial_cmp(&a.depth).unwrap_or(std::cmp::Ordering::Equal));
+        out
     }
 }
 
@@ -584,7 +704,10 @@ impl EngineHandle {
         
         // Create mock subsystems
         let asset_server = Arc::new(AssetServer::new(PathBuf::from("assets")));
-        let database = Arc::new(Database::memory().expect("Failed to create memory database"));
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+        let database = Arc::new(rt.block_on(Database::new_memory()).expect("Failed to create memory database"));
+        drop(rt);
+
         let render_pipeline = Arc::new(RwLock::new(RenderPipeline::mock()));
         
         Self::new(world, asset_server, database, render_pipeline)

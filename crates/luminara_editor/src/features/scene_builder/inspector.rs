@@ -11,11 +11,10 @@ use std::collections::HashSet;
 use crate::ui::components::{PanelHeader, Dropdown, TextInput, Button, ButtonVariant};
 use crate::ui::theme::Theme;
 use crate::services::engine_bridge::EngineHandle;
-use crate::services::component_binding::{CommandHistory, EditCommand};
 use luminara_core::Entity;
 use luminara_math::{Transform, Vec3, Quat};
 use luminara_scene::{Name, Tag};
-use crate::features::scene_builder::SceneBuilderState;
+use crate::core::state::EditorStateManager;
 
 /// Transform property editor
 #[derive(Debug, Clone)]
@@ -70,9 +69,7 @@ impl TransformEditor {
 pub struct InspectorPanel {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
-    state: gpui::Model<SceneBuilderState>,
-    // For tracking edit history
-    command_history: CommandHistory,
+    state: gpui::Model<EditorStateManager>,
     // For tracking which component is being added
     show_add_component_menu: bool,
     // Editing state
@@ -89,9 +86,13 @@ impl InspectorPanel {
     pub fn new(
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
-        state: gpui::Model<SceneBuilderState>,
+        state: gpui::Model<EditorStateManager>,
         cx: &mut ViewContext<Self>,
     ) -> Self {
+        cx.observe(&state, |_this: &mut InspectorPanel, _model, cx| {
+            cx.notify();
+        }).detach();
+
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::time::Duration;
         use crate::services::engine_bridge::Event;
@@ -121,11 +122,11 @@ impl InspectorPanel {
             }
         }).detach();
 
+        let state_clone = state.clone();
         Self {
             theme,
             engine_handle,
-            state,
-            command_history: CommandHistory::new(100),
+            state: state_clone,
             show_add_component_menu: false,
             editing_name: String::new(),
             is_editing_name: false,
@@ -138,7 +139,15 @@ impl InspectorPanel {
     /// Get selected entity
     fn get_selected_entity(&self, cx: &ViewContext<Self>) -> Option<Entity> {
         let state = self.state.read(cx);
-        state.selected_entities.iter().next().copied()
+        // Take the first selected entity ID string and parse it back to Entity
+        state.session.selected_entities.first().and_then(|id_str| {
+            if let Some((id_part, gen_part)) = id_str.split_once(':') {
+                if let (Ok(id), Ok(gen)) = (id_part.parse::<u32>(), gen_part.parse::<u32>()) {
+                    return Some(Entity::from_raw(id, gen));
+                }
+            }
+            None
+        })
     }
 
     /// Get entity transform if available
@@ -156,22 +165,24 @@ impl InspectorPanel {
         let world = self.engine_handle.world();
         let old_transform = world.get_component::<Transform>(entity).copied();
         drop(world);
+ 
+        // Record in global state manager (Local-First SSOT)
+        if let Some(old) = old_transform {
+            let state_clone = self.state.clone();
+            let entity_id = format!("{}:{}", entity.id(), entity.generation());
+            state_clone.update(cx, |state, cx| {
+                state.record_component_edit(
+                    entity_id,
+                    "Transform".to_string(),
+                    serde_json::to_value(&transform).unwrap_or_default(),
+                    serde_json::to_value(&old).unwrap_or_default(),
+                    cx
+                );
+            });
+        }
 
         // Apply update
         let _ = self.engine_handle.update_component(entity, transform);
-
-        // Record in history if this is a significant change
-        if let Some(old) = old_transform {
-            let cmd = EditCommand::new(
-                "Update Transform",
-                entity,
-                "Transform",
-                serde_json::to_value(&old).unwrap_or_default(),
-                serde_json::to_value(&transform).unwrap_or_default(),
-            );
-            self.command_history.push(cmd);
-        }
-
         cx.notify();
     }
 
@@ -196,6 +207,23 @@ impl InspectorPanel {
 
     /// Update entity name
     fn update_entity_name(&mut self, entity: Entity, name: String, cx: &mut ViewContext<Self>) {
+        let world = self.engine_handle.world();
+        let old_name = world.get_component::<Name>(entity).map(|n| n.0.clone()).unwrap_or_default();
+        drop(world);
+
+        let entity_id = format!("{}:{}", entity.id(), entity.generation());
+        let name_clone = name.clone();
+        
+        self.state.update(cx, |state, cx| {
+            state.record_component_edit(
+                entity_id,
+                "Name".to_string(),
+                serde_json::json!(&name_clone),
+                serde_json::json!(&old_name),
+                cx
+            );
+        });
+
         let _ = self.engine_handle.update_component(entity, Name::new(&name));
         self.is_editing_name = false;
         cx.notify();
@@ -203,60 +231,13 @@ impl InspectorPanel {
 
     /// Add a component to entity
     fn add_component_to_entity(&mut self, entity: Entity, component_type: &str, cx: &mut ViewContext<Self>) {
-        match component_type {
-            "Transform" => {
-                let _ = self.engine_handle.update_component(entity, Transform::IDENTITY);
-            }
-            "Name" => {
-                let _ = self.engine_handle.update_component(entity, Name::new("New Entity"));
-            }
-            _ => {}
-        }
+        self.state.update(cx, |state, cx| {
+            state.add_component(entity, component_type, cx);
+        });
         self.show_add_component_menu = false;
         cx.notify();
     }
 
-    /// Check if undo is available
-    pub fn can_undo(&self) -> bool {
-        self.command_history.can_undo()
-    }
-
-    /// Check if redo is available
-    pub fn can_redo(&self) -> bool {
-        self.command_history.can_redo()
-    }
-
-    /// Undo last operation
-    pub fn undo(&mut self, cx: &mut ViewContext<Self>) {
-        let entity = self.get_selected_entity(cx);
-        if let Some(cmd) = self.command_history.undo() {
-            // Restore old value
-            if let Some(entity) = entity {
-                if cmd.component_type == "Transform" {
-                    if let Ok(old_transform) = serde_json::from_value::<Transform>(cmd.old_value.clone()) {
-                        let _ = self.engine_handle.update_component(entity, old_transform);
-                    }
-                }
-            }
-            cx.notify();
-        }
-    }
-
-    /// Redo last undone operation
-    pub fn redo(&mut self, cx: &mut ViewContext<Self>) {
-        let entity = self.get_selected_entity(cx);
-        if let Some(cmd) = self.command_history.redo() {
-            // Apply new value
-            if let Some(entity) = entity {
-                if cmd.component_type == "Transform" {
-                    if let Ok(new_transform) = serde_json::from_value::<Transform>(cmd.new_value.clone()) {
-                        let _ = self.engine_handle.update_component(entity, new_transform);
-                    }
-                }
-            }
-            cx.notify();
-        }
-    }
 
     /// Render vector3 input (Position, Rotation, Scale)
     fn render_vector3_input(
@@ -388,20 +369,17 @@ impl InspectorPanel {
                 div()
                     .p(theme.spacing.md)
                     .child(self.render_vector3_input("Position", position, {
-                        let entity = entity;
                         move |val, idx| {
                             // Queue position update - would need proper state management
                             println!("Position {}: {}", idx, val);
                         }
                     }, cx))
                     .child(self.render_vector3_input("Rotation", rotation, {
-                        let entity = entity;
                         move |val, idx| {
                             println!("Rotation {}: {}", idx, val);
                         }
                     }, cx))
                     .child(self.render_vector3_input("Scale", scale, {
-                        let entity = entity;
                         move |val, idx| {
                             println!("Scale {}: {}", idx, val);
                         }
@@ -676,17 +654,19 @@ impl InspectorPanel {
                     .child(
                         Button::new("undo_btn", "Undo")
                             .variant(ButtonVariant::Ghost)
-                            .disabled(!self.can_undo())
                             .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
-                                this.undo(cx);
+                                this.state.update(cx, |state, cx| {
+                                    state.undo(cx);
+                                });
                             }))
                     )
                     .child(
                         Button::new("redo_btn", "Redo")
                             .variant(ButtonVariant::Ghost)
-                            .disabled(!self.can_redo())
                             .on_click(cx.listener(|this, _event: &ClickEvent, cx| {
-                                this.redo(cx);
+                                this.state.update(cx, |state, cx| {
+                                    state.redo(cx);
+                                });
                             }))
                     )
             )
@@ -712,32 +692,26 @@ impl Render for InspectorPanel {
                         div()
                             .flex()
                             .items_center()
-                            .child(
-                                // DB Sync toggle
+                            .child({
+                                let is_syncing = self.state.read(cx).is_syncing;
                                 div()
                                     .flex()
                                     .items_center()
                                     .gap(theme.spacing.xs)
                                     .mr(theme.spacing.md)
-                                    .cursor_pointer()
-                                    .hover(|this| this.bg(theme.colors.surface_hover))
-                                    .on_mouse_down(MouseButton::Left, cx.listener(|this, _event: &MouseDownEvent, cx| {
-                                        // Toggle DB sync
-                                        cx.notify();
-                                    }))
                                     .child(
                                         div()
-                                            .text_color(theme.colors.accent)
+                                            .text_color(if is_syncing { theme.colors.accent } else { theme.colors.success })
                                             .text_size(theme.typography.xs)
-                                            .child("↻")
+                                            .child(if is_syncing { "↻" } else { "✓" })
                                     )
                                     .child(
                                         div()
                                             .text_color(theme.colors.text_secondary)
                                             .text_size(theme.typography.xs)
-                                            .child("DB Sync")
+                                            .child(if is_syncing { "Syncing..." } else { "Saved" })
                                     )
-                            )
+                            })
                             .child(
                                 div()
                                     .text_color(theme.colors.text_secondary)

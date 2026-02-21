@@ -97,6 +97,8 @@ pub struct ResizablePanel {
     parent_proportion: Option<f32>,
     /// Unique panel ID for persistence (e.g., "scene_builder.hierarchy")
     panel_id: Option<String>,
+    /// Callback triggered when a resize drag operation completes
+    on_resize_complete: Option<std::sync::Arc<dyn Fn(Pixels, &mut ViewContext<Self>) + Send + Sync>>,
 }
 
 impl ResizablePanel {
@@ -145,6 +147,7 @@ impl ResizablePanel {
             parent_size: None,
             parent_proportion: None,
             panel_id: None,
+            on_resize_complete: None,
         }
     }
 
@@ -169,6 +172,15 @@ impl ResizablePanel {
     /// Get the panel ID if set
     pub fn panel_id(&self) -> Option<&str> {
         self.panel_id.as_deref()
+    }
+
+    /// Set a callback to be triggered when a resize operation completes
+    pub fn on_resize_complete(
+        mut self,
+        callback: impl Fn(Pixels, &mut ViewContext<Self>) + Send + Sync + 'static,
+    ) -> Self {
+        self.on_resize_complete = Some(std::sync::Arc::new(callback));
+        self
     }
 
     /// Load panel size from preferences
@@ -416,10 +428,11 @@ impl ResizablePanel {
     ///
     /// # Requirements
     /// - Requirement 9.2: Update panel sizes in real-time during drag
-    fn complete_drag(&mut self, _cx: &mut ViewContext<Self>) {
+    fn complete_drag(&mut self, cx: &mut ViewContext<Self>) {
         self.is_dragging = false;
         self.drag_start_position = None;
         self.drag_start_size = None;
+        self.dispatch_resize_complete(cx);
     }
 
     /// Cancel the resize drag operation
@@ -431,6 +444,13 @@ impl ResizablePanel {
         self.is_dragging = false;
         self.drag_start_position = None;
         self.drag_start_size = None;
+    }
+
+    /// Trigger the resize complete callback if one is registered
+    fn dispatch_resize_complete(&self, cx: &mut ViewContext<Self>) {
+        if let Some(callback) = &self.on_resize_complete {
+            callback(self.current_size, cx);
+        }
     }
 }
 

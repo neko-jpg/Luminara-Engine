@@ -1,11 +1,10 @@
-use std::sync::Arc;
-use parking_lot::RwLock;
-use crate::core::state::EditorState;
+use gpui::Model;
+use crate::core::state::EditorStateManager;
 
 /// Trait for all editor commands
 pub trait Command: Send + Sync {
     /// Execute the command
-    fn execute(&self, state: &Arc<RwLock<EditorState>>);
+    fn execute(&self, state: &Model<EditorStateManager>);
     
     /// Get the command name for debugging/logging
     fn name(&self) -> &'static str;
@@ -13,12 +12,12 @@ pub trait Command: Send + Sync {
 
 /// Command executor that manages command execution
 pub struct CommandExecutor {
-    state: Arc<RwLock<EditorState>>,
+    state: Model<EditorStateManager>,
 }
 
 impl CommandExecutor {
     /// Create a new command executor with the given state
-    pub fn new(state: Arc<RwLock<EditorState>>) -> Self {
+    pub fn new(state: Model<EditorStateManager>) -> Self {
         Self { state }
     }
     
@@ -29,7 +28,7 @@ impl CommandExecutor {
     }
     
     /// Get the shared state
-    pub fn state(&self) -> Arc<RwLock<EditorState>> {
+    pub fn state(&self) -> Model<EditorStateManager> {
         self.state.clone()
     }
 }
@@ -41,7 +40,7 @@ pub struct CommandBus {
 
 impl CommandBus {
     /// Create a new command bus
-    pub fn new(state: Arc<RwLock<EditorState>>) -> Self {
+    pub fn new(state: Model<EditorStateManager>) -> Self {
         Self {
             executor: CommandExecutor::new(state),
         }

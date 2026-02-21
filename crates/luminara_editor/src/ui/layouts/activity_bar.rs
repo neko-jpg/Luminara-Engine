@@ -411,10 +411,7 @@ impl ActivityBar {
                         .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
                             this.activity_bar_mut().set_active(index);
                             if index == 0 {
-                                this.shared_state().toggle_global_search();
-                                this.global_search().update(cx, |search, _cx| {
-                                    search.sync_with_state();
-                                });
+                                this.toggle_global_search(&crate::core::window::ToggleGlobalSearch, cx);
                             }
                             cx.notify();
                         }))

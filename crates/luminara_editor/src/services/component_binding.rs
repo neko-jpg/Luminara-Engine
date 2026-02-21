@@ -36,7 +36,7 @@ impl ComponentUpdateCommand {
     pub fn execute(&self, world: &mut World) -> Result<(), String> {
         match self {
             ComponentUpdateCommand::SetPosition { entity, position } => {
-                if let Some(mut transform) = world.get_component_mut::<Transform>(*entity) {
+                if let Some(transform) = world.get_component_mut::<Transform>(*entity) {
                     transform.translation = *position;
                     Ok(())
                 } else {
@@ -46,7 +46,7 @@ impl ComponentUpdateCommand {
                 }
             }
             ComponentUpdateCommand::SetRotation { entity, rotation } => {
-                if let Some(mut transform) = world.get_component_mut::<Transform>(*entity) {
+                if let Some(transform) = world.get_component_mut::<Transform>(*entity) {
                     transform.rotation = *rotation;
                     Ok(())
                 } else {
@@ -57,7 +57,7 @@ impl ComponentUpdateCommand {
                 }
             }
             ComponentUpdateCommand::SetScale { entity, scale } => {
-                if let Some(mut transform) = world.get_component_mut::<Transform>(*entity) {
+                if let Some(transform) = world.get_component_mut::<Transform>(*entity) {
                     transform.scale = *scale;
                     Ok(())
                 } else {
@@ -84,7 +84,7 @@ impl ComponentUpdateCommand {
                     .map_err(|e| format!("Failed to add tag: {}", e))
             }
             ComponentUpdateCommand::RemoveTag { entity, tag } => {
-                if let Some(mut tag_component) = world.get_component_mut::<Tag>(*entity) {
+                if let Some(tag_component) = world.get_component_mut::<Tag>(*entity) {
                     tag_component.0.remove(tag);
                     Ok(())
                 } else {

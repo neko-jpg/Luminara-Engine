@@ -8,7 +8,9 @@ use crate::ui::layouts::activity_bar::ActivityBar;
 use crate::features::asset_vault::AssetVaultBox;
 use crate::services::ai_agent::BackendAIBox;
 use crate::features::extension::ExtensionBox;
-use crate::core::state::{EditorState, SharedEditorState};
+use crate::core::session::EditorSession;
+use gpui::Model;
+use crate::core::state::EditorStateManager;
 use crate::features::director::DirectorBox;
 use crate::services::engine_bridge::EngineHandle;
 use crate::features::global_search::GlobalSearch;
@@ -17,15 +19,16 @@ use crate::features::scene_builder::box_::SceneBuilderBox;
 use crate::core::settings::SettingsPanel;
 use crate::ui::theme::Theme;
 use gpui::{
-    actions, div, px, IntoElement, ParentElement, Render, Styled, View, ViewContext,
-    VisualContext as _, InteractiveElement,
+    div, px, IntoElement, ParentElement, Render, Styled, View, ViewContext, Context,
+    VisualContext as _, InteractiveElement, FocusHandle, FocusableView,
 };
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-actions!(editor_window, [ToggleGlobalSearch]);
+pub struct ToggleGlobalSearch;
+pub struct Undo;
+pub struct Redo;
 
 /// The main editor window containing all UI elements
 pub struct EditorWindow {
@@ -53,11 +56,20 @@ pub struct EditorWindow {
     account_panel: View<AccountPanel>,
     /// Theme for styling
     theme: Arc<Theme>,
-    /// Shared editor state with generation counter for command-to-UI bridge
-    shared_state: SharedEditorState,
+    /// Shared editor state model
+    state_manager: Model<EditorStateManager>,
+    /// Focus handle for keyboard events
+    focus_handle: FocusHandle,
+}
+
+impl FocusableView for EditorWindow {
+    fn focus_handle(&self, _cx: &gpui::AppContext) -> FocusHandle {
+        self.focus_handle.clone()
+    }
 }
 
 impl EditorWindow {
+
     /// Create a new EditorWindow
     ///
     /// # Arguments
@@ -70,9 +82,16 @@ impl EditorWindow {
     pub fn new(engine_handle: Arc<EngineHandle>, cx: &mut ViewContext<Self>) -> Self {
         let theme = Arc::new(Theme::default_dark());
         let activity_bar = ActivityBar::new(theme.clone());
+        // Create state manager model
+        let state_manager = cx.new_model(|_cx| EditorStateManager::new(
+            EditorSession::default(), 
+            None::<std::sync::Arc<luminara_db::LuminaraDatabase>>
+        ));
+
         let scene_builder = cx.new_view(|cx| {
-            SceneBuilderBox::new(engine_handle.clone(), theme.clone(), cx)
+            SceneBuilderBox::new(engine_handle.clone(), theme.clone(), state_manager.clone(), cx)
         });
+        
         let logic_graph_box = cx.new_view(|_cx| {
             LogicGraphBox::new(theme.clone())
         });
@@ -89,13 +108,13 @@ impl EditorWindow {
             ExtensionBox::new(engine_handle.clone(), theme.clone(), cx)
         });
         
-        // Create shared editor state with generation counter
-        let state = Arc::new(RwLock::new(EditorState::new()));
-        let shared_state = SharedEditorState::new(state);
+        // Create FocusHandle
+        let focus_handle = cx.focus_handle();
+
         
-        // Create GlobalSearch with shared state
+        // Create GlobalSearch with shared state manager
         let global_search = cx.new_view(|cx| {
-            GlobalSearch::with_state(theme.clone(), Some(shared_state.state()), cx)
+            GlobalSearch::with_state(theme.clone(), Some(state_manager.clone()), cx)
         });
         
         // Create SettingsPanel
@@ -108,28 +127,15 @@ impl EditorWindow {
             AccountPanel::new(theme.clone())
         });
         
-        // Start the state change poller on the GPUI async runtime.
-        // This polls the generation counter every 16ms (~60Hz) and triggers
-        // a re-render when background threads (e.g. keyboard monitor) change state.
-        let generation = shared_state.generation();
-        cx.spawn(|this, mut cx| async move {
-            let mut last_gen = 0u64;
-            loop {
-                cx.background_executor().timer(Duration::from_millis(16)).await;
-                let current_gen = generation.load(Ordering::Acquire);
-                if current_gen != last_gen {
-                    last_gen = current_gen;
-                    let _ = this.update(&mut cx, |this, cx| {
-                        this.global_search.update(cx, |search, _cx| {
-                            search.sync_with_state();
-                        });
-                        cx.notify();
-                    });
-                }
-            }
+        // Subscribe to state manager changes instead of polling
+        cx.observe(&state_manager, |this: &mut EditorWindow, _model, cx| {
+            this.global_search.update(cx, |search, cx| {
+                search.__sync_with_state(cx);
+            });
+            cx.notify();
         }).detach();
         
-        Self {
+        let this = Self {
             engine_handle,
             activity_bar,
             scene_builder,
@@ -142,22 +148,48 @@ impl EditorWindow {
             settings_panel,
             account_panel,
             theme,
-            shared_state,
-        }
+            state_manager,
+            focus_handle,
+        };
+
+        // Focus the window view to receive events
+        // cx.focus_self();
+
+        // Global keyboard shortcuts
+        // cx.observe_keystrokes(|this, event, cx| {
+        // let keystroke = &event.keystroke;
+        // let ctrl = keystroke.modifiers.control;
+        // let shift = keystroke.modifiers.shift;
+        //         // match keystroke.key.as_str() {
+        // "z" if ctrl && !shift => {
+        // this.undo(&Undo, cx);
+        // }
+        // "z" if ctrl && shift => {
+        // this.redo(&Redo, cx);
+        // }
+        // "y" if ctrl => {
+        // this.redo(&Redo, cx);
+        // }
+        // "k" if ctrl => {
+        // this.toggle_global_search(&ToggleGlobalSearch, cx);
+        // }
+        // _ => {}
+        // }
+        // }).detach();
+
+        this
     }
     
-    /// Create a new EditorWindow with a pre-existing SharedEditorState.
-    ///
-    /// Used when the editor state is shared with a background keyboard thread.
-    pub fn with_shared_state(
+    /// Create a new EditorWindow with a pre-existing state manager.
+    pub fn with_state_manager(
         engine_handle: Arc<EngineHandle>,
-        shared_state: SharedEditorState,
+        state_manager: Model<EditorStateManager>,
         cx: &mut ViewContext<Self>,
     ) -> Self {
         let theme = Arc::new(Theme::default_dark());
         let activity_bar = ActivityBar::new(theme.clone());
         let scene_builder = cx.new_view(|cx| {
-            SceneBuilderBox::new(engine_handle.clone(), theme.clone(), cx)
+            SceneBuilderBox::new(engine_handle.clone(), theme.clone(), state_manager.clone(), cx)
         });
         let logic_graph_box = cx.new_view(|_cx| {
             LogicGraphBox::new(theme.clone())
@@ -175,9 +207,12 @@ impl EditorWindow {
             ExtensionBox::new(engine_handle.clone(), theme.clone(), cx)
         });
         
-        // Create GlobalSearch with shared state
+        // Create FocusHandle
+        let focus_handle = cx.focus_handle();
+
+        // Create GlobalSearch with state manager
         let global_search = cx.new_view(|cx| {
-            GlobalSearch::with_state(theme.clone(), Some(shared_state.state()), cx)
+            GlobalSearch::with_state(theme.clone(), Some(state_manager.clone()), cx)
         });
         
         // Create SettingsPanel
@@ -190,26 +225,15 @@ impl EditorWindow {
             AccountPanel::new(theme.clone())
         });
         
-        // Start the state change poller
-        let generation = shared_state.generation();
-        cx.spawn(|this, mut cx| async move {
-            let mut last_gen = 0u64;
-            loop {
-                cx.background_executor().timer(Duration::from_millis(16)).await;
-                let current_gen = generation.load(Ordering::Acquire);
-                if current_gen != last_gen {
-                    last_gen = current_gen;
-                    let _ = this.update(&mut cx, |this, cx| {
-                        this.global_search.update(cx, |search, _cx| {
-                            search.sync_with_state();
-                        });
-                        cx.notify();
-                    });
-                }
-            }
+        // Subscribe to state manager changes
+        cx.observe(&state_manager, |this: &mut EditorWindow, _model, cx| {
+            this.global_search.update(cx, |search, cx| {
+                search.__sync_with_state(cx);
+            });
+            cx.notify();
         }).detach();
         
-        Self {
+        let this = Self {
             engine_handle,
             activity_bar,
             scene_builder,
@@ -222,8 +246,36 @@ impl EditorWindow {
             settings_panel,
             account_panel,
             theme,
-            shared_state,
-        }
+            state_manager,
+            focus_handle,
+        };
+
+        // Focus the window view to receive events
+        // cx.focus_self();
+
+        // Global keyboard shortcuts
+        // cx.observe_keystrokes(|this, event, cx| {
+        // let keystroke = &event.keystroke;
+        // let ctrl = keystroke.modifiers.control;
+        // let shift = keystroke.modifiers.shift;
+        //         // match keystroke.key.as_str() {
+        // "z" if ctrl && !shift => {
+        // this.undo(&Undo, cx);
+        // }
+        // "z" if ctrl && shift => {
+        // this.redo(&Redo, cx);
+        // }
+        // "y" if ctrl => {
+        // this.redo(&Redo, cx);
+        // }
+        // "k" if ctrl => {
+        // this.toggle_global_search(&ToggleGlobalSearch, cx);
+        // }
+        // _ => {}
+        // }
+        // }).detach();
+
+        this
     }
 
     /// Get a reference to the engine handle
@@ -246,23 +298,28 @@ impl EditorWindow {
     /// # Requirements
     /// - Requirement 3.1: Display on Cmd+K/Ctrl+K
     pub fn toggle_global_search(&mut self, _: &ToggleGlobalSearch, cx: &mut ViewContext<Self>) {
-        // Update shared state (generation counter is automatically incremented)
-        self.shared_state.toggle_global_search();
-        // Update the view immediately since we're already on the GPUI thread
-        self.global_search.update(cx, |search, _cx| {
-            search.sync_with_state();
+        self.state_manager.update(cx, |manager, cx| {
+            manager.toggle_global_search(cx);
         });
-        cx.notify();
+    }
+
+    /// Undo the last action
+    pub fn undo(&mut self, _: &Undo, cx: &mut ViewContext<Self>) {
+        self.state_manager.update(cx, |manager, cx| {
+            manager.undo(cx);
+        });
+    }
+
+    /// Redo the last action
+    pub fn redo(&mut self, _: &Redo, cx: &mut ViewContext<Self>) {
+        self.state_manager.update(cx, |manager, cx| {
+            manager.redo(cx);
+        });
     }
     
-    /// Get the shared editor state (for passing to keyboard threads, etc.)
-    pub fn shared_state(&self) -> &SharedEditorState {
-        &self.shared_state
-    }
-    
-    /// Get the raw editor state Arc (for backward compatibility)
-    pub fn editor_state(&self) -> Arc<RwLock<EditorState>> {
-        self.shared_state.state()
+    /// Get the editor state manager model
+    pub fn state_manager(&self) -> &Model<EditorStateManager> {
+        &self.state_manager
     }
     
     /// Get a reference to the global search view
@@ -346,18 +403,13 @@ impl Render for EditorWindow {
         let activity_bar_main = self.activity_bar.render_inline(cx);
         let bottom_items = self.activity_bar.bottom_items();
         
-        let activity_bar_full = div()
-            .flex()
-            .flex_col()
-            .w(px(crate::ui::layouts::activity_bar::ACTIVITY_BAR_WIDTH))
-            .h_full()
-            .child(activity_bar_main)
-            .child(div().flex_1())
-            .children(bottom_items.into_iter().map(move |item| {
-                let theme = theme_for_bottom.clone();
-                let is_settings = item.id == "settings";
-                let is_user = item.id == "user";
-                
+        let mut bottom_item_elements = Vec::new();
+        for item in bottom_items {
+            let theme = theme_for_bottom.clone();
+            let is_settings = item.id == "settings";
+            let is_user = item.id == "user";
+            
+            bottom_item_elements.push(
                 div()
                     .flex()
                     .items_center()
@@ -390,13 +442,43 @@ impl Render for EditorWindow {
                                     .text_color(theme.colors.text_secondary)
                             )
                     )
-            }));
+            );
+        }
+
+        let activity_bar_full = div()
+            .flex()
+            .flex_col()
+            .w(px(crate::ui::layouts::activity_bar::ACTIVITY_BAR_WIDTH))
+            .h_full()
+            .child(activity_bar_main)
+            .child(div().flex_1())
+            .children(bottom_item_elements);
         
         div()
             .flex()
             .flex_row()
             .size_full()
             .bg(theme_for_main.colors.background)
+            .on_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, cx| {
+                if event.keystroke.modifiers.control || event.keystroke.modifiers.platform {
+                    match event.keystroke.key.as_str() {
+                        "z" => {
+                            if event.keystroke.modifiers.shift {
+                                this.redo(&Redo, cx);
+                            } else {
+                                this.undo(&Undo, cx);
+                            }
+                        }
+                        "y" => {
+                            this.redo(&Redo, cx);
+                        }
+                        "k" => {
+                            this.toggle_global_search(&ToggleGlobalSearch, cx);
+                        }
+                        _ => {}
+                    }
+                }
+            }))
             // Activity Bar on the left (52px) with bottom items
             .child(activity_bar_full)
             // Main content area - switches based on active activity bar item

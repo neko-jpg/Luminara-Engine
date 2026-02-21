@@ -9,6 +9,7 @@ use gpui::{
 use std::sync::Arc;
 use crate::ui::theme::Theme;
 use crate::ui::components::{Button, TextInput, ButtonVariant};
+use crate::core::state::EditorStateManager;
 
 /// Bottom tab types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,7 +115,7 @@ pub struct QueryResult {
 /// Bottom tab panel component
 pub struct BottomTabPanel {
     theme: Arc<Theme>,
-    active_tab: BottomTab,
+    state: Option<gpui::Model<EditorStateManager>>,
     logs: Vec<LogEntry>,
     assets: Vec<AssetItem>,
     filtered_assets: Vec<AssetItem>,
@@ -172,7 +173,7 @@ impl BottomTabPanel {
 
         Self {
             theme,
-            active_tab: BottomTab::Console,
+            state: None,
             logs,
             assets,
             filtered_assets,
@@ -190,14 +191,30 @@ impl BottomTabPanel {
         }
     }
 
-    /// Set active tab
-    pub fn set_active_tab(&mut self, tab: BottomTab) {
-        self.active_tab = tab;
+    /// Set state model
+    pub fn with_state(mut self, state: gpui::Model<EditorStateManager>, cx: &mut ViewContext<Self>) -> Self {
+        cx.observe(&state, |_this: &mut BottomTabPanel, _model, cx| {
+            cx.notify();
+        }).detach();
+
+        self.state = Some(state);
+        self
     }
 
     /// Get active tab
-    pub fn active_tab(&self) -> BottomTab {
-        self.active_tab
+    pub fn active_tab(&self, cx: &gpui::AppContext) -> BottomTab {
+        if let Some(state) = &self.state {
+            let active = state.read(cx).session.active_bottom_tab.clone();
+            match active.as_str() {
+                "Console" => BottomTab::Console,
+                "Asset Browser" => BottomTab::Assets,
+                "DB Query" => BottomTab::DBQuery,
+                "AI Assistant" => BottomTab::AIAssistant,
+                _ => BottomTab::Console,
+            }
+        } else {
+            BottomTab::Console
+        }
     }
 
     /// Add a log entry
@@ -340,7 +357,7 @@ impl BottomTabPanel {
     /// Render tab button
     fn render_tab(&self, tab: BottomTab, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let theme = self.theme.clone();
-        let is_active = self.active_tab == tab;
+        let is_active = self.active_tab(cx) == tab;
         let tab_clone = tab;
 
         div()
@@ -357,8 +374,11 @@ impl BottomTabPanel {
                 }
             })
             .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
-                this.set_active_tab(tab_clone);
-                cx.notify();
+                if let Some(state) = &this.state {
+                    state.update(cx, |state, cx| {
+                        state.set_active_bottom_tab(tab_clone.label().to_string(), cx);
+                    });
+                }
             }))
             .child(
                 div()
@@ -774,7 +794,8 @@ impl BottomTabPanel {
 
     /// Render active tab content
     fn render_tab_content(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        match self.active_tab {
+        let active_tab = self.active_tab(cx);
+        match active_tab {
             BottomTab::Console => self.render_console_content().into_any_element(),
             BottomTab::Assets => self.render_assets_content(cx).into_any_element(),
             BottomTab::DBQuery => self.render_db_query_content(cx).into_any_element(),

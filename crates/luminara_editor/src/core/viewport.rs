@@ -583,11 +583,35 @@ impl Render for ViewportElement {
             .child(
                 div()
                     .flex()
+                    .flex_col()
                     .flex_1()
                     .items_center()
                     .justify_center()
-                    .text_color(theme.colors.text_secondary)
-                    .child("3D Viewport (WGPU Integration Pending)"),
+                    .gap(theme.spacing.md)
+                    .child(
+                        div()
+                            .w(gpui::px(220.0))
+                            .h(gpui::px(120.0))
+                            .bg(theme.colors.surface)
+                            .border_1()
+                            .border_color(theme.colors.border)
+                            .rounded(theme.borders.sm)
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(
+                                div()
+                                    .text_color(theme.colors.text_secondary)
+                                    .text_size(theme.typography.sm)
+                                    .child("Renderer warming up")
+                            )
+                    )
+                    .child(
+                        div()
+                            .text_color(theme.colors.text_secondary)
+                            .text_size(theme.typography.xs)
+                            .child("LMB Orbit  |  MMB Pan  |  RMB Zoom")
+                    ),
             )
     }
 }

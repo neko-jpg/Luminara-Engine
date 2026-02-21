@@ -17,7 +17,7 @@ use crate::core::commands::DuplicateEntityCommand;
 use luminara_core::Entity;
 use luminara_scene::{Parent, Children, Name};
 use luminara_math::Transform;
-use crate::features::scene_builder::SceneBuilderState;
+use crate::core::state::EditorStateManager;
 
 /// Hierarchy item representing an entity in the tree
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ pub struct HierarchyPanel {
     theme: Arc<Theme>,
     engine_handle: Arc<EngineHandle>,
     filter_text: String,
-    state: gpui::Model<SceneBuilderState>,
+    state: gpui::Model<EditorStateManager>,
     expanded_entities: HashSet<Entity>,
     context_menu_entity: Option<Entity>,
     // For creating new entities
@@ -48,9 +48,13 @@ impl HierarchyPanel {
     pub fn new(
         theme: Arc<Theme>,
         engine_handle: Arc<EngineHandle>,
-        state: gpui::Model<SceneBuilderState>,
+        state: gpui::Model<EditorStateManager>,
         cx: &mut ViewContext<Self>,
     ) -> Self {
+        cx.observe(&state, |_this: &mut HierarchyPanel, _model, cx| {
+            cx.notify();
+        }).detach();
+
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::time::Duration;
         use crate::services::engine_bridge::Event;
@@ -119,18 +123,20 @@ impl HierarchyPanel {
 
     /// Select an entity
     pub fn select_entity(&mut self, entity: Entity, multi_select: bool, cx: &mut ViewContext<Self>) {
+        let entity_id = format!("{}:{}", entity.id(), entity.generation());
+        
         self.state.update(cx, |state, cx| {
+            let mut selected = state.session.selected_entities.clone();
             if multi_select {
-                if state.selected_entities.contains(&entity) {
-                    state.selected_entities.remove(&entity);
+                if let Some(pos) = selected.iter().position(|id| id == &entity_id) {
+                    selected.remove(pos);
                 } else {
-                    state.selected_entities.insert(entity);
+                    selected.push(entity_id);
                 }
             } else {
-                state.selected_entities.clear();
-                state.selected_entities.insert(entity);
+                selected = vec![entity_id];
             }
-            cx.notify();
+            state.select_entities(selected, cx);
         });
     }
 
@@ -139,18 +145,11 @@ impl HierarchyPanel {
         let entity_name = format!("GameObject {}", self.next_entity_number);
         self.next_entity_number += 1;
 
-        // Spawn entity with components
-        let world = self.engine_handle.world();
-        let entity_count = world.entities().len();
-        drop(world);
+        let entity_opt = self.state.update(cx, |state, cx| {
+            state.spawn_entity(&entity_name, cx)
+        });
 
-        // Create entity with transform and name
-        let entity = self.engine_handle.spawn_entity_with((
-            Transform::IDENTITY,
-            Name::new(&entity_name),
-        ));
-
-        if let Ok(entity) = entity {
+        if let Some(entity) = entity_opt {
             // Select the new entity
             self.select_entity(entity, false, cx);
             
@@ -163,16 +162,18 @@ impl HierarchyPanel {
 
     /// Delete selected entities
     pub fn delete_selected_entities(&mut self, cx: &mut ViewContext<Self>) {
-        let selected: Vec<Entity> = self.state.read(cx).selected_entities.iter().copied().collect();
+        let selected_ids = self.state.read(cx).session.selected_entities.clone();
         
-        for entity in selected {
-            let _ = self.engine_handle.despawn_entity(entity);
-        }
-
-        // Clear selection
         self.state.update(cx, |state, cx| {
-            state.selected_entities.clear();
-            cx.notify();
+            for id_str in selected_ids {
+                // Parse back to Entity if possible, or just use ID to find it
+                if let Some((id_part, gen_part)) = id_str.split_once(':') {
+                    if let (Ok(id), Ok(gen)) = (id_part.parse::<u32>(), gen_part.parse::<u32>()) {
+                        let entity = Entity::from_raw(id, gen);
+                        state.despawn_entity(entity, cx);
+                    }
+                }
+            }
         });
 
         cx.notify();
@@ -180,8 +181,9 @@ impl HierarchyPanel {
 
     /// Duplicate an entity
     pub fn duplicate_entity(&mut self, entity: Entity, cx: &mut ViewContext<Self>) {
-        // Use the engine bridge to execute duplicate command
-        self.engine_handle.execute_command(Box::new(DuplicateEntityCommand::new(entity)));
+        self.state.update(cx, |state, cx| {
+            state.duplicate_entity(entity, cx);
+        });
         cx.notify();
     }
 
@@ -314,7 +316,8 @@ impl HierarchyPanel {
         }
         
         // Read selection from global state
-        let is_selected = self.state.read(cx).selected_entities.contains(&entity);
+        let entity_id = format!("{}:{}", entity.id(), entity.generation());
+        let is_selected = self.state.read(cx).session.selected_entities.contains(&entity_id);
 
         let is_expanded = self.expanded_entities.contains(&entity);
         let has_children = self.has_children(entity);
@@ -464,10 +467,8 @@ impl HierarchyPanel {
                                         .variant(ButtonVariant::Ghost)
                                         .full_width(true)
                                         .on_click(cx.listener(move |this, _event: &ClickEvent, cx| {
-                                            let _ = engine.despawn_entity(entity_target);
                                             this.state.update(cx, |state, cx| {
-                                                state.selected_entities.remove(&entity_target);
-                                                cx.notify();
+                                                state.despawn_entity(entity_target, cx);
                                             });
                                             this.context_menu_entity = None;
                                             cx.notify();

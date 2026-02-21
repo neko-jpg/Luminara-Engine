@@ -12,7 +12,7 @@ use std::sync::Arc;
 use crate::ui::theme::Theme;
 use crate::ui::components::Button;
 use crate::services::engine_bridge::EngineHandle;
-use crate::features::scene_builder::SceneBuilderState;
+use crate::core::state::EditorStateManager;
 use luminara_scene::Name;
 use luminara_math::Transform;
 
@@ -67,7 +67,7 @@ pub enum MenuActionType {
 pub struct MenuBar {
     theme: Arc<Theme>,
     engine_handle: Option<Arc<EngineHandle>>,
-    state: Option<gpui::Model<SceneBuilderState>>,
+    state: Option<gpui::Model<EditorStateManager>>,
     items: Vec<MenuItem>,
     active_menu: Option<usize>,
     show_menu_index: Option<usize>,
@@ -168,7 +168,7 @@ impl MenuBar {
     }
 
     /// Set state model for menu actions
-    pub fn with_state(mut self, state: gpui::Model<SceneBuilderState>) -> Self {
+    pub fn with_state(mut self, state: gpui::Model<EditorStateManager>) -> Self {
         self.state = Some(state);
         self
     }
@@ -212,11 +212,15 @@ impl MenuBar {
             }
             MenuActionType::Undo => {
                 println!("Undo");
-                // Would trigger undo in inspector or global undo
+                if let Some(state) = &self.state {
+                    state.update(cx, |state, cx| state.undo(cx));
+                }
             }
             MenuActionType::Redo => {
                 println!("Redo");
-                // Would trigger redo in inspector or global redo
+                if let Some(state) = &self.state {
+                    state.update(cx, |state, cx| state.redo(cx));
+                }
             }
             MenuActionType::Cut => println!("Cut"),
             MenuActionType::Copy => println!("Copy"),
@@ -224,13 +228,16 @@ impl MenuBar {
             MenuActionType::Delete => {
                 println!("Delete - Removing selected entities");
                 if let (Some(engine), Some(state)) = (&self.engine_handle, &self.state) {
-                    let selected: Vec<_> = state.read(cx).selected_entities.iter().copied().collect();
-                    for entity in selected {
-                        let _ = engine.despawn_entity(entity);
+                    let selected_ids = state.read(cx).session.selected_entities.clone();
+                    for id_str in selected_ids {
+                        if let Some((id_part, gen_part)) = id_str.split_once(':') {
+                            if let (Ok(id), Ok(gen)) = (id_part.parse::<u32>(), gen_part.parse::<u32>()) {
+                                let _ = engine.despawn_entity(luminara_core::Entity::from_raw(id, gen));
+                            }
+                        }
                     }
                     state.update(cx, |state, cx| {
-                        state.selected_entities.clear();
-                        cx.notify();
+                        state.select_entities(Vec::new(), cx);
                     });
                 }
             }
@@ -238,11 +245,12 @@ impl MenuBar {
                 println!("Select All");
                 if let (Some(engine), Some(state)) = (&self.engine_handle, &self.state) {
                     let world = engine.world();
-                    let entities: Vec<_> = world.entities().into_iter().collect();
+                    let entities: Vec<String> = world.entities().into_iter()
+                        .map(|e| format!("{}:{}", e.id(), e.generation()))
+                        .collect();
                     drop(world);
                     state.update(cx, |state, cx| {
-                        state.selected_entities = entities.iter().copied().collect();
-                        cx.notify();
+                        state.select_entities(entities, cx);
                     });
                 }
             }
@@ -256,9 +264,8 @@ impl MenuBar {
                     if let Ok(entity) = entity {
                         if let Some(state) = &self.state {
                             state.update(cx, |state, cx| {
-                                state.selected_entities.clear();
-                                state.selected_entities.insert(entity);
-                                cx.notify();
+                                let entity_id = format!("{}:{}", entity.id(), entity.generation());
+                                state.select_entities(vec![entity_id], cx);
                             });
                         }
                     }
@@ -274,9 +281,8 @@ impl MenuBar {
                     if let Ok(entity) = entity {
                         if let Some(state) = &self.state {
                             state.update(cx, |state, cx| {
-                                state.selected_entities.clear();
-                                state.selected_entities.insert(entity);
-                                cx.notify();
+                                let entity_id = format!("{}:{}", entity.id(), entity.generation());
+                                state.select_entities(vec![entity_id], cx);
                             });
                         }
                     }
@@ -292,9 +298,8 @@ impl MenuBar {
                     if let Ok(entity) = entity {
                         if let Some(state) = &self.state {
                             state.update(cx, |state, cx| {
-                                state.selected_entities.clear();
-                                state.selected_entities.insert(entity);
-                                cx.notify();
+                                let entity_id = format!("{}:{}", entity.id(), entity.generation());
+                                state.select_entities(vec![entity_id], cx);
                             });
                         }
                     }
@@ -408,8 +413,9 @@ impl Render for MenuBar {
                                 .bg(if is_active { theme.colors.surface_hover } else { gpui::transparent_black() })
                                 .hover(|this| this.bg(theme.colors.surface_hover))
                                 .cursor_pointer()
-                                .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, _cx| {
+                                .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
                                     this.toggle_menu(index);
+                                    cx.notify();
                                 }))
                                 .child(
                                     div()
@@ -447,8 +453,9 @@ impl Render for MenuBar {
                                             .hover(|this| this.bg(theme.colors.surface_hover))
                                             .cursor_pointer()
                                             .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event: &MouseDownEvent, cx| {
-                                                cx.emit(MenuExecute { action: action_type.clone() });
+                                                this.handle_action(&action_type, cx);
                                                 this.close_menu();
+                                                cx.notify();
                                             }))
                                             .child(
                                                 div()

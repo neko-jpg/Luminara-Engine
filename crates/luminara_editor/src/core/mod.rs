@@ -7,3 +7,4 @@ pub mod settings;
 pub mod viewport;
 pub mod state;
 pub mod command_bus;
+pub mod session;

@@ -7,7 +7,8 @@
 //! - Left column (38%): Search input, prefix hints, filter chips, results list, recent items
 //! - Right column (62%): Preview panel with metadata, tabs, and detail view
 
-use crate::core::state::EditorState;
+use gpui::Model;
+use crate::core::state::EditorStateManager;
 use crate::ui::theme::Theme;
 use gpui::{
     div, px, rgb, IntoElement, ParentElement, Render, Styled, ViewContext,
@@ -15,7 +16,6 @@ use gpui::{
     FontWeight,
 };
 use gpui::prelude::FluentBuilder;
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::collections::HashMap;
 
@@ -394,7 +394,7 @@ pub struct GlobalSearch {
     /// Active preview tab
     active_preview_tab: PreviewTab,
     /// Shared editor state
-    editor_state: Option<Arc<RwLock<EditorState>>>,
+    editor_state: Option<Model<EditorStateManager>>,
 }
 
 impl GlobalSearch {
@@ -406,7 +406,7 @@ impl GlobalSearch {
     /// Create a new GlobalSearch overlay with shared state
     pub fn with_state(
         theme: Arc<Theme>, 
-        editor_state: Option<Arc<RwLock<EditorState>>>, 
+        editor_state: Option<Model<EditorStateManager>>, 
         cx: &mut ViewContext<Self>
     ) -> Self {
         let focus_handle = cx.focus_handle();
@@ -414,7 +414,7 @@ impl GlobalSearch {
         // Get initial visibility from state if available
         let initial_visible = editor_state
             .as_ref()
-            .map(|s| s.read().global_search_visible)
+            .map(|s| s.read(cx).session.global_search_visible)
             .unwrap_or(false);
         
         let mut search = Self {
@@ -439,9 +439,15 @@ impl GlobalSearch {
     
     /// Sync visibility with shared state
     pub fn sync_with_state(&mut self) {
+        // Will be called by observer, need access to state but we don't have cx here.
+        // Handled via the manual update logic in window right now.
+        // Actually, this method might need to be removed or adjusted.
+        // Let's keep a placeholder if it's called somewhere else.
+    }
+    
+    pub fn __sync_with_state(&mut self, cx: &mut ViewContext<Self>) {
         if let Some(ref state) = self.editor_state {
-            let state_guard = state.read();
-            self.visible = state_guard.global_search_visible;
+            self.visible = state.read(cx).session.global_search_visible;
         }
     }
 
@@ -455,22 +461,26 @@ impl GlobalSearch {
     }
 
     /// Toggle the visibility of the overlay
-    pub fn toggle(&mut self, _cx: &mut ViewContext<Self>) {
+    pub fn toggle(&mut self, cx: &mut ViewContext<Self>) {
         self.visible = !self.visible;
         // Sync with shared state if available
         if let Some(ref state) = self.editor_state {
-            let mut state_guard = state.write();
-            state_guard.set_global_search_visible(self.visible);
+            state.update(cx, |manager, cx| {
+                manager.toggle_global_search(cx);
+            });
         }
     }
 
     /// Close the overlay
-    pub fn close(&mut self, _cx: &mut ViewContext<Self>) {
+    pub fn close(&mut self, cx: &mut ViewContext<Self>) {
         self.visible = false;
         // Sync with shared state if available
         if let Some(ref state) = self.editor_state {
-            let mut state_guard = state.write();
-            state_guard.set_global_search_visible(false);
+            state.update(cx, |manager, cx| {
+                if manager.session.global_search_visible {
+                    manager.toggle_global_search(cx);
+                }
+            });
         }
     }
 

@@ -25,6 +25,7 @@ use gpui::{
 };
 use std::sync::Arc;
 use crate::ui::theme::Theme;
+use crate::core::state::EditorStateManager;
 
 /// Standard dimensions for workspace layout
 pub const MENU_BAR_HEIGHT: f32 = 32.0;
@@ -43,6 +44,7 @@ pub struct WorkspaceLayout {
     right_panel: Option<AnyElement>,
     bottom_panel: Option<AnyElement>,
     gap: f32,
+    state: Option<gpui::Model<EditorStateManager>>,
 }
 
 impl WorkspaceLayout {
@@ -57,7 +59,14 @@ impl WorkspaceLayout {
             right_panel: None,
             bottom_panel: None,
             gap: 4.0,
+            state: None,
         }
+    }
+
+    /// Attach the editor state manager to drive dynamic panel layouts and sizes from the database.
+    pub fn with_state(mut self, state: gpui::Model<EditorStateManager>) -> Self {
+        self.state = Some(state);
+        self
     }
 
     /// Set the menu bar element (top, 32px height)
