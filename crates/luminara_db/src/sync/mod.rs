@@ -3,7 +3,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Component, serde::Serialize, serde::Deserialize)]
 pub struct Persistent {
     pub auto_save: bool,
     pub db_id: Option<String>,
@@ -20,30 +20,12 @@ impl Default for Persistent {
     }
 }
 
-impl Component for Persistent {
-    fn type_name() -> &'static str {
-        "Persistent"
-    }
-}
-
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, Component, serde::Serialize, serde::Deserialize)]
 pub struct SaveExclude;
 
-impl Component for SaveExclude {
-    fn type_name() -> &'static str {
-        "SaveExclude"
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Component, serde::Serialize, serde::Deserialize)]
 pub struct DbDirty {
     pub changed_components: Vec<String>,
-}
-
-impl Component for DbDirty {
-    fn type_name() -> &'static str {
-        "DbDirty"
-    }
 }
 
 // Temporarily disabled - incomplete implementation
@@ -120,7 +102,7 @@ impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> Compone
     for TypedComponentSerializer<T>
 {
     fn serialize(&self, world: &World, entity: Entity) -> Option<serde_json::Value> {
-        if let Some(comp) = world.get_component::<T>(entity) {
+        if let Some(comp) = world.get::<T>(entity) {
             serde_json::to_value(comp).ok()
         } else {
             None
@@ -134,13 +116,11 @@ impl<T: Component + serde::Serialize + for<'de> serde::Deserialize<'de>> Compone
         data: &serde_json::Value,
     ) -> Result<(), crate::error::DbError> {
         let comp: T = serde_json::from_value(data.clone())?;
-        world
-            .add_component(entity, comp)
-            .map_err(|_| crate::error::DbError::Other("Failed to add component".into()))?;
+        world.entity_mut(entity).insert(comp);
         Ok(())
     }
 
     fn type_name(&self) -> &'static str {
-        T::type_name()
+        std::any::type_name::<T>()
     }
 }

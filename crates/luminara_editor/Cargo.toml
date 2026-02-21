@@ -11,10 +11,11 @@ description = "GPUI-based editor UI for Luminara Engine"
 luminara_core = { path = "../luminara_core" }
 luminara_math = { path = "../luminara_math" }
 luminara_asset = { path = "../luminara_asset" }
-luminara_render = { path = "../luminara_render" }
-luminara_scene = { path = "../luminara_scene" }
-luminara_input = { path = "../luminara_input" }
 luminara_db = { path = "../luminara_db" }
+
+# Bevy Engine
+bevy = { version = "0.14", default-features = false, features = ["bevy_core_pipeline", "bevy_render", "bevy_pbr"] }
+crossbeam-channel = "0.5"
 
 # GPUI framework
 # Note: GPUI is part of the Zed repository, using a specific stable release

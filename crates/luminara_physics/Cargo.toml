@@ -7,7 +7,6 @@ edition = "2021"
 luminara_core = { path = "../luminara_core" }
 luminara_math = { path = "../luminara_math" }
 luminara_scene = { path = "../luminara_scene" }
-luminara_render = { path = "../luminara_render" }
 luminara_input = { path = "../luminara_input" }
 luminara_window = { path = "../luminara_window" }
 

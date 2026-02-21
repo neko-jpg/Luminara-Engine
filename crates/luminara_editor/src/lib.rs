@@ -17,7 +17,7 @@ pub use core::command_bus::{Command, CommandBus, CommandExecutor};
 pub use core::state::EditorStateManager;
 
 // Re-export core services
-pub use services::engine_bridge::{EngineHandle, Database, RenderPipeline};
+pub use services::engine_bridge::{EngineHandle, Database};
 pub use services::asset_server::EditorAssetSource;
 
 // Re-export backend services for activity integration

@@ -28,6 +28,7 @@ chrono = "0.4"
 
 # ECS integration
 luminara_core = { path = "../luminara_core" }
+bevy_ecs = "0.14"
 async-recursion = "1.1.1"
 
 # Tokio with conditional features for WASM

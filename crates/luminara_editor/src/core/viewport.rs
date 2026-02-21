@@ -375,45 +375,15 @@ impl ViewportElement {
     /// - Requirement 16.5: Implement custom mouse event handling
     fn route_mouse_event(&self, button: MouseButton, position: Point<Pixels>, pressed: bool) {
         if let Some(_engine_handle) = &self.engine_handle {
-            // Convert GPUI mouse button to Luminara's MouseButton
-            let luminara_button = match button {
-                MouseButton::Left => luminara_input::MouseButton::Left,
-                MouseButton::Right => luminara_input::MouseButton::Right,
-                MouseButton::Middle => luminara_input::MouseButton::Middle,
-                MouseButton::Navigate(_) => return, // Not supported in Luminara
-            };
-
-            // Convert GPUI pixel coordinates to viewport-relative coordinates
-            // The position is already in viewport-relative coordinates from GPUI
+            // Stubbed for Bevy migration
             let viewport_x = position.x.0;
             let viewport_y = position.y.0;
 
-            // Access the engine's input system through the World
-            // Note: This is a simplified implementation. In a full implementation,
-            // we would need to properly synchronize with Luminara's input system
-            // and handle the event in the engine's update loop.
-            
-            // For now, we log the event for debugging
             #[cfg(debug_assertions)]
             eprintln!(
                 "Viewport mouse event: button={:?}, position=({}, {}), pressed={}",
-                luminara_button, viewport_x, viewport_y, pressed
+                button, viewport_x, viewport_y, pressed
             );
-
-            // TODO: When Luminara's input system is fully integrated with the editor,
-            // we would update the Input resource in the World:
-            //
-            // let mut world = engine_handle.world_mut();
-            // if let Some(mut input) = world.get_resource_mut::<luminara_input::Input>() {
-            //     if pressed {
-            //         input.mouse.buttons.insert(luminara_button);
-            //         input.mouse.just_pressed.insert(luminara_button);
-            //     } else {
-            //         input.mouse.buttons.remove(&luminara_button);
-            //         input.mouse.just_released.insert(luminara_button);
-            //     }
-            //     input.mouse.position = Vec2::new(viewport_x, viewport_y);
-            // }
         }
     }
 

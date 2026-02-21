@@ -1,6 +1,6 @@
 use crate::{Asset, AssetId, AssetLoadError, AssetLoader, Handle, HandleAllocator, PlaceholderRegistry};
 use crossbeam_channel::{unbounded, Receiver, Sender};
-use luminara_core::shared_types::Resource;
+use luminara_core::Resource;
 use std::any::{Any, TypeId};
 use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
