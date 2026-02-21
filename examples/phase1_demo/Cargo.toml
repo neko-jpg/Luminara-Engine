@@ -10,7 +10,6 @@ luminara = { path = "../../crates/luminara", features = [
     "window",
     "input",
     "asset",
-    "render",
     "scene",
     "physics",
     "audio",

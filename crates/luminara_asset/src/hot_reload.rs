@@ -1,6 +1,6 @@
 use crate::AssetServer;
 use crossbeam_channel::Receiver;
-use luminara_core::shared_types::{ResMut, Resource};
+use luminara_core::{ResMut, Resource};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::PathBuf;

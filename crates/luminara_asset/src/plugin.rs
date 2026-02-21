@@ -1,6 +1,5 @@
 use crate::{asset_hot_reload_system, AssetServer, HotReloadWatcher};
-use luminara_core::shared_types::{App, AppInterface, CoreStage, Plugin, ResMut};
-use luminara_core::system::FunctionMarker;
+use luminara_core::{App, Plugin, PreUpdate};
 use std::path::PathBuf;
 
 pub struct AssetPlugin {
@@ -16,10 +15,6 @@ impl Default for AssetPlugin {
 }
 
 impl Plugin for AssetPlugin {
-    fn name(&self) -> &str {
-        "AssetPlugin"
-    }
-
     fn build(&self, app: &mut App) {
         let server = AssetServer::new(&self.asset_dir);
 
@@ -35,11 +30,7 @@ impl Plugin for AssetPlugin {
 
         // Only register the hot reload system if the watcher was successfully created
         if watcher_available {
-            app.add_system::<(
-                FunctionMarker,
-                ResMut<'static, AssetServer>,
-                ResMut<'static, HotReloadWatcher>,
-            )>(CoreStage::PreUpdate, asset_hot_reload_system);
+            app.add_systems(PreUpdate, asset_hot_reload_system);
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::services::engine_bridge::EditorCommand;
-use luminara_core::{World, Entity};
-use luminara_math::Transform;
+use luminara_core::{World, Entity, Transform};
 
 /// Command to duplicate an entity
 #[derive(Debug, Clone)]
@@ -18,22 +17,14 @@ impl DuplicateEntityCommand {
 impl EditorCommand for DuplicateEntityCommand {
     fn execute(&mut self, world: &mut World) {
         // Create new entity
-        let new_entity = world.spawn();
+        let new_entity = world.spawn(()).id();
 
         // Try to copy Transform component if it exists
-        // Note: In a real implementation, we would use reflection to clone all components.
-        // For now, we manually clone known components like Transform.
-        if let Some(transform) = world.get_component::<Transform>(self.entity) {
-            let _ = world.add_component(new_entity, *transform);
+        if let Some(transform) = world.get::<Transform>(self.entity) {
+            let t = *transform;
+            world.entity_mut(new_entity).insert(t);
         }
 
-        // Also copy Name if we had a Name component (not standard in luminara_core yet?)
-        // Assuming just Transform for now.
-
         println!("Duplicated entity {:?} to {:?}", self.entity, new_entity);
-    }
-
-    fn name(&self) -> &str {
-        "DuplicateEntity"
     }
 }

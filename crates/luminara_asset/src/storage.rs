@@ -1,5 +1,5 @@
 use crate::{Asset, AssetId};
-use luminara_core::shared_types::Resource;
+use luminara_core::Resource;
 use std::collections::HashMap;
 
 pub struct AssetStorage<T: Asset> {

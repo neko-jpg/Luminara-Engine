@@ -296,16 +296,3 @@ impl Default for Transform {
     }
 }
 
-#[cfg(feature = "ecs")]
-impl luminara_core::Component for Transform {
-    fn type_name() -> &'static str {
-        "Transform"
-    }
-}
-
-#[cfg(feature = "ecs")]
-impl luminara_core::Component for Color {
-    fn type_name() -> &'static str {
-        "Color"
-    }
-}

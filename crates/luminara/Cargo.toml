@@ -12,7 +12,6 @@ luminara_math = { workspace = true, optional = true }
 luminara_window = { workspace = true, optional = true }
 luminara_input = { workspace = true, optional = true }
 luminara_asset = { workspace = true, optional = true }
-luminara_render = { workspace = true, optional = true }
 luminara_scene = { workspace = true, optional = true }
 luminara_physics = { workspace = true, optional = true }
 luminara_audio = { workspace = true, optional = true }
@@ -25,13 +24,12 @@ luminara_ai_agent = { workspace = true, optional = true }
 luminara_db = { path = "../luminara_db", optional = true }
 
 [features]
-default = ["core", "math", "window", "input", "asset", "render", "scene", "physics", "audio", "platform", "diagnostic", "script", "script_lua", "script_wasm", "ai_agent", "db"]
+default = ["core", "math", "window", "input", "asset", "scene", "physics", "audio", "platform", "diagnostic", "script", "script_lua", "script_wasm", "ai_agent", "db"]
 core = ["dep:luminara_core"]
 math = ["dep:luminara_math"]
 window = ["dep:luminara_window"]
 input = ["dep:luminara_input"]
 asset = ["dep:luminara_asset"]
-render = ["dep:luminara_render"]
 scene = ["dep:luminara_scene"]
 physics = ["dep:luminara_physics"]
 audio = ["dep:luminara_audio"]

@@ -1,21 +1,16 @@
 //! Engine integration layer
 //!
-//! The EngineHandle provides a bridge between the GPUI UI and Luminara Engine,
-//! exposing safe interfaces for ECS, Asset System, Database, and Render Pipeline access.
+//! The EngineHandle provides a bridge between the GPUI UI and Bevy Engine,
+//! exposing safe interfaces for ECS via commands, Asset System, Database, and Render Pipeline access.
 
-use luminara_core::World;
-use luminara_asset::AssetServer;
-use parking_lot::{RwLock, Mutex};
+use crate::services::bevy_bridge::BevyBridge;
+use parking_lot::RwLock;
 use std::sync::Arc;
-use std::collections::VecDeque;
-use std::collections::HashSet;
-use std::time::Instant;
-use luminara_math::Vec3;
-use luminara_math::Transform;
-use luminara_scene::Name;
+use luminara_asset::AssetServer;
+pub use luminara_db::LuminaraDatabase as Database;
 
-// Use real Database now that luminara_db is ready
-pub use luminara_db::database::LuminaraDatabase as Database;
+// Re-export Bevy types needed for commands
+pub use bevy::prelude::World;
 
 #[derive(Debug, Clone)]
 pub struct PreviewBillboard {
@@ -28,722 +23,92 @@ pub struct PreviewBillboard {
     pub selected: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct RenderFrameStats {
-    pub fps: f32,
-    pub frame_time_ms: f32,
-    pub frame_count: u64,
-}
-
-pub struct RenderPipeline {
-    frame_count: u64,
-    last_frame_instant: Instant,
-    fps: f32,
-    frame_time_ms: f32,
-}
-
-impl RenderPipeline {
-    pub fn mock() -> Self {
-        Self {
-            frame_count: 0,
-            last_frame_instant: Instant::now(),
-            fps: 0.0,
-            frame_time_ms: 0.0,
-        }
-    }
-
-    pub fn tick_frame(&mut self) -> RenderFrameStats {
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_frame_instant).as_secs_f32();
-        self.last_frame_instant = now;
-        self.frame_count = self.frame_count.saturating_add(1);
-
-        if dt > 0.0 {
-            let instant_fps = 1.0 / dt;
-            self.fps = if self.fps == 0.0 {
-                instant_fps
-            } else {
-                self.fps * 0.9 + instant_fps * 0.1
-            };
-            self.frame_time_ms = dt * 1000.0;
-        }
-
-        RenderFrameStats {
-            fps: self.fps,
-            frame_time_ms: self.frame_time_ms,
-            frame_count: self.frame_count,
-        }
-    }
-
-    pub fn project_scene_billboards(
-        &mut self,
-        world: &World,
-        camera_pos: Vec3,
-        camera_target: Vec3,
-        camera_up: Vec3,
-        camera_fov_deg: f32,
-        viewport_width: f32,
-        viewport_height: f32,
-        selected_entities: &HashSet<String>,
-    ) -> Vec<PreviewBillboard> {
-        let _ = self.tick_frame();
-
-        if viewport_width <= 1.0 || viewport_height <= 1.0 {
-            return Vec::new();
-        }
-
-        let forward = (camera_target - camera_pos).normalize();
-        let right = forward.cross(camera_up).normalize();
-        let up = right.cross(forward).normalize();
-        let aspect = (viewport_width / viewport_height).max(0.1);
-        let f = 1.0 / (camera_fov_deg.to_radians() * 0.5).tan();
-
-        let mut out = Vec::new();
-
-        for entity in world.entities() {
-            let id = format!("{}:{}", entity.id(), entity.generation());
-            let name = world
-                .get_component::<Name>(entity)
-                .map(|n| n.0.clone())
-                .unwrap_or_else(|| format!("Entity {}", entity.id()));
-            let position = world
-                .get_component::<Transform>(entity)
-                .map(|t| t.translation)
-                .unwrap_or(Vec3::ZERO);
-
-            let rel = position - camera_pos;
-            let cam_x = rel.dot(right);
-            let cam_y = rel.dot(up);
-            let cam_z = rel.dot(forward);
-
-            if cam_z <= 0.05 {
-                continue;
-            }
-
-            let ndc_x = (cam_x / cam_z) * (f / aspect);
-            let ndc_y = (cam_y / cam_z) * f;
-
-            if ndc_x.abs() > 1.8 || ndc_y.abs() > 1.8 {
-                continue;
-            }
-
-            let sx = (ndc_x * 0.5 + 0.5) * viewport_width;
-            let sy = (1.0 - (ndc_y * 0.5 + 0.5)) * viewport_height;
-            let radius = (8.0 / cam_z.max(0.4)).clamp(3.0, 10.0);
-
-            out.push(PreviewBillboard {
-                id: id.clone(),
-                name,
-                x: sx,
-                y: sy,
-                radius,
-                depth: cam_z,
-                selected: selected_entities.contains(&id),
-            });
-        }
-
-        out.sort_by(|a, b| b.depth.partial_cmp(&a.depth).unwrap_or(std::cmp::Ordering::Equal));
-        out
-    }
-}
-
-/// Command queue for editor operations
-///
-/// Commands are queued and executed in order to ensure consistency
-/// and enable undo/redo functionality.
-pub struct CommandQueue {
-    commands: VecDeque<Box<dyn EditorCommand>>,
-}
-
-impl CommandQueue {
-    pub fn new() -> Self {
-        Self {
-            commands: VecDeque::new(),
-        }
-    }
-
-    pub fn push(&mut self, command: Box<dyn EditorCommand>) {
-        self.commands.push_back(command);
-    }
-
-    pub fn pop(&mut self) -> Option<Box<dyn EditorCommand>> {
-        self.commands.pop_front()
-    }
-
-    pub fn len(&self) -> usize {
-        self.commands.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
-    }
-}
-
-impl Default for CommandQueue {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Trait for editor commands
 pub trait EditorCommand: Send + Sync {
     fn execute(&mut self, world: &mut World);
-    fn name(&self) -> &str;
 }
 
-/// Event bus for communication between UI and engine
-///
-/// Events are published by the engine and consumed by the UI
-/// to update the display in response to engine state changes.
-pub struct EventBus {
-    listeners: Vec<Box<dyn Fn(&Event) + Send + Sync>>,
-}
-
-impl EventBus {
-    pub fn new() -> Self {
-        Self {
-            listeners: Vec::new(),
-        }
-    }
-
-    pub fn subscribe<F>(&mut self, handler: F)
-    where
-        F: Fn(&Event) + Send + Sync + 'static,
-    {
-        self.listeners.push(Box::new(handler));
-    }
-
-    pub fn publish(&self, event: &Event) {
-        for listener in &self.listeners {
-            listener(event);
-        }
-    }
-}
-
-impl Default for EventBus {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Events that can be published by the engine
-#[derive(Debug, Clone)]
-pub enum Event {
-    EntitySpawned { entity: luminara_core::Entity },
-    EntityDespawned { entity: luminara_core::Entity },
-    ComponentAdded { entity: luminara_core::Entity, component_name: String },
-    ComponentRemoved { entity: luminara_core::Entity, component_name: String },
-    AssetLoaded { asset_path: String },
-    AssetFailed { asset_path: String, error: String },
-}
-
-/// Bridge between GPUI UI and Luminara Engine
-///
-/// This struct provides thread-safe access to all major engine subsystems,
-/// allowing the UI to query and modify game state safely.
 pub struct EngineHandle {
-    /// ECS World for entity and component management
-    world: Arc<RwLock<World>>,
-    /// Asset loading and management
+    bridge: Arc<BevyBridge>,
     asset_server: Arc<AssetServer>,
-    /// Database for persistence and queries
     database: Arc<Database>,
-    /// Render pipeline for 3D viewport
-    render_pipeline: Arc<RwLock<RenderPipeline>>,
-    /// Command queue for editor operations
-    command_queue: Arc<Mutex<CommandQueue>>,
-    /// Event bus for UI-engine communication
-    event_bus: Arc<Mutex<EventBus>>,
+    last_frame: Arc<RwLock<Option<Vec<u8>>>>,
 }
 
 impl EngineHandle {
-    /// Create a new EngineHandle
-    ///
-    /// # Arguments
-    /// * `world` - Arc-wrapped RwLock to the ECS World
-    /// * `asset_server` - Arc-wrapped AssetServer
-    /// * `database` - Arc-wrapped Database
-    /// * `render_pipeline` - Arc-wrapped RwLock to the RenderPipeline
-    ///
-    /// # Requirements
-    /// - Requirement 12.1: ECS Integration
-    /// - Requirement 12.2: Asset System Integration
-    /// - Requirement 12.3: Database Integration
-    /// - Requirement 12.4: Render Pipeline Integration
     pub fn new(
-        world: Arc<RwLock<World>>,
+        bridge: Arc<BevyBridge>,
         asset_server: Arc<AssetServer>,
         database: Arc<Database>,
-        render_pipeline: Arc<RwLock<RenderPipeline>>,
     ) -> Self {
         Self {
-            world,
+            bridge,
             asset_server,
             database,
-            render_pipeline,
-            command_queue: Arc::new(Mutex::new(CommandQueue::new())),
-            event_bus: Arc::new(Mutex::new(EventBus::new())),
+            last_frame: Arc::new(RwLock::new(None)),
         }
     }
 
-    /// Get read access to the ECS World
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.1: Query entities from ECS
-    pub fn world(&self) -> parking_lot::RwLockReadGuard<'_, World> {
-        self.world.read()
+    /// Execute a command on the Bevy world
+    pub fn execute_command<F>(&self, command: F)
+    where
+        F: FnOnce(&mut World) + Send + Sync + 'static,
+    {
+        let _ = self.bridge.command_sender.send(Box::new(command));
     }
 
-    /// Get write access to the ECS World
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update components in ECS
-    /// - Requirement 12.1.3: Spawn entities in ECS
-    pub fn world_mut(&self) -> parking_lot::RwLockWriteGuard<'_, World> {
-        self.world.write()
+    /// Poll for new rendered frame from Bevy
+    pub fn poll_image_event(&self) -> Option<Vec<u8>> {
+        // Drain channel to get the latest frame
+        let mut latest = None;
+        while let Ok(frame) = self.bridge.image_receiver.try_recv() {
+            latest = Some(frame);
+        }
+        
+        if let Some(frame) = latest {
+            *self.last_frame.write() = Some(frame.clone());
+            Some(frame)
+        } else {
+            None
+        }
     }
 
-    /// Get a reference to the AssetServer
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.1: Use AssetServer for asset loading
+    /// Get the last received frame
+    pub fn get_last_frame(&self) -> Option<Vec<u8>> {
+        self.last_frame.read().clone()
+    }
+
     pub fn asset_server(&self) -> &Arc<AssetServer> {
         &self.asset_server
     }
 
-    /// Get a reference to the Database
-    ///
-    /// # Requirements
-    /// - Requirement 12.3.1: Use SurrealDB for data persistence
-    /// - Requirement 12.3.2: Serialize scenes to database
     pub fn database(&self) -> &Arc<Database> {
         &self.database
     }
 
-    /// Get read access to the RenderPipeline
-    ///
-    /// # Requirements
-    /// - Requirement 12.4: Render Pipeline Integration
-    pub fn render_pipeline(&self) -> parking_lot::RwLockReadGuard<'_, RenderPipeline> {
-        self.render_pipeline.read()
-    }
-
-    /// Get write access to the RenderPipeline
-    pub fn render_pipeline_mut(&self) -> parking_lot::RwLockWriteGuard<'_, RenderPipeline> {
-        self.render_pipeline.write()
-    }
-
-    /// Get a reference to the command queue
-    ///
-    /// # Requirements
-    /// - Requirement 12.1: ECS Integration - command queue for editor operations
-    pub fn command_queue(&self) -> &Arc<Mutex<CommandQueue>> {
-        &self.command_queue
-    }
-
-    /// Get a reference to the event bus
-    ///
-    /// # Requirements
-    /// - Requirement 12.1: ECS Integration - event bus for UI-engine communication
-    pub fn event_bus(&self) -> &Arc<Mutex<EventBus>> {
-        &self.event_bus
-    }
-
-    /// Execute a command through the command queue
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update components in ECS
-    pub fn execute_command(&self, mut command: Box<dyn EditorCommand>) {
-        let mut world = self.world_mut();
-        command.execute(&mut world);
-        
-        // Optionally queue for undo/redo
-        self.command_queue.lock().push(command);
-    }
-
-    /// Subscribe to engine events
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update UI when ECS changes
-    pub fn subscribe_events<F>(&self, handler: F)
-    where
-        F: Fn(&Event) + Send + Sync + 'static,
-    {
-        self.event_bus.lock().subscribe(handler);
-    }
-
-    /// Publish an event to all subscribers
-    pub fn publish_event(&self, event: Event) {
-        self.event_bus.lock().publish(&event);
-    }
-
-    // ===== ECS Integration Methods =====
-
-    /// Query entity data by ID
-    ///
-    /// Returns entity information if it exists in the World.
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.1: Query entities from ECS
-    pub fn query_entity(&self, entity: luminara_core::Entity) -> Option<EntityData> {
-        
-        use luminara_math::Transform;
-        use luminara_scene::{Parent, Children};
-        
-        let world = self.world();
-        let entities = world.entities();
-        
-        // Check if entity exists
-        if !entities.contains(&entity) {
-            return None;
-        }
-
-        let mut components = Vec::new();
-        
-        // Query Transform component
-        if let Some(transform) = world.get_component::<Transform>(entity) {
-            if let Ok(json) = serde_json::to_value(transform) {
-                components.push(ComponentData {
-                    type_name: "luminara_math::Transform".to_string(),
-                    data: json,
-                });
-            }
-        }
-        
-        // Query Parent component
-        if let Some(parent) = world.get_component::<Parent>(entity) {
-            let parent_json = serde_json::json!({
-                "parent": format!("{:?}", parent.0)
-            });
-            components.push(ComponentData {
-                type_name: "luminara_scene::Parent".to_string(),
-                data: parent_json,
-            });
-        }
-        
-        // Query Children component
-        if let Some(children) = world.get_component::<Children>(entity) {
-            let children_json = serde_json::json!({
-                "count": children.0.len(),
-                "children": children.0.iter().map(|e| format!("{:?}", e)).collect::<Vec<_>>()
-            });
-            components.push(ComponentData {
-                type_name: "luminara_scene::Children".to_string(),
-                data: children_json,
-            });
-        }
-
-        Some(EntityData {
-            entity,
-            components,
-        })
-    }
-
-    /// Update a component on an entity
-    ///
-    /// This method updates an existing component or adds it if it doesn't exist.
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update components in ECS
-    pub fn update_component<C: luminara_core::Component>(&self, entity: luminara_core::Entity, component: C) -> Result<(), String> {
-        let mut world = self.world_mut();
-        
-        // Check if entity exists
-        let entities = world.entities();
-        if !entities.contains(&entity) {
-            return Err(format!("Entity {:?} does not exist", entity));
-        }
-
-        // Add the component using add_component
-        world.add_component(entity, component)
-            .map_err(|e| format!("Failed to update component: {}", e))?;
-
-        // Publish event
-        drop(world);
-        self.publish_event(Event::ComponentAdded {
-            entity,
-            component_name: std::any::type_name::<C>().to_string(),
-        });
-
-        Ok(())
-    }
-
-    /// Spawn a new entity
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.3: Spawn entities in ECS
-    pub fn spawn_entity(&self) -> luminara_core::Entity {
-        let mut world = self.world_mut();
-        let entity = world.spawn();
-        
-        // Publish event
-        drop(world);
-        self.publish_event(Event::EntitySpawned { entity });
-        
-        entity
-    }
-
-    /// Spawn an entity with a bundle of components
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.3: Spawn entities in ECS
-    pub fn spawn_entity_with<B>(&self, bundle: B) -> Result<luminara_core::Entity, String>
-    where
-        B: luminara_core::Bundle,
-    {
-        let mut world = self.world_mut();
-        let entity = world.spawn_bundle(bundle)
-            .map_err(|e| format!("Failed to spawn entity: {}", e))?;
-        
-        // Publish event
-        drop(world);
-        self.publish_event(Event::EntitySpawned { entity });
-        
-        Ok(entity)
-    }
-
-    /// Despawn an entity
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update ECS state
-    pub fn despawn_entity(&self, entity: luminara_core::Entity) -> Result<(), String> {
-        let mut world = self.world_mut();
-        
-        let entities = world.entities();
-        if !entities.contains(&entity) {
-            return Err(format!("Entity {:?} does not exist", entity));
-        }
-
-        let success = world.despawn(entity);
-        if !success {
-            return Err(format!("Failed to despawn entity {:?}", entity));
-        }
-        
-        // Publish event
-        drop(world);
-        self.publish_event(Event::EntityDespawned { entity });
-        
-        Ok(())
-    }
-
-    /// Remove a component from an entity
-    ///
-    /// # Requirements
-    /// - Requirement 12.1.2: Update components in ECS
-    pub fn remove_component<C: luminara_core::Component>(&self, entity: luminara_core::Entity) -> Result<(), String> {
-        let mut world = self.world_mut();
-        
-        let entities = world.entities();
-        if !entities.contains(&entity) {
-            return Err(format!("Entity {:?} does not exist", entity));
-        }
-
-        world.remove_component::<C>(entity)
-            .map_err(|e| format!("Failed to remove component: {}", e))?;
-        
-        // Publish event
-        drop(world);
-        self.publish_event(Event::ComponentRemoved {
-            entity,
-            component_name: std::any::type_name::<C>().to_string(),
-        });
-        
-        Ok(())
-    }
-
-    // ===== Asset System Integration Methods =====
-
-    /// Load an asset asynchronously
-    ///
-    /// Returns a handle to the asset that can be used to retrieve it once loaded.
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.1: Use AssetServer for asset loading
-    /// - Requirement 12.2.7: Async loading without blocking UI
-    pub fn load_asset<T: luminara_asset::Asset>(&self, path: &str) -> luminara_asset::Handle<T> {
-        let handle = self.asset_server.load(path);
-        
-        // Publish event when loading starts
-        self.publish_event(Event::AssetLoaded {
-            asset_path: path.to_string(),
-        });
-        
-        handle
-    }
-
-    /// Load an asset with priority
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.1: Use AssetServer for asset loading
-    pub fn load_asset_with_priority<T: luminara_asset::Asset>(
-        &self,
-        path: &str,
-        priority: luminara_asset::LoadPriority,
-    ) -> luminara_asset::Handle<T> {
-        let handle = self.asset_server.load_with_priority(path, priority);
-        
-        self.publish_event(Event::AssetLoaded {
-            asset_path: path.to_string(),
-        });
-        
-        handle
-    }
-
-    /// Get an asset if it's loaded
-    ///
-    /// Returns None if the asset is not yet loaded or doesn't exist.
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.1: Use AssetServer for asset loading
-    pub fn get_asset<T: luminara_asset::Asset>(&self, handle: &luminara_asset::Handle<T>) -> Option<Arc<T>> {
-        self.asset_server.get(handle)
-    }
-
-    /// Check the load state of an asset
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.3: Display asset loading progress
-    pub fn asset_load_state(&self, id: luminara_asset::AssetId) -> luminara_asset::LoadState {
-        self.asset_server.load_state(id)
-    }
-
-    /// Get overall asset loading progress
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.3: Display asset loading progress
-    pub fn asset_load_progress(&self) -> luminara_asset::LoadProgress {
-        self.asset_server.load_progress()
-    }
-
-    /// Add an asset directly to the asset server
-    ///
-    /// This is useful for runtime-generated assets.
-    ///
-    /// # Requirements
-    /// - Requirement 12.2.1: Use AssetServer for asset loading
-    pub fn add_asset<T: luminara_asset::Asset>(&self, asset: T) -> luminara_asset::Handle<T> {
-        self.asset_server.add(asset)
-    }
-
-    // ===== Database Integration Methods =====
-
-    /// Query data from the database
-    ///
-    /// This is a placeholder implementation until luminara_db is fully integrated.
-    ///
-    /// # Requirements
-    /// - Requirement 12.3.1: Use SurrealDB for data persistence
-    /// - Requirement 12.3.3: Support real-time queries
-    pub fn query_database(&self, _query: &str) -> Result<Vec<serde_json::Value>, String> {
-        // Placeholder implementation
-        // In a real implementation, this would query the SurrealDB database
-        Ok(Vec::new())
-    }
-
-    /// Save data to the database
-    ///
-    /// This is a placeholder implementation until luminara_db is fully integrated.
-    ///
-    /// # Requirements
-    /// - Requirement 12.3.2: Serialize scenes to database
-    pub fn save_to_database(&self, _table: &str, _data: serde_json::Value) -> Result<(), String> {
-        // Placeholder implementation
-        // In a real implementation, this would save to SurrealDB
-        Ok(())
-    }
-
-    /// Delete data from the database
-    ///
-    /// # Requirements
-    /// - Requirement 12.3.1: Use SurrealDB for data persistence
-    pub fn delete_from_database(&self, _table: &str, _id: &str) -> Result<(), String> {
-        // Placeholder implementation
-        Ok(())
-    }
-
-    /// Update data in the database with optimistic UI updates
-    ///
-    /// # Requirements
-    /// - Requirement 12.3.5: Implement optimistic UI updates with DB sync
-    pub fn update_database_optimistic(&self, _table: &str, _id: &str, _data: serde_json::Value) -> Result<(), String> {
-        // Placeholder implementation
-        // In a real implementation, this would:
-        // 1. Update the UI immediately (optimistic)
-        // 2. Queue the database update
-        // 3. Rollback if the update fails
-        Ok(())
-    }
-}
-
-/// Entity data returned by queries
-#[derive(Debug, Clone)]
-pub struct EntityData {
-    pub entity: luminara_core::Entity,
-    pub components: Vec<ComponentData>,
-}
-
-/// Component data for serialization
-#[derive(Debug, Clone)]
-pub struct ComponentData {
-    pub type_name: String,
-    pub data: serde_json::Value,
-}
-
-impl EngineHandle {
-    /// Create a mock EngineHandle for testing
-    ///
-    /// This creates a minimal EngineHandle with mock subsystems for testing purposes.
-    /// The mock handle provides access to all subsystems but with minimal functionality.
+    // Mock for testing
     pub fn mock() -> Self {
-        use luminara_core::App;
-        use std::path::PathBuf;
-        
-        // Create a minimal app for testing
-        let app = App::new();
-        let world = Arc::new(RwLock::new(app.world));
-        
-        // Create mock subsystems
-        let asset_server = Arc::new(AssetServer::new(PathBuf::from("assets")));
+        // Create a dummy bridge
+        let (bridge, _) = BevyBridge::new();
+        // AssetServer and Database mocks
+        let asset_server = Arc::new(AssetServer::new(std::path::PathBuf::from("assets")));
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        let database = Arc::new(rt.block_on(Database::new_memory()).expect("Failed to create memory database"));
-        drop(rt);
-
-        let render_pipeline = Arc::new(RwLock::new(RenderPipeline::mock()));
+        let database = Arc::new(rt.block_on(Database::new_memory()).expect("Failed to create database"));
         
-        Self::new(world, asset_server, database, render_pipeline)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_engine_handle_creation() {
-        let handle = EngineHandle::mock();
-        
-        // Verify we can access all subsystems
-        let _world = handle.world();
-        let _asset_server = handle.asset_server();
-        let _database = handle.database();
+        Self::new(Arc::new(bridge), asset_server, database)
     }
 
-    #[test]
-    fn test_engine_handle_world_access() {
-        let handle = EngineHandle::mock();
-        
-        // Test read access
-        {
-            let world = handle.world();
-            // World should be accessible - just verify we can get entities
-            let _entities = world.entities();
-        }
-        
-        // Test write access
-        {
-            let mut world = handle.world_mut();
-            // Should be able to spawn entities
-            let _entity = world.spawn();
-        }
+    // Legacy stubs for compatibility (returning empty/dummy values)
+
+    pub fn project_scene_billboards(
+        &self,
+        _camera_pos: luminara_math::Vec3,
+        _camera_target: luminara_math::Vec3,
+        _camera_up: luminara_math::Vec3,
+        _camera_fov_deg: f32,
+        _viewport_width: f32,
+        _viewport_height: f32,
+        _selected_entities: &std::collections::HashSet<String>,
+    ) -> Vec<PreviewBillboard> {
+        Vec::new()
     }
 }

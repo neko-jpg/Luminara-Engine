@@ -10,13 +10,11 @@ path = "src/main.rs"
 [dependencies]
 luminara = { path = "../../crates/luminara" }
 luminara_math = { path = "../../crates/luminara_math" }
-luminara_render = { path = "../../crates/luminara_render" }
 luminara_input = { path = "../../crates/luminara_input" }
 luminara_physics = { path = "../../crates/luminara_physics" }
 luminara_core = { path = "../../crates/luminara_core" }
 luminara_scene = { path = "../../crates/luminara_scene" }
 luminara_window = { path = "../../crates/luminara_window" }
-luminara_audio = { path = "../../crates/luminara_audio" }
 luminara_diagnostic = { path = "../../crates/luminara_diagnostic" }
 log = "0.4"
 env_logger = "0.11"
