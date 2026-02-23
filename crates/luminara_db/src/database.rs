@@ -1,7 +1,7 @@
 //! Core database implementation with CRUD operations
 
 use crate::error::{DbError, DbResult};
-use crate::schema::{AssetRecord, ComponentRecord, EntityRecord, OperationRecord};
+use crate::schema::{AssetRecord, ComponentRecord, EditorSessionRecord, EntityRecord, OperationRecord, UiCommandRecord};
 use surrealdb::{RecordId, Surreal};
 
 #[cfg(feature = "memory")]
@@ -92,6 +92,12 @@ impl LuminaraDatabase {
 
         // Define operation table
         db.query("DEFINE TABLE operation SCHEMALESS;").await?;
+
+        // Define UI command table for editor undo/redo
+        db.query("DEFINE TABLE ui_command SCHEMALESS;").await?;
+
+        // Define editor session table
+        db.query("DEFINE TABLE editor_session SCHEMALESS;").await?;
 
         Ok(())
     }
@@ -820,6 +826,85 @@ impl LuminaraDatabase {
     pub async fn delete_operation(&self, id: &RecordId) -> DbResult<()> {
         let _: Option<OperationRecord> = self.db.delete(id.clone()).await?;
         Ok(())
+    }
+
+    // ==================== UI Command Operations ====================
+
+    /// Store a UI command for undo/redo
+    pub async fn store_ui_command(&self, command: UiCommandRecord) -> DbResult<RecordId> {
+        let result: Option<UiCommandRecord> = self.db.create("ui_command").content(command).await?;
+
+        result
+            .and_then(|c| c.id)
+            .ok_or_else(|| DbError::Other("Failed to create UI command".to_string()))
+    }
+
+    /// Load UI commands for a session
+    ///
+    /// # Arguments
+    ///
+    /// * `session_id` - Session ID to load commands for
+    /// * `limit` - Maximum number of commands to retrieve
+    /// * `undone` - If true, load undone commands; if false, load non-undone commands
+    pub async fn load_ui_commands(
+        &self,
+        session_id: &str,
+        limit: usize,
+        undone: bool,
+    ) -> DbResult<Vec<UiCommandRecord>> {
+        let query = format!(
+            "SELECT * FROM ui_command WHERE session_id = '{}' AND is_undone = {} ORDER BY timestamp DESC LIMIT {}",
+            session_id, undone, limit
+        );
+        let mut result = self.db.query(&query).await?;
+        let commands: Vec<UiCommandRecord> = result.take(0)?;
+        Ok(commands)
+    }
+
+    /// Delete undone commands after a new command is executed (to maintain linear undo history)
+    pub async fn delete_undone_commands(&self, session_id: &str) -> DbResult<()> {
+        let query = format!(
+            "DELETE FROM ui_command WHERE session_id = '{}' AND is_undone = true",
+            session_id
+        );
+        self.db.query(&query).await?;
+        Ok(())
+    }
+
+    // ==================== Editor Session Operations ====================
+
+    /// Store an editor session
+    pub async fn store_session(&self, session: EditorSessionRecord) -> DbResult<RecordId> {
+        // Check if session with this name already exists
+        let query = format!("SELECT * FROM editor_session WHERE name = '{}'", session.name);
+        let mut result = self.db.query(&query).await?;
+        let existing: Vec<EditorSessionRecord> = result.take(0)?;
+
+        if let Some(existing_session) = existing.into_iter().next() {
+            // Update existing session
+            if let Some(id) = existing_session.id {
+                let _: Option<EditorSessionRecord> = self.db.update(&id).content(session).await?;
+                return Ok(id);
+            }
+        }
+
+        // Create new session
+        let result: Option<EditorSessionRecord> = self.db.create("editor_session").content(session).await?;
+        result
+            .and_then(|s| s.id)
+            .ok_or_else(|| DbError::Other("Failed to create editor session".to_string()))
+    }
+
+    /// Load an editor session by name
+    pub async fn load_session(&self, name: &str) -> DbResult<EditorSessionRecord> {
+        let query = format!("SELECT * FROM editor_session WHERE name = '{}'", name);
+        let mut result = self.db.query(&query).await?;
+        let sessions: Vec<EditorSessionRecord> = result.take(0)?;
+
+        sessions
+            .into_iter()
+            .next()
+            .ok_or_else(|| DbError::Other(format!("Session '{}' not found", name)))
     }
 
     // ==================== Utility Operations ====================

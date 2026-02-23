@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara Editor — アカウント設定 (フルスクリーン)</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ----- リセット＆ベース（元のスタイルを維持）----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        .editor {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            height: 100vh;
+            background-color: #202020;
+        }
+
+        /* ----- アクティビティバー（完全に維持）----- */
+        .activity-bar {
+            width: 52px;
+            background-color: #2c2c2c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 12px;
+            border-right: 1px solid #3e3e3e;
+            z-index: 20;
+            position: relative;
+        }
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            user-select: none;
+        }
+        .activity-item[draggable="true"]:hover {
+            cursor: grab;
+            opacity: 0.8;
+        }
+        .activity-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .activity-item:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .activity-item.active {
+            color: #fff;
+            background-color: #3a5f8a;
+            box-shadow: inset 0 0 0 2px #4a7ab0;
+        }
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            width: 3px;
+            height: 24px;
+            background-color: #8a8aff;
+            border-radius: 0 4px 4px 0;
+        }
+        .activity-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff8a8a;
+            border-radius: 50%;
+            border: 2px solid #2c2c2c;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #4a6a9a;
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid #2c2c2c;
+        }
+        .plus-badge {
+            background-color: #4a6a9a;
+            font-size: 14px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            border: 2px solid #2c2c2c;
+            color: white;
+        }
+        .is-folder {
+            background-color: #3a4a6a;
+            box-shadow: inset 0 0 0 1px #8a8aff;
+        }
+
+        /* 右側メインコンテンツ（元のレイアウト維持） */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        .menu-bar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .menu-item { cursor: default; padding: 2px 6px; border-radius: 4px; }
+        .menu-item:hover { background-color: #4a4a4a; }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #3a3a3a;
+            padding: 2px 4px;
+            border-radius: 6px;
+        }
+        .toolbar button {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar button:hover { background-color: #4a4a4a; color: #fff; }
+        .toolbar button.active { background-color: #3a5f8a; color: white; }
+        .separator { width: 1px; height: 24px; background-color: #4a4a4a; margin: 0 4px; }
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            color: #aaa;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        .main-area {
+            display: grid;
+            grid-template-columns: 260px 1fr 320px;
+            gap: 4px;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .resize-handle { position: absolute; top:0; width:4px; height:100%; cursor:col-resize; z-index:10; }
+        .resize-handle.left { left:260px; transform:translateX(-2px); }
+        .resize-handle.right { right:320px; transform:translateX(2px); }
+        .panel {
+            background-color: #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #3e3e3e;
+            border-radius: 4px 4px 0 0;
+        }
+        .panel-header {
+            background-color: #323232;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #bbb;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-content { padding: 12px; overflow-y: auto; flex:1; }
+        .hierarchy-toolbar { display: flex; gap:4px; margin-bottom:12px; }
+        .hierarchy-toolbar input { flex:1; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:6px 8px; border-radius:6px; }
+        .hierarchy-item { display: flex; align-items: center; padding:5px 4px; cursor:pointer; border-radius:5px; border-left:3px solid transparent; }
+        .hierarchy-item.selected { background-color: #2d5a88; border-left-color: #8a8aff; }
+        .hierarchy-item:hover:not(.selected) { background-color: #3f3f3f; }
+        .viewport {
+            background-color: #1e1e1e;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            background-image: radial-gradient(circle at 10px 10px, #2a2a2a 1px, transparent 1px);
+            background-size: 30px 30px;
+            height: 100%;
+        }
+        .viewport-toolbar {
+            position: absolute; top:12px; left:12px; background:rgba(40,40,40,0.9); backdrop-filter:blur(6px);
+            padding:6px 12px; border-radius:30px; display:flex; gap:8px; border:1px solid #4a4a4a;
+        }
+        .bottom-tab-panel {
+            background-color: #2a2a2a;
+            border-top: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            min-height: 220px;
+            max-height: 300px;
+        }
+        .tab-header {
+            display: flex; background-color: #323232; border-bottom:1px solid #404040; padding:0 8px; gap:4px;
+        }
+        .tab-item {
+            padding: 8px 16px; font-size:12px; color:#aaa; cursor:pointer; border-bottom:2px solid transparent;
+            display: flex; align-items: center; gap:6px;
+        }
+        .tab-item.active { color:#8a8aff; border-bottom-color:#8a8aff; background-color:#2a2a3a; }
+        .tab-content { display: none; padding:12px; overflow-y:auto; flex:1; }
+        .tab-content.active { display: block; }
+        .query-editor { background:#1e1e1e; font-family:monospace; padding:10px; border-radius:8px; border:1px solid #4a4a4a; }
+        .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); gap:8px; }
+        .asset-item { background:#3a3a3a; border-radius:8px; padding:12px 6px; text-align:center; border:1px solid #4a4a4a; cursor:pointer; }
+
+        /* ---------- アカウント画面用オーバーレイ（フルスクリーン版） ---------- */
+        .global-search-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;         /* 中央配置ではなく全体に広げるため、stretchでも可 */
+            padding: 0;                   /* 余白を完全に除去 */
+            pointer-events: auto;
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; backdrop-filter: blur(0); }
+            to { opacity: 1; backdrop-filter: blur(10px); }
+        }
+        .search-container {
+            width: 100%;                  /* フル幅に */
+            max-width: 100%;              /* 制限解除 */
+            height: 100%;                 /* フル高さに */
+            background-color: #1a1a1a;
+            border-radius: 0;              /* 角丸削除 */
+            border: none;                  /* 境界線も削除（お好みで残す場合は1px solid #3a3a3a） */
+            box-shadow: none;               /* 影も削除 */
+            display: grid;
+            grid-template-columns: 34% 66%;
+            overflow: hidden;
+            animation: scaleIn 0.2s ease-out;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.96); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* 以下、左右カラムの内部スタイルは元のまま（コンテンツのパディングは維持） */
+        /* ---------- 左カラム：プロフィール・アカウント概要 ---------- */
+        .search-left {
+            background-color: #1e1e1e;
+            border-right: 1px solid #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .left-header {
+            padding: 20px 20px 16px 20px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .left-header h2 {
+            font-size: 18px;
+            font-weight: 500;
+            color: #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .left-header h2 i {
+            color: #8a8aff;
+        }
+        .profile-card {
+            background: #2a2a2a;
+            border-radius: 24px;
+            padding: 24px 20px;
+            margin: 16px 0 8px 0;
+            border: 1px solid #3a3a3a;
+            text-align: center;
+        }
+        .avatar-lg {
+            font-size: 64px;
+            color: #8a8aff;
+            margin-bottom: 12px;
+        }
+        .display-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+        }
+        .user-email {
+            color: #8a8aff;
+            font-size: 13px;
+            margin: 4px 0 12px 0;
+            word-break: break-all;
+        }
+        .plan-badge {
+            background: #3a5f8a;
+            color: white;
+            border-radius: 30px;
+            padding: 4px 16px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 20px;
+            border: 1px solid #8a8aff;
+        }
+        .account-stats {
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid #3a3a3a;
+            padding-top: 16px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #8a8aff;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #aaa;
+        }
+        .profile-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .profile-actions button {
+            flex: 1;
+            background: #3a3a3a;
+            border: 1px solid #4a4a4a;
+            color: #ddd;
+            padding: 10px 0;
+            border-radius: 40px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .profile-actions button:hover {
+            background: #4a5f8a;
+            color: white;
+        }
+
+        /* 左カラム下部のその他アカウントリンク */
+        .left-footer {
+            padding: 20px;
+            border-top: 1px solid #2a2a2a;
+            margin-top: auto;
+        }
+        .link-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .link-item:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+        .link-item i {
+            width: 24px;
+            font-size: 18px;
+            color: #8a8aff;
+        }
+        .link-item span {
+            flex: 1;
+            font-size: 14px;
+        }
+        .link-item .chevron {
+            color: #6a6a6a;
+            font-size: 12px;
+        }
+
+        /* ---------- 右カラム：設定カテゴリ＋詳細 ---------- */
+        .search-right {
+            background-color: #202020;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .preview-header {
+            padding: 20px 24px 12px 24px;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .preview-header h3 {
+            font-size: 16px;
+            font-weight: 400;
+            color: #ccc;
+        }
+        .preview-header .actions {
+            display: flex;
+            gap: 10px;
+        }
+        .preview-header button {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #ccc;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .preview-header button:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+
+        .settings-categories {
+            display: flex;
+            gap: 12px;
+            padding: 16px 24px 8px 24px;
+            border-bottom: 1px solid #2a2a2a;
+            flex-wrap: wrap;
+        }
+        .category-chip {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 30px;
+            padding: 6px 18px;
+            font-size: 12px;
+            color: #bbb;
+            cursor: pointer;
+        }
+        .category-chip.active {
+            background: #3a5f8a;
+            border-color: #8a8aff;
+            color: white;
+        }
+
+        .settings-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 24px 20px 24px;
+        }
+        .setting-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .setting-info {
+            flex: 1;
+        }
+        .setting-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #eee;
+        }
+        .setting-desc {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .setting-control {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 12px;
+            color: #ddd;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .setting-control i {
+            color: #8a8aff;
+            font-size: 12px;
+        }
+        .setting-control select {
+            background: transparent;
+            border: none;
+            color: #ddd;
+            outline: none;
+        }
+        .setting-control input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #8a8aff;
+        }
+        .danger-zone {
+            margin-top: 24px;
+            background: #2a1e1e;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #8a4a4a;
+        }
+        .danger-zone .setting-name {
+            color: #ff8a8a;
+        }
+
+        /* フッター */
+        .search-footer {
+            padding: 16px 24px;
+            background-color: #1a1a1a;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            color: #6a6a6a;
+            font-size: 12px;
+        }
+        .key-hint {
+            display: flex;
+            gap: 20px;
+        }
+        .key-hint span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .key-hint kbd {
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #ccc;
+        }
+        .esc-hint {
+            color: #8a8aff;
+            cursor: default;
+        }
+
+        .close-button {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: 0.1s;
+        }
+        .close-button:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor">
+        <!-- ========== 左アクティビティバー（User をアクティブに変更） ========== -->
+        <div class="activity-bar" id="activity-bar">
+            <!-- 検索アイコンは active を外す -->
+            <div class="activity-item" draggable="true" title="Global Search" data-original-icon="fa-search" data-original-title="Global Search">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="activity-item" draggable="true" title="Scene Builder" data-original-icon="fa-cubes" data-original-title="Scene Builder">
+                <i class="fas fa-cubes"></i>
+                <span class="badge" style="background-color: #8aff8a;"></span>
+            </div>
+            <div class="activity-item" draggable="true" title="Logic Graph" data-original-icon="fa-project-diagram" data-original-title="Logic Graph">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <div class="activity-item" draggable="true" title="Director" data-original-icon="fa-film" data-original-title="Director">
+                <i class="fas fa-film"></i>
+            </div>
+            <div class="activity-item" draggable="true" title="Backend & AI" data-original-icon="fa-terminal" data-original-title="Backend & AI">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <div class="activity-item" draggable="true" title="Asset Vault" data-original-icon="fa-folder-open" data-original-title="Asset Vault">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="activity-item" draggable="true" title="Extensions" data-original-icon="fa-puzzle-piece" data-original-title="Extensions">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <div class="activity-item" title="New Box..." style="cursor:pointer;">
+                <i class="fas fa-plus-circle"></i>
+                <span class="plus-badge">+</span>
+            </div>
+            <div class="activity-bottom">
+                <div class="activity-item" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <!-- User アイコンを active に -->
+                <div class="activity-item active" title="User">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 右側メインコンテンツ（元のまま） ========== -->
+        <div class="main-content">
+            <!-- 通常のメニュー・ツールバー・パネル（Scene Builderの中身） -->
+            <div class="menu-bar">
+                <div class="menu-item">File</div>
+                <div class="menu-item">Edit</div>
+                <div class="menu-item">Assets</div>
+                <div class="menu-item">GameObject</div>
+                <div class="menu-item">Component</div>
+                <div class="menu-item">Window</div>
+                <div class="menu-item">AI</div>
+                <div class="menu-item">Help</div>
+            </div>
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button><i class="fas fa-play"></i><span>Play</span></button>
+                    <button><i class="fas fa-pause"></i></button>
+                    <button><i class="fas fa-stop"></i></button>
+                </div>
+                <div class="separator"></div>
+                <div class="toolbar-group">
+                    <button class="active"><i class="fas fa-arrows-alt"></i> Move</button>
+                    <button><i class="fas fa-sync-alt"></i> Rotate</button>
+                    <button><i class="fas fa-expand-alt"></i> Scale</button>
+                    <button><i class="fas fa-mouse-pointer"></i> Select</button>
+                </div>
+                <div class="status-bar">
+                    <span><i class="fas fa-chart-line"></i> 120 FPS</span>
+                    <span><i class="fas fa-cubes"></i> 32 Entities</span>
+                    <span><i class="fas fa-database"></i> DB: scenes</span>
+                    <span><i class="fas fa-robot"></i> AI ready</span>
+                </div>
+            </div>
+            <div class="main-area">
+                <div class="resize-handle left"></div>
+                <div class="resize-handle right"></div>
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-sitemap"></i> Scene Hierarchy</span><div><i class="fas fa-ellipsis-v"></i></div></div>
+                    <div class="panel-content">
+                        <div class="hierarchy-toolbar"><input type="text" placeholder="Filter..." value="Player"><button><i class="fas fa-database"></i></button><button><i class="fas fa-plus"></i></button></div>
+                        <div class="hierarchy-item selected"><span class="indent"></span><span class="toggle"><i class="fas fa-chevron-down"></i></span><span class="name"><i class="fas fa-cube" style="color:#8a8aff;"></i> Player</span><span class="enabled"><i class="fas fa-check-circle" style="color:#4caf50;"></i></span></div>
+                        <div class="hierarchy-item" style="margin-left:20px;"><span class="indent">↳</span><span class="toggle"></span><span class="name"><i class="fas fa-camera" style="color:#ffaa00;"></i> Main Camera</span><span class="enabled"><i class="fas fa-check-circle" style="color:#4caf50;"></i></span></div>
+                    </div>
+                </div>
+                <div class="panel" style="background-color:#1e1e1e;">
+                    <div class="panel-header"><span><i class="fas fa-cube"></i> Viewport [3D]</span><span><i class="fas fa-crop-alt"></i><i class="fas fa-video"></i><i class="fas fa-cog"></i></span></div>
+                    <div class="viewport">
+                        <div class="viewport-toolbar"><button class="active"><i class="fas fa-arrows-alt"></i> Move</button><button><i class="fas fa-sync-alt"></i> Rotate</button><button><i class="fas fa-expand-alt"></i> Scale</button></div>
+                        <div style="color:#aaa; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 20px;"><i class="fas fa-cube"></i> Player selected</div>
+                        <div class="viewport-gizmo"><i class="fas fa-arrows-alt" style="font-size: 32px;"></i><span>Gizmo</span></div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-info-circle"></i> Inspector</span><div><span class="db-sync-toggle" style="font-size:11px;"><i class="fas fa-sync-alt"></i> DB Sync</span><i class="fas fa-ellipsis-v"></i></div></div>
+                    <div class="panel-content">
+                        <div class="inspector-header"><input type="checkbox" checked> <span>Active</span><input type="text" value="Player"><span class="tag">Player</span><span class="tag">Character</span></div>
+                        <div class="component-header"><span>Transform</span><i class="fas fa-grip-vertical"></i></div>
+                        <div class="property-row"><span class="property-label">Position</span><div class="vector3"><input value="2.5"><span>,</span><input value="1.0"><span>,</span><input value="0.0"></div></div>
+                        <button class="add-component-btn"><i class="fas fa-plus"></i> Add Component</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bottom-tab-panel">
+                <div class="tab-header">
+                    <div class="tab-item active" data-tab="console"><i class="fas fa-terminal"></i> Console</div>
+                    <div class="tab-item" data-tab="assets"><i class="fas fa-folder-open"></i> Asset Browser</div>
+                    <div class="tab-item" data-tab="db"><i class="fas fa-database"></i> DB Query</div>
+                    <div class="tab-item" data-tab="ai"><i class="fas fa-robot"></i> AI Assistant</div>
+                </div>
+                <div class="tab-content active" id="tab-console">[Error] Physics: Invalid mesh collision</div>
+                <div class="tab-content" id="tab-assets"><div class="asset-grid"><div class="asset-item"><i class="fas fa-cube"></i><span>Player.fbx</span></div></div></div>
+                <div class="tab-content" id="tab-db"><div class="query-editor">SELECT * FROM entity WHERE name CONTAINS 'Player';</div><button id="execute-query">Execute</button></div>
+                <div class="tab-content" id="tab-ai"><div class="ai-messages"><div class="ai-message"><div class="ai-bubble">Hello</div></div></div></div>
+            </div>
+
+            <!-- ★★★ アカウント画面オーバーレイ（フルスクリーン版） ★★★ -->
+            <div class="global-search-overlay">
+                <div class="search-container">
+                    <!-- 左カラム：プロフィール・アカウント概要 -->
+                    <div class="search-left">
+                        <div class="left-header">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h2><i class="fas fa-user-circle"></i> アカウント</h2>
+                                <button class="close-button" title="Close (Esc)"><i class="fas fa-times"></i></button>
+                            </div>
+                            <!-- プロフィールカード -->
+                            <div class="profile-card">
+                                <div class="avatar-lg">
+                                    <i class="fas fa-user-circle"></i>
+                                </div>
+                                <div class="display-name">田中 太郎</div>
+                                <div class="user-email">taro.tanaka@luminara.dev</div>
+                                <div class="plan-badge"><i class="fas fa-crown"></i> Pro プラン</div>
+                                <div class="account-stats">
+                                    <div class="stat-item">
+                                        <div class="stat-value">12</div>
+                                        <div class="stat-label">プロジェクト</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">2.4k</div>
+                                        <div class="stat-label">アセット</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-value">32</div>
+                                        <div class="stat-label">チーム</div>
+                                    </div>
+                                </div>
+                                <div class="profile-actions">
+                                    <button><i class="fas fa-pencil-alt"></i> 編集</button>
+                                    <button><i class="fas fa-sign-out-alt"></i> サインアウト</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 左カラム下部：その他のアカウントリンク -->
+                        <div class="left-footer">
+                            <div class="link-item">
+                                <i class="fas fa-id-card"></i>
+                                <span>プロフィール管理</span>
+                                <i class="fas fa-chevron-right chevron"></i>
+                            </div>
+                            <div class="link-item">
+                                <i class="fas fa-credit-card"></i>
+                                <span>課金・支払い</span>
+                                <i class="fas fa-chevron-right chevron"></i>
+                            </div>
+                            <div class="link-item">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>セキュリティ</span>
+                                <i class="fas fa-chevron-right chevron"></i>
+                            </div>
+                            <div class="link-item">
+                                <i class="fas fa-users"></i>
+                                <span>チーム設定</span>
+                                <i class="fas fa-chevron-right chevron"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右カラム：設定項目（VSCodeライクなカテゴリ＋設定） -->
+                    <div class="search-right">
+                        <div class="preview-header">
+                            <h3><i class="fas fa-sliders-h" style="color:#8a8aff;"></i> 設定エディタ</h3>
+                            <div class="actions">
+                                <button><i class="fas fa-undo-alt"></i> リセット</button>
+                                <button><i class="fas fa-save"></i> 保存</button>
+                            </div>
+                        </div>
+
+                        <!-- カテゴリチップ -->
+                        <div class="settings-categories">
+                            <span class="category-chip active">一般</span>
+                            <span class="category-chip">エディタ</span>
+                            <span class="category-chip">テーマ</span>
+                            <span class="category-chip">キーボード</span>
+                            <span class="category-chip">拡張機能</span>
+                            <span class="category-chip">アカウント</span>
+                        </div>
+
+                        <!-- 設定リスト（スクロール） -->
+                        <div class="settings-list">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-name">言語 / Language</div>
+                                    <div class="setting-desc">エディタの表示言語を変更します</div>
+                                </div>
+                                <div class="setting-control">
+                                    <i class="fas fa-globe"></i>
+                                    <select>
+                                        <option>日本語</option>
+                                        <option>English</option>
+                                        <option>中文</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-name">フォントサイズ</div>
+                                    <div class="setting-desc">コードエディタの文字サイズ</div>
+                                </div>
+                                <div class="setting-control">
+                                    <i class="fas fa-text-height"></i>
+                                    <span>14px</span>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-name">テーマ カラー</div>
+                                    <div class="setting-desc">ダーク / ライト / ハイコントラスト</div>
+                                </div>
+                                <div class="setting-control">
+                                    <i class="fas fa-palette"></i>
+                                    <span>ダークモード (Luminara Dark+)</span>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-name">自動保存</div>
+                                    <div class="setting-desc">編集中のファイルを自動的に保存</div>
+                                </div>
+                                <div class="setting-control">
+                                    <input type="checkbox" checked> 有効
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <div class="setting-name">AI 提案</div>
+                                    <div class="setting-desc">コード補完にAIを利用する</div>
+                                </div>
+                                <div class="setting-control">
+                                    <input type="checkbox" checked> 有効
+                                </div>
+                            </div>
+
+                            <!-- 危険な設定ゾーン（例） -->
+                            <div class="danger-zone">
+                                <div class="setting-item" style="border-bottom: none;">
+                                    <div class="setting-info">
+                                        <div class="setting-name" style="color: #ff8a8a;">アカウント削除</div>
+                                        <div class="setting-desc">この操作は元に戻せません</div>
+                                    </div>
+                                    <div class="setting-control" style="background: #8a4a4a; border-color: #ff8a8a;">
+                                        <span style="color: white;">削除</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- フッター（キーボードヒント） -->
+                        <div class="search-footer">
+                            <div class="key-hint">
+                                <span><kbd>↑</kbd> <kbd>↓</kbd> 移動</span>
+                                <span><kbd>↵</kbd> 開く</span>
+                                <span><kbd>⌘S</kbd> 保存</span>
+                                <span><kbd>⌘,</kbd> 設定</span>
+                            </div>
+                            <div class="esc-hint">
+                                <i class="fas fa-times"></i> Esc で閉じる
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- スクリプト（元の機能を維持＋ダミー） -->
+    <script>
+        (function() {
+            // 元のタブ切り替え機能を維持
+            const tabs = document.querySelectorAll('.tab-item');
+            const contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-tab');
+                    contents.forEach(c => {
+                        c.classList.remove('active');
+                        if (c.id === 'tab-' + target) c.classList.add('active');
+                    });
+                });
+            });
+
+            // ヒエラルキー選択
+            const hierarchyItems = document.querySelectorAll('.hierarchy-item');
+            hierarchyItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    hierarchyItems.forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+
+            // ツールバーアクティブ
+            const toolbarButtons = document.querySelectorAll('.toolbar button');
+            toolbarButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (this.querySelector('.fa-arrows-alt, .fa-sync-alt, .fa-expand-alt, .fa-mouse-pointer')) {
+                        toolbarButtons.forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+
+            // DB executeダミー
+            document.getElementById('execute-query')?.addEventListener('click', function() {
+                const table = document.querySelector('.query-results table');
+                if (table) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td>3</td><td>Boss</td><td>Transform, AI</td>';
+                    table.appendChild(row);
+                }
+            });
+
+            // 閉じるボタンのダミー動作（今回は表示固定のため、単にコンソールログ）
+            const closeBtn = document.querySelector('.close-button');
+            closeBtn?.addEventListener('click', () => {
+                alert('アカウント画面を閉じる (本来はオーバーレイ非表示)');
+                // document.querySelector('.global-search-overlay').style.display = 'none';
+            });
+
+            // カテゴリチップの切り替えダミー
+            const chips = document.querySelectorAll('.category-chip');
+            chips.forEach(chip => {
+                chip.addEventListener('click', function() {
+                    chips.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // リンクアイテムのダミー
+            document.querySelectorAll('.link-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    alert('設定ページへの遷移ダミー');
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

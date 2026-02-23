@@ -1,141 +1,59 @@
-//! Scene Builder Box - Main Container
-//!
-//! The main Scene Builder container that combines all panels:
-//! - Menu Bar (top)
-//! - Toolbar (below menu)
-//! - Hierarchy Panel (left, 260px)
-//! - Viewport Panel (center, flexible)
-//! - Inspector Panel (right, 320px)
-//! - Bottom Tab Panel (bottom, 200px)
+//! Scene Builder Box (Vizia v0.3)
 
-use gpui::{
-    IntoElement, Render, View, ViewContext, VisualContext as _,
-};
-use std::sync::Arc;
-use crate::ui::theme::Theme;
-use crate::ui::layouts::WorkspaceLayout;
-use crate::features::scene_builder::menu_bar::MenuBar;
+use crate::core::state::EditorStateManager;
 use crate::services::engine_bridge::EngineHandle;
-use crate::features::scene_builder::{
-    toolbar::MainToolbar,
-    hierarchy::HierarchyPanel,
-    viewport::Viewport3D,
-    inspector::InspectorPanel,
-    bottom_tabs::BottomTabPanel,
-};
+use crate::ui::theme::Theme;
+use std::sync::Arc;
+use vizia::prelude::*;
 
-
-/// Scene Builder Box - Main container component
-pub struct SceneBuilderBox {
-    theme: Arc<Theme>,
-    engine_handle: Arc<EngineHandle>,
-    editor_state: gpui::Model<crate::core::state::EditorStateManager>,
-    // Child views
-    menu_bar: View<MenuBar>,
-    toolbar: View<MainToolbar>,
-    hierarchy: View<HierarchyPanel>,
-    viewport: View<Viewport3D>,
-    inspector: View<InspectorPanel>,
-    bottom_tabs: View<BottomTabPanel>,
+#[derive(Clone)]
+pub struct SceneBuilderState {
+    pub theme: Arc<Theme>,
+    pub engine_handle: Arc<EngineHandle>,
+    pub editor_state: EditorStateManager,
+    pub selected_entity: Option<u64>,
 }
 
-impl SceneBuilderBox {
+impl SceneBuilderState {
     pub fn new(
         engine_handle: Arc<EngineHandle>,
         theme: Arc<Theme>,
-        editor_state: gpui::Model<crate::core::state::EditorStateManager>,
-        cx: &mut ViewContext<Self>,
+        editor_state: EditorStateManager,
     ) -> Self {
-        // Create child views
-        let menu_bar = cx.new_view(|_cx| {
-            MenuBar::new(theme.clone())
-                .with_engine_handle(engine_handle.clone())
-                .with_state(editor_state.clone())
-        });
-        let toolbar = cx.new_view(|cx| MainToolbar::new(theme.clone(), editor_state.clone(), cx));
-        let hierarchy = cx.new_view(|cx| HierarchyPanel::new(
-            theme.clone(),
-            engine_handle.clone(),
-            editor_state.clone(),
-            cx,
-        ));
-        let viewport = cx.new_view(|cx| Viewport3D::new(
-            theme.clone(),
-            engine_handle.clone(),
-            editor_state.clone(),
-            cx,
-        ));
-        let inspector = cx.new_view(|cx| InspectorPanel::new(
-            theme.clone(),
-            engine_handle.clone(),
-            editor_state.clone(),
-            cx,
-        ));
-        let bottom_tabs = cx.new_view(|cx| {
-            BottomTabPanel::new(theme.clone())
-                .with_state(editor_state.clone(), cx)
-        });
-
         Self {
             theme,
             engine_handle,
             editor_state,
-            menu_bar,
-            toolbar,
-            hierarchy,
-            viewport,
-            inspector,
-            bottom_tabs,
+            selected_entity: None,
         }
     }
 
-    /// Get theme reference
-    pub fn theme(&self) -> &Theme {
-        &self.theme
-    }
+    pub fn build(&mut self, cx: &mut Context) {
+        let theme = &self.theme;
+        let surface = theme.colors.surface;
+        let canvas_bg = theme.colors.canvas_background;
+        let bg = theme.colors.background;
 
-    /// Get engine handle
-    pub fn engine(&self) -> &Arc<EngineHandle> {
-        &self.engine_handle
-    }
+        VStack::new(cx, |cx| {
+            HStack::new(cx, |cx| {
+                Element::new(cx)
+                    .width(Pixels(260.0))
+                    .height(Stretch(1.0))
+                    .background_color(surface);
+            });
 
-}
+            Element::new(cx)
+                .width(Stretch(1.0))
+                .height(Stretch(1.0))
+                .background_color(canvas_bg);
 
-impl Render for SceneBuilderBox {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let theme = self.theme.clone();
-
-        // Use the unified WorkspaceLayout for consistent layout structure
-        WorkspaceLayout::new(theme.clone())
-            .with_state(self.editor_state.clone())
-            .menu_bar(self.menu_bar.clone())
-            .toolbar(self.toolbar.clone())
-            .left_panel(self.hierarchy.clone())
-            .center_panel(self.viewport.clone())
-            .right_panel(self.inspector.clone())
-            .bottom_panel(self.bottom_tabs.clone())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_scene_builder_box_initialization() {
-        // Verify SceneBuilderBox can be created with editor state
-        // Test logic omitted as it requires a full GPUI test context
-    }
-
-    #[test]
-    fn test_scene_builder_layout_dimensions() {
-        // Verify layout dimensions
-        let hierarchy_width = 260.0;
-        let inspector_width = 320.0;
-        let bottom_panel_height = 200.0;
-
-        assert_eq!(hierarchy_width, 260.0);
-        assert_eq!(inspector_width, 320.0);
-        assert_eq!(bottom_panel_height, 200.0);
+            Element::new(cx)
+                .width(Pixels(320.0))
+                .height(Stretch(1.0))
+                .background_color(surface);
+        })
+        .width(Stretch(1.0))
+        .height(Stretch(1.0))
+        .background_color(bg);
     }
 }

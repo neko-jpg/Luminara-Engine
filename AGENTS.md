@@ -136,3 +136,35 @@ div()
     .child(bottom_items) // 設定・アカウント等
 ```
 
+## 3Dビューポートの実装 (v0.159.5)
+
+### 問題
+GPUI v0.159.5では外部WGPUテクスチャを直接描画できないため、ビューーポートには3Dシーンが表示されません。
+
+### 解決策: 別ウィンドウ方式
+
+`crates/luminara_editor/examples/hybrid_editor.rs` で実証されているように、3Dビューーポートを別ウィンドウとして実装します：
+
+1. **winitで別ウィンドウ作成**: 3Dレンダリング用の別ウィンドウを作成
+2. **WGPUコンテキスト共有**: 同じWGPUデバイスを使用
+3. **カメラ状態同期**: `ViewportWindowState` を使用してカメラ情報を共有
+
+```rust
+use luminara_editor::core::viewport_window::{ViewportWindowState, create_viewport_state};
+
+// 共有状態を作成
+let viewport_state = create_viewport_state();
+
+// GPUIエディタスレッドからカメラ更新
+viewport_state.write().set_camera(position, target, up, fov);
+
+// 別ウィンドウスレッドでカメラ読み取り
+let camera = viewport_state.read();
+// レンダリング...
+```
+
+### ビューポート状態のエクスポート
+
+`crates/luminara_editor/src/core/viewport_window.rs` で `ViewportWindowState` をエクスポートしています。
+
+

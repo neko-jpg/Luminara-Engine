@@ -1,17 +1,11 @@
-//! Main Toolbar Component
+//! Main Toolbar (Vizia v0.3)
 //!
-//! Toolbar with transform tools and status bar matching HTML prototype
+//! Toolbar with transform tools and status bar.
 
-use gpui::{
-    div, px, IntoElement, ParentElement, Render, Styled, ViewContext,
-    ClickEvent,
-};
-use std::sync::Arc;
 use crate::ui::theme::Theme;
-use crate::ui::components::Button;
-use crate::core::state::EditorStateManager;
+use std::sync::Arc;
+use vizia::prelude::*;
 
-/// Tool mode for transform tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolMode {
     Move,
@@ -38,295 +32,86 @@ impl ToolMode {
             ToolMode::Select => "Select",
         }
     }
-
-    pub fn shortcut(&self) -> &'static str {
-        match self {
-            ToolMode::Move => "W",
-            ToolMode::Rotate => "E",
-            ToolMode::Scale => "R",
-            ToolMode::Select => "Q",
-        }
-    }
 }
 
-/// Main toolbar component
-pub struct MainToolbar {
-    theme: Arc<Theme>,
-    state: gpui::Model<EditorStateManager>,
-    fps: u32,
-    entity_count: u32,
-    database_name: String,
-    ai_status: String,
+#[derive(Clone)]
+pub struct MainToolbarState {
+    pub theme: Arc<Theme>,
+    pub active_tool: ToolMode,
+    pub is_playing: bool,
+    pub fps: f32,
 }
 
-impl MainToolbar {
-    /// Create a new toolbar
-    pub fn new(theme: Arc<Theme>, state: gpui::Model<EditorStateManager>, cx: &mut ViewContext<Self>) -> Self {
-        cx.observe(&state, |_this: &mut MainToolbar, _model, cx| {
-            cx.notify();
-        }).detach();
-
+impl MainToolbarState {
+    pub fn new(theme: Arc<Theme>) -> Self {
         Self {
             theme,
-            state,
-            fps: 120,
-            entity_count: 32,
-            database_name: "scenes".to_string(),
-            ai_status: "ready".to_string(),
+            active_tool: ToolMode::Select,
+            is_playing: false,
+            fps: 0.0,
         }
     }
 
-    /// Update FPS
-    pub fn set_fps(&mut self, fps: u32) {
-        self.fps = fps;
+    pub fn set_tool(&mut self, tool: ToolMode) {
+        self.active_tool = tool;
     }
 
-    /// Update entity count
-    pub fn set_entity_count(&mut self, count: u32) {
-        self.entity_count = count;
-    }
+    pub fn build(&mut self, cx: &mut Context) {
+        let theme = self.theme.clone();
+        let toolbar_bg = theme.colors.toolbar_bg;
+        let text_col = theme.colors.text;
+        let text_sec = theme.colors.text_secondary;
+        let font_sm = theme.typography.sm;
+        let border_col = theme.colors.border;
+        let is_playing = self.is_playing;
 
-    /// Enter play mode
-    fn enter_play_mode(&self, cx: &mut ViewContext<Self>) {
-        self.state.update(cx, |state, cx| {
-            state.set_editor_mode("Play".to_string(), cx);
-        });
-    }
+        let tools = [ToolMode::Select, ToolMode::Move, ToolMode::Rotate, ToolMode::Scale];
+        let active = self.active_tool;
 
-    /// Enter pause mode
-    fn enter_pause_mode(&self, cx: &mut ViewContext<Self>) {
-        self.state.update(cx, |state, cx| {
-            state.set_editor_mode("Pause".to_string(), cx);
-        });
-    }
+        HStack::new(cx, move |cx| {
+            // Tool buttons
+            for tool in &tools {
+                let icon = tool.icon().to_string();
+                let is_active = *tool == active;
+                let col = if is_active { text_col } else { text_sec };
+                let btn_bg = if is_active {
+                    theme.colors.toolbar_active
+                } else {
+                    toolbar_bg
+                };
 
-    /// Stop play mode (return to edit)
-    fn stop_play_mode(&self, cx: &mut ViewContext<Self>) {
-        self.state.update(cx, |state, cx| {
-            state.set_editor_mode("Edit".to_string(), cx);
-        });
-    }
+                VStack::new(cx, move |cx| {
+                    Label::new(cx, &icon)
+                        .font_size(font_sm)
+                        .color(col)
+                        .text_align(TextAlign::Center);
+                })
+                .width(Pixels(36.0))
+                .height(Pixels(36.0))
+                .background_color(btn_bg)
+                .corner_radius(Pixels(4.0))
+                .padding_top(Stretch(1.0))
+                .padding_bottom(Stretch(1.0));
+            }
 
-    /// Render play button
-    fn render_play_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_playing = self.state.read(cx).session.editor_mode == "Play";
-        let is_paused = self.state.read(cx).session.editor_mode == "Pause";
-        let state_clone = self.state.clone();
+            // Spacer
+            Element::new(cx).width(Stretch(1.0));
 
-        let (icon, label, variant) = if is_playing {
-            ("⏸", "Pause", crate::ui::components::ButtonVariant::Primary)
-        } else if is_paused {
-            ("▶", "Resume", crate::ui::components::ButtonVariant::Primary)
-        } else {
-            ("▶", "Play", crate::ui::components::ButtonVariant::Secondary)
-        };
-
-        crate::ui::components::Button::new("play_button", label)
-            .icon(icon)
-            .variant(variant)
-            .on_click(move |_e, cx| {
-                state_clone.update(cx, |state, cx| {
-                    let next_mode = match state.session.editor_mode.as_str() {
-                        "Play" => "Pause",
-                        "Pause" => "Play",
-                        "Edit" => "Play",
-                        _ => "Play",
-                    };
-                    state.set_editor_mode(next_mode.to_string(), cx);
-                });
-            })
-    }
-
-    /// Render stop button
-    fn render_stop_button(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_editing = self.state.read(cx).session.editor_mode == "Edit";
-        let state_clone = self.state.clone();
-
-        crate::ui::components::Button::new("stop_button", "Stop")
-            .icon("⏹")
-            .variant(crate::ui::components::ButtonVariant::Secondary)
-            .disabled(is_editing)
-            .on_click(move |_e, cx| {
-                state_clone.update(cx, |state, cx| {
-                    state.set_editor_mode("Edit".to_string(), cx);
-                });
-            })
-    }
-
-    /// Render tool button
-    fn render_tool_button(&self, tool: ToolMode, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let is_active = self.state.read(cx).session.active_tool == tool.label();
-        let tool_clone = tool;
-        let state_clone = self.state.clone();
-
-        crate::ui::components::Button::new(
-            "tool_button",
-            "",
-        )
-        .icon(tool.icon())
-        .variant(if is_active {
-            crate::ui::components::ButtonVariant::Primary
-        } else {
-            crate::ui::components::ButtonVariant::Secondary
+            // Play button
+            let play_text = if is_playing { "⏸" } else { "▶" };
+            Label::new(cx, play_text)
+                .font_size(font_sm)
+                .color(text_col)
+                .padding_right(Pixels(12.0));
         })
-        .on_click(move |_e, cx| {
-            state_clone.update(cx, |state, cx| {
-                state.set_active_tool(tool_clone.label().to_string(), cx);
-            });
-        })
-    }
-
-    /// Render separator
-    fn render_separator(&self) -> impl IntoElement {
-        let theme = self.theme.clone();
-        div()
-            .w(px(1.0))
-            .h(px(24.0))
-            .bg(theme.colors.border)
-    }
-
-    /// Render status bar
-    fn render_status_bar(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let theme = self.theme.clone();
-        let editor_mode = self.state.read(cx).session.editor_mode.clone();
-
-        let mode_color = match editor_mode.as_str() {
-            "Edit" => theme.colors.success,
-            "Play" => theme.colors.accent,
-            "Pause" => theme.colors.warning,
-            _ => theme.colors.success,
-        };
-
-        let mode_text = editor_mode.to_uppercase();
-
-        div()
-            .ml_auto()
-            .flex()
-            .items_center()
-            .gap(theme.spacing.lg)
-            .px(theme.spacing.md)
-            .py(theme.spacing.xs)
-            .rounded(theme.borders.rounded)
-            .bg(theme.colors.background)
-            .child(
-                // Mode indicator
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(theme.spacing.xs)
-                    .child(
-                        div()
-                            .text_color(mode_color)
-                            .text_size(theme.typography.sm)
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .child(mode_text)
-                    )
-            )
-            .child(
-                // FPS indicator
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(theme.spacing.xs)
-                    .child(
-                        div()
-                            .text_color(theme.colors.success)
-                            .text_size(theme.typography.sm)
-                            .child("◉")
-                    )
-                    .child(
-                        div()
-                            .text_color(theme.colors.text_secondary)
-                            .text_size(theme.typography.sm)
-                            .child(format!("{} FPS", self.fps))
-                    )
-            )
-            .child(
-                // Entity count
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(theme.spacing.xs)
-                    .child(
-                        div()
-                            .text_color(theme.colors.accent)
-                            .text_size(theme.typography.sm)
-                            .child("◆")
-                    )
-                    .child(
-                        div()
-                            .text_color(theme.colors.text_secondary)
-                            .text_size(theme.typography.sm)
-                            .child(format!("{} Entities", self.entity_count))
-                    )
-            )
-            .child(
-                // Database
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(theme.spacing.xs)
-                    .child(
-                        div()
-                            .text_color(theme.colors.warning)
-                            .text_size(theme.typography.sm)
-                            .child("◉")
-                    )
-                    .child(
-                        div()
-                            .text_color(theme.colors.text_secondary)
-                            .text_size(theme.typography.sm)
-                            .child(format!("DB: {}", self.database_name))
-                    )
-            )
-            .child(
-                // AI status
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(theme.spacing.xs)
-                    .child(
-                        div()
-                            .text_color(theme.colors.port_true)
-                            .text_size(theme.typography.sm)
-                            .child("◉")
-                    )
-                    .child(
-                        div()
-                            .text_color(theme.colors.text_secondary)
-                            .text_size(theme.typography.sm)
-                            .child(format!("AI {}", self.ai_status))
-                    )
-            )
-    }
-}
-
-impl Render for MainToolbar {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
-        let theme = self.theme.clone();
-
-        div()
-            .flex()
-            .flex_row()
-            .w_full()
-            .h(px(40.0))
-            .bg(theme.colors.surface)
-            .border_b_1()
-            .border_color(theme.colors.border)
-            .items_center()
-            .px(theme.spacing.md)
-            .gap(theme.spacing.sm)
-            // Play/Pause/Stop buttons group
-            .child(self.render_play_button(cx))
-            .child(self.render_stop_button(cx))
-            // Separator
-            .child(self.render_separator())
-            // Transform tools group
-            .child(self.render_tool_button(ToolMode::Move, cx))
-            .child(self.render_tool_button(ToolMode::Rotate, cx))
-            .child(self.render_tool_button(ToolMode::Scale, cx))
-            .child(self.render_tool_button(ToolMode::Select, cx))
-            // Spacer and status bar
-            .child(self.render_status_bar(cx))
+        .height(Pixels(44.0))
+        .width(Stretch(1.0))
+        .background_color(toolbar_bg)
+        .border_width(Pixels(1.0))
+        .border_color(border_col)
+        .padding_left(Pixels(8.0))
+        .padding_top(Stretch(1.0))
+        .padding_bottom(Stretch(1.0))
+        .gap(Pixels(4.0));
     }
 }

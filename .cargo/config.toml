@@ -17,15 +17,18 @@ incremental = true
 # linker = "clang"
 # rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
+# Library search path for linking
+rustflags = ["-L", "/lib/x86_64-linux-gnu", "-L", "/usr/lib/x86_64-linux-gnu"]
+
 [target.x86_64-pc-windows-msvc]
-# Use lld linker for faster linking on Windows
-linker = "rust-lld.exe"
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# Use standard MSVC linker to avoid ICU duplicate symbol issues
+# linker = "rust-lld.exe"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-gnu]
 # Use lld linker for faster linking on Windows GNU
-linker = "rust-lld.exe"
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# linker = "rust-lld.exe"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-apple-darwin]
 # Use zld linker for faster linking on macOS (if available)

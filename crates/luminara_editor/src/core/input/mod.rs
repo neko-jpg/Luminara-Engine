@@ -7,10 +7,10 @@
 //! For now, this uses a simple thread-based approach to monitor keyboard
 //! input and dispatch commands to the command system.
 
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use parking_lot::RwLock;
 
 pub mod keyboard;
 
@@ -84,13 +84,18 @@ pub struct KeyEvent {
 impl KeyEvent {
     /// Check if this is a Ctrl+K combination
     pub fn is_ctrl_k(&self) -> bool {
-        self.ctrl && !self.shift && !self.alt && !self.meta
+        self.ctrl
+            && !self.shift
+            && !self.alt
+            && !self.meta
             && matches!(self.key, Key::Char('k') | Key::Char('K'))
     }
-    
+
     /// Check if this is a Cmd+K (Mac) or Ctrl+K (Windows/Linux) combination
     pub fn is_toggle_global_search(&self) -> bool {
-        (self.ctrl || self.meta) && !self.shift && !self.alt
+        (self.ctrl || self.meta)
+            && !self.shift
+            && !self.alt
             && matches!(self.key, Key::Char('k') | Key::Char('K'))
     }
 }
@@ -109,12 +114,12 @@ impl InputManager {
             handlers: Vec::new(),
         }
     }
-    
+
     /// Register an input handler
     pub fn register_handler(&mut self, handler: Box<dyn InputHandler>) {
         self.handlers.push(handler);
     }
-    
+
     /// Start monitoring input in a background thread
     pub fn start_monitoring(mut self) -> thread::JoinHandle<()> {
         thread::spawn(move || {
@@ -126,7 +131,7 @@ impl InputManager {
                         handler.handle_key(event.clone());
                     }
                 }
-                
+
                 // Small delay to prevent CPU spinning
                 thread::sleep(Duration::from_millis(10));
             }
@@ -163,7 +168,7 @@ impl InputHandler for CommandDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_key_event_is_ctrl_k() {
         let event = KeyEvent {
@@ -177,7 +182,7 @@ mod tests {
         assert!(event.is_ctrl_k());
         assert!(event.is_toggle_global_search());
     }
-    
+
     #[test]
     fn test_key_event_is_cmd_k() {
         let event = KeyEvent {
@@ -191,7 +196,7 @@ mod tests {
         assert!(!event.is_ctrl_k()); // Not Ctrl+K
         assert!(event.is_toggle_global_search()); // But is toggle shortcut
     }
-    
+
     #[test]
     fn test_key_event_not_shortcut() {
         let event = KeyEvent {

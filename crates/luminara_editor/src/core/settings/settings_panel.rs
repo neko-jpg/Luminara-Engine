@@ -1,158 +1,66 @@
-//! Settings Panel Component
-//!
-//! A full-screen settings overlay.
+//! Settings Panel (Vizia version)
 
 use crate::ui::theme::Theme;
-use gpui::{
-    div, px, IntoElement, ParentElement, Render, Styled,
-    ViewContext, View, VisualContext,
-};
 use std::sync::Arc;
+use vizia::prelude::*;
 
-/// Settings category types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsCategory {
     General,
     Editor,
     Shortcuts,
     AiAssistant,
-    Database,
+    Appearance,
     Extensions,
-    Build,
-    Advanced,
 }
 
-impl SettingsCategory {
-    /// Get all categories
-    pub fn all() -> Vec<(SettingsCategory, &'static str, &'static str)> {
-        vec![
-            (SettingsCategory::General, "General", "icons/sliders.svg"),
-            (SettingsCategory::Editor, "Editor", "icons/edit.svg"),
-            (SettingsCategory::Shortcuts, "Shortcuts", "icons/keyboard.svg"),
-            (SettingsCategory::AiAssistant, "AI", "icons/robot.svg"),
-            (SettingsCategory::Database, "Database", "icons/database.svg"),
-            (SettingsCategory::Extensions, "Extensions", "icons/puzzle.svg"),
-            (SettingsCategory::Build, "Build", "icons/hammer.svg"),
-            (SettingsCategory::Advanced, "Advanced", "icons/cog.svg"),
-        ]
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            SettingsCategory::General => "General",
-            SettingsCategory::Editor => "Editor",
-            SettingsCategory::Shortcuts => "Shortcuts",
-            SettingsCategory::AiAssistant => "AI Assistant",
-            SettingsCategory::Database => "Database",
-            SettingsCategory::Extensions => "Extensions",
-            SettingsCategory::Build => "Build",
-            SettingsCategory::Advanced => "Advanced",
-        }
-    }
+#[derive(Lens, Clone, Data)]
+pub struct SettingsPanelState {
+    pub theme: Arc<Theme>,
+    pub visible: bool,
+    pub active_category: SettingsCategory,
 }
 
-/// The Settings Panel component
-pub struct SettingsPanel {
-    active_category: SettingsCategory,
-    #[allow(dead_code)]
-    theme: Arc<Theme>,
-    visible: bool,
-}
-
-impl SettingsPanel {
-    /// Create a new SettingsPanel
+impl SettingsPanelState {
     pub fn new(theme: Arc<Theme>) -> Self {
         Self {
-            active_category: SettingsCategory::General,
             theme,
             visible: false,
+            active_category: SettingsCategory::General,
         }
     }
 
-    /// Create as a GPUI View
-    pub fn view(theme: Arc<Theme>, cx: &mut gpui::WindowContext) -> View<Self> {
-        cx.new_view(|_cx| Self::new(theme))
-    }
-
-    pub fn show(&mut self, _cx: &mut ViewContext<Self>) {
+    pub fn show(&mut self) {
         self.visible = true;
     }
 
-    pub fn hide(&mut self, _cx: &mut ViewContext<Self>) {
+    pub fn hide(&mut self) {
         self.visible = false;
     }
 
-    pub fn toggle(&mut self, _cx: &mut ViewContext<Self>) {
+    pub fn toggle(&mut self) {
         self.visible = !self.visible;
-    }
-
-    pub fn is_visible(&self) -> bool {
-        self.visible
-    }
-
-    fn render_sidebar(&self, _cx: &ViewContext<Self>) -> impl IntoElement {
-        let categories = SettingsCategory::all();
-        
-        div()
-            .w(px(220.0))
-            .h_full()
-            .bg(self.theme.colors.background)
-            .border_r_1()
-            .border_color(self.theme.colors.border)
-            .p(px(12.0))
-            .pt(px(24.0))
-            .flex()
-            .flex_col()
-            .gap(px(4.0))
-            .children(categories.into_iter().map(|(cat, name, _icon)| {
-                let is_active = self.active_category == cat;
-                
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(12.0))
-                    .px(px(16.0))
-                    .py(px(10.0))
-                    .rounded(px(8.0))
-                    .bg(if is_active { self.theme.colors.toolbar_active } else { self.theme.colors.background })
-                    .text_color(if is_active { self.theme.colors.text } else { self.theme.colors.text_secondary })
-                    .text_size(px(13.0))
-                    .child(name)
-            }))
-    }
-
-    fn render_content(&self, _cx: &ViewContext<Self>) -> impl IntoElement {
-        div()
-            .flex_1()
-            .h_full()
-            .bg(self.theme.colors.background)
-            .p(px(24.0))
-            .child(
-                div()
-                    .text_size(px(20.0))
-                    .font_weight(gpui::FontWeight::MEDIUM)
-                    .text_color(self.theme.colors.text)
-                    .child(self.active_category.name())
-            )
     }
 }
 
-impl Render for SettingsPanel {
-    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+impl SettingsPanelState {
+    pub fn build(&mut self, cx: &mut Context) {
         if !self.visible {
-            return div();
+            return;
         }
 
-        div()
-            .absolute()
-            .top(px(0.0))
-            .left(px(0.0))
-            .w_full()
-            .h_full()
-            .bg(self.theme.colors.surface)
-            .flex()
-            .flex_row()
-            .child(self.render_sidebar(cx))
-            .child(self.render_content(cx))
+        let theme = &self.theme;
+
+        Element::new(cx)
+            .width(Stretch(1.0))
+            .height(Stretch(1.0))
+            .background_color(Color::rgba(0, 0, 0, 0.9))
+            .child(
+                Element::new(cx)
+                    .width(800.0)
+                    .height(600.0)
+                    .background_color(theme.colors.surface)
+                    .border_radius(theme.borders.lg),
+            );
     }
 }

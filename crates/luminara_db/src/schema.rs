@@ -244,3 +244,113 @@ impl OperationRecord {
         self
     }
 }
+
+/// UI command record for editor undo/redo
+///
+/// Stores UI state changes with inverse commands for persistent undo/redo.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UiCommandRecord {
+    /// Unique identifier (optional for creation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<RecordId>,
+
+    /// Session ID this command belongs to
+    pub session_id: String,
+
+    /// Action type (e.g., "TOGGLE_SEARCH", "UPDATE_COMPONENT")
+    pub action: String,
+
+    /// Forward payload (for redo)
+    pub payload: serde_json::Value,
+
+    /// Inverse payload (for undo)
+    pub inverse_payload: serde_json::Value,
+
+    /// Timestamp (Unix timestamp)
+    pub timestamp: i64,
+
+    /// Whether this command has been undone
+    #[serde(default)]
+    pub is_undone: bool,
+}
+
+/// Editor session record for persisting editor state
+///
+/// Stores the complete editor session state.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EditorSessionRecord {
+    /// Unique identifier (optional for creation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<RecordId>,
+
+    /// Session name
+    pub name: String,
+
+    /// Active workspace type (0 = SceneBuilder, 1 = LogicGraph)
+    pub active_workspace: usize,
+
+    /// Whether global search is visible
+    #[serde(default)]
+    pub global_search_visible: bool,
+
+    /// Layout configuration JSON
+    #[serde(default)]
+    pub layout_config: serde_json::Value,
+
+    /// Selected entities
+    #[serde(default)]
+    pub selected_entities: Vec<String>,
+
+    /// Active tool
+    #[serde(default)]
+    pub active_tool: String,
+
+    /// Active bottom tab
+    #[serde(default)]
+    pub active_bottom_tab: String,
+
+    /// Editor mode
+    #[serde(default)]
+    pub editor_mode: String,
+
+    /// Last updated timestamp
+    pub last_updated: i64,
+}
+
+impl UiCommandRecord {
+    /// Create a new UI command record
+    pub fn new(
+        session_id: impl Into<String>,
+        action: impl Into<String>,
+        payload: serde_json::Value,
+        inverse_payload: serde_json::Value,
+    ) -> Self {
+        Self {
+            id: None,
+            session_id: session_id.into(),
+            action: action.into(),
+            payload,
+            inverse_payload,
+            timestamp: chrono::Utc::now().timestamp(),
+            is_undone: false,
+        }
+    }
+}
+
+impl EditorSessionRecord {
+    /// Create a new editor session record
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            id: None,
+            name: name.into(),
+            active_workspace: 0,
+            global_search_visible: false,
+            layout_config: serde_json::Value::Object(serde_json::Map::new()),
+            selected_entities: Vec::new(),
+            active_tool: String::new(),
+            active_bottom_tab: String::new(),
+            editor_mode: String::new(),
+            last_updated: chrono::Utc::now().timestamp(),
+        }
+    }
+}

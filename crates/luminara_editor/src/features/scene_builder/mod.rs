@@ -1,30 +1,17 @@
-//! Scene Builder Module
-//!
-//! A modular, well-structured Scene Builder implementation that recreates
-//! the HTML prototype UI using GPUI.
-//!
-//! ## Module Structure
-//! - `box_`: Main SceneBuilderBox container
-//! - `menu_bar`: Top menu bar (File, Edit, View, etc.)
-//! - `toolbar`: Main toolbar with transform tools
-//! - `hierarchy`: Scene hierarchy panel (left)
-//! - `viewport`: 3D viewport panel (center)
-//! - `inspector`: Inspector panel (right)
-//! - `bottom_tabs`: Bottom tab panel (Console, Assets, DB Query, AI)
+//! Scene Builder Module (Vizia v0.3)
 
-pub mod box_;
 pub mod bottom_tabs;
+pub mod box_;
 pub mod hierarchy;
 pub mod inspector;
 pub mod menu_bar;
 pub mod toolbar;
 pub mod viewport;
 
-// Re-export main types
-pub use box_::SceneBuilderBox;
-pub use bottom_tabs::{BottomTab, BottomTabPanel};
-pub use hierarchy::{HierarchyPanel, HierarchyItem};
-pub use inspector::{InspectorPanel, TransformEditor};
-pub use menu_bar::{MenuBar, MenuItem};
-pub use toolbar::{MainToolbar, ToolMode};
-pub use viewport::{Viewport3D, GridBackground};
+pub use bottom_tabs::{BottomTab, BottomTabPanelState};
+pub use box_::SceneBuilderState;
+pub use hierarchy::{HierarchyItem, HierarchyPanelState};
+pub use inspector::{InspectorPanelState, TransformEditor};
+pub use menu_bar::{MenuBarState, MenuItem};
+pub use toolbar::{MainToolbarState, ToolMode};
+pub use viewport::{GridBackground, Viewport3DState};

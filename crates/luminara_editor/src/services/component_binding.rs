@@ -3,12 +3,12 @@
 //! Provides two-way data binding between UI and ECS components.
 //! This enables real-time synchronization between editor panels and the game world.
 
-use luminara_core::{Entity, World, Component};
-use luminara_math::{Transform, Vec3, Quat};
+use luminara_core::{Component, Entity, World};
+use luminara_math::{Quat, Transform, Vec3};
 use luminara_scene::{Name, Tag};
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// A command to update a component in the ECS
 #[derive(Debug, Clone)]
@@ -20,7 +20,10 @@ pub enum ComponentUpdateCommand {
     /// Update transform scale
     SetScale { entity: Entity, scale: Vec3 },
     /// Update entire transform
-    SetTransform { entity: Entity, transform: Transform },
+    SetTransform {
+        entity: Entity,
+        transform: Transform,
+    },
     /// Update entity name
     SetName { entity: Entity, name: String },
     /// Add a tag to entity
@@ -41,7 +44,8 @@ impl ComponentUpdateCommand {
                     Ok(())
                 } else {
                     // Add transform if it doesn't exist
-                    world.add_component(*entity, Transform::from_translation(*position))
+                    world
+                        .add_component(*entity, Transform::from_translation(*position))
                         .map_err(|e| format!("Failed to add transform: {}", e))
                 }
             }
@@ -52,7 +56,8 @@ impl ComponentUpdateCommand {
                 } else {
                     let mut transform = Transform::IDENTITY;
                     transform.rotation = *rotation;
-                    world.add_component(*entity, transform)
+                    world
+                        .add_component(*entity, transform)
                         .map_err(|e| format!("Failed to add transform: {}", e))
                 }
             }
@@ -63,24 +68,25 @@ impl ComponentUpdateCommand {
                 } else {
                     let mut transform = Transform::IDENTITY;
                     transform.scale = *scale;
-                    world.add_component(*entity, transform)
+                    world
+                        .add_component(*entity, transform)
                         .map_err(|e| format!("Failed to add transform: {}", e))
                 }
             }
-            ComponentUpdateCommand::SetTransform { entity, transform } => {
-                world.add_component(*entity, *transform)
-                    .map_err(|e| format!("Failed to update transform: {}", e))
-            }
-            ComponentUpdateCommand::SetName { entity, name } => {
-                world.add_component(*entity, Name::new(name.clone()))
-                    .map_err(|e| format!("Failed to update name: {}", e))
-            }
+            ComponentUpdateCommand::SetTransform { entity, transform } => world
+                .add_component(*entity, *transform)
+                .map_err(|e| format!("Failed to update transform: {}", e)),
+            ComponentUpdateCommand::SetName { entity, name } => world
+                .add_component(*entity, Name::new(name.clone()))
+                .map_err(|e| format!("Failed to update name: {}", e)),
             ComponentUpdateCommand::AddTag { entity, tag } => {
-                let mut tag_component = world.get_component::<Tag>(*entity)
+                let mut tag_component = world
+                    .get_component::<Tag>(*entity)
                     .cloned()
                     .unwrap_or_default();
                 tag_component.insert(tag.clone());
-                world.add_component(*entity, tag_component)
+                world
+                    .add_component(*entity, tag_component)
                     .map_err(|e| format!("Failed to add tag: {}", e))
             }
             ComponentUpdateCommand::RemoveTag { entity, tag } => {
@@ -91,7 +97,10 @@ impl ComponentUpdateCommand {
                     Err("Entity has no tags".to_string())
                 }
             }
-            ComponentUpdateCommand::SetActive { entity: _, active: _ } => {
+            ComponentUpdateCommand::SetActive {
+                entity: _,
+                active: _,
+            } => {
                 // Active state would be stored in a specific component
                 // For now, this is a placeholder
                 Ok(())
@@ -136,16 +145,19 @@ impl ComponentBindingManager {
     /// Apply all pending updates to the world
     pub fn apply_pending_updates(&self, world: &mut World) -> Vec<Result<(), String>> {
         let mut updates = self.pending_updates.write();
-        let results: Vec<_> = updates.drain(..).map(|cmd| {
-            let result = cmd.execute(world);
-            if result.is_ok() {
-                // Notify callbacks
-                for callback in self.update_callbacks.read().iter() {
-                    callback(&cmd);
+        let results: Vec<_> = updates
+            .drain(..)
+            .map(|cmd| {
+                let result = cmd.execute(world);
+                if result.is_ok() {
+                    // Notify callbacks
+                    for callback in self.update_callbacks.read().iter() {
+                        callback(&cmd);
+                    }
                 }
-            }
-            result
-        }).collect();
+                result
+            })
+            .collect();
         results
     }
 
@@ -177,13 +189,13 @@ impl Default for ComponentBindingManager {
 /// Helper trait for editable component values
 pub trait EditableComponent: Clone + PartialEq {
     type Value;
-    
+
     /// Get the current value
     fn get_value(&self) -> Self::Value;
-    
+
     /// Set a new value
     fn set_value(&mut self, value: Self::Value);
-    
+
     /// Check if the value has changed
     fn has_changed(&self, other: &Self) -> bool {
         self != other
@@ -329,7 +341,7 @@ mod tests {
     #[test]
     fn test_command_history() {
         let mut history = CommandHistory::new(10);
-        
+
         assert!(!history.can_undo());
         assert!(!history.can_redo());
 

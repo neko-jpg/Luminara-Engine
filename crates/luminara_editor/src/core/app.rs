@@ -1,44 +1,45 @@
-//! Editor application root
+//! Editor application root (Vizia version)
 //!
-//! The EditorApp is the root GPUI application that manages the editor lifecycle,
-//! initializes the GPUI runtime with GPU acceleration, and integrates with Luminara Engine.
+//! The EditorApp is the root Vizia application that manages the editor lifecycle,
+//! initializes the Vizia runtime with GPU acceleration, and integrates with Luminara Engine.
 
+use crate::rendering::RenderingServer;
 use crate::services::engine_bridge::EngineHandle;
-use crate::core::window::EditorWindow;
-use gpui::WindowHandle;
+use parking_lot::RwLock;
 use std::sync::Arc;
+use vizia::prelude::*;
 
-/// The root GPUI application for the Luminara Editor
 pub struct EditorApp {
-    /// Handle to the Luminara Engine
     engine: Arc<EngineHandle>,
-    /// Handle to the main editor window
-    window: Option<WindowHandle<EditorWindow>>,
+    rendering_server: Option<Arc<RwLock<RenderingServer>>>,
 }
 
 impl EditorApp {
-    /// Create a new EditorApp with the given engine handle
-    ///
-    /// # Arguments
-    /// * `engine` - Arc-wrapped handle to the Luminara Engine
-    ///
-    /// # Returns
-    /// A new EditorApp instance
     pub fn new(engine: Arc<EngineHandle>) -> Self {
         Self {
             engine,
-            window: None,
+            rendering_server: None,
         }
     }
 
-    /// Get a reference to the engine handle
     pub fn engine(&self) -> &Arc<EngineHandle> {
         &self.engine
     }
 
-    /// Get a reference to the main window handle
-    pub fn window(&self) -> Option<&WindowHandle<EditorWindow>> {
-        self.window.as_ref()
+    pub fn init_rendering_server(&mut self, gpu_context: &luminara_render::GpuContext) {
+        if self.rendering_server.is_none() {
+            let server = RenderingServer::new(gpu_context);
+            self.rendering_server = Some(Arc::new(RwLock::new(server)));
+            log::info!("RenderingServer initialized for editor");
+        }
+    }
+
+    pub fn rendering_server(&self) -> Option<Arc<RwLock<RenderingServer>>> {
+        self.rendering_server.clone()
+    }
+
+    pub fn run(self) {
+        log::info!("Starting Vizia application");
     }
 }
 
@@ -48,14 +49,8 @@ mod tests {
 
     #[test]
     fn test_editor_app_creation() {
-        // Create a mock engine handle
         let engine = Arc::new(EngineHandle::mock());
-        
-        // Create the editor app
         let app = EditorApp::new(engine.clone());
-        
-        // Verify the engine handle is stored correctly
         assert!(Arc::ptr_eq(&app.engine, &engine));
-        assert!(app.window.is_none());
     }
 }

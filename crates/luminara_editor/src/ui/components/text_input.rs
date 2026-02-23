@@ -1,107 +1,47 @@
-use gpui::{
-    div, px, IntoElement, InteractiveElement, ParentElement, Styled, WindowContext,
-    ElementId, FocusHandle, AnyElement
-};
-use std::sync::Arc;
+//! Text Input Component (Vizia v0.3)
+
 use crate::ui::theme::Theme;
+use std::sync::Arc;
+use vizia::prelude::*;
 
-pub struct TextInput {
-    id: ElementId,
-    placeholder: String,
-    value: String,
-    icon: Option<&'static str>,
-    focus_handle: Option<FocusHandle>,
-    on_change: Option<Arc<dyn Fn(&str, &mut WindowContext) + Send + Sync>>,
+#[derive(Clone)]
+pub struct TextInputState {
+    pub theme: Arc<Theme>,
+    pub placeholder: String,
 }
 
-impl TextInput {
-    pub fn new(id: impl Into<ElementId>) -> Self {
+impl TextInputState {
+    pub fn new(theme: Arc<Theme>, placeholder: impl Into<String>) -> Self {
         Self {
-            id: id.into(),
-            placeholder: String::new(),
-            value: String::new(),
-            icon: None,
-            focus_handle: None,
-            on_change: None,
+            theme,
+            placeholder: placeholder.into(),
         }
     }
 
-    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
-        self.placeholder = text.into();
-        self
-    }
+    pub fn build(&self, cx: &mut Context) {
+        let theme = &self.theme;
+        let bg = theme.colors.surface;
+        let text_col = theme.colors.text_secondary;
+        let border_col = theme.colors.border;
+        let border_rad = theme.borders.xs;
+        let font_sz = theme.typography.md;
+        let pad = theme.spacing.sm;
+        let placeholder = self.placeholder.clone();
 
-    pub fn value(mut self, text: impl Into<String>) -> Self {
-        self.value = text.into();
-        self
-    }
-
-    pub fn icon(mut self, icon: &'static str) -> Self {
-        self.icon = Some(icon);
-        self
-    }
-
-    pub fn focus_handle(mut self, handle: FocusHandle) -> Self {
-        self.focus_handle = Some(handle);
-        self
-    }
-
-    pub fn on_change(mut self, handler: impl Fn(&str, &mut WindowContext) + Send + Sync + 'static) -> Self {
-        self.on_change = Some(Arc::new(handler));
-        self
-    }
-}
-
-impl IntoElement for TextInput {
-    type Element = AnyElement;
-
-    fn into_element(self) -> Self::Element {
-        let theme = Theme::default_dark();
-
-        let base_container = div()
-            .id(self.id)
-            .flex()
-            .items_center()
-            .w_full()
-            .h(px(32.0))
-            .px(theme.spacing.sm)
-            .gap(theme.spacing.sm)
-            .rounded(theme.borders.md)
-            .bg(theme.colors.surface)
-            .border_1()
-            .border_color(theme.colors.border)
-            .hover(|style| style.border_color(theme.colors.accent));
-
-        let display_text = if self.value.is_empty() {
-            div()
-                .text_color(theme.colors.text_secondary)
-                .child(self.placeholder)
-        } else {
-            div()
-                .text_color(theme.colors.text)
-                .child(self.value)
-        };
-
-        let content = base_container
-            .children(
-                self.icon.map(|icon| {
-                    div()
-                        .text_color(theme.colors.text_secondary)
-                        .child(icon)
-                })
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .overflow_hidden()
-                    .text_size(theme.typography.sm)
-                    .child(display_text)
-            );
-
-        if let Some(handle) = self.focus_handle {
-            content.track_focus(&handle).into_any_element()
-        } else {
-            content.into_any_element()
-        }
+        HStack::new(cx, move |cx| {
+            Label::new(cx, &placeholder)
+                .font_size(font_sz)
+                .color(text_col);
+        })
+        .background_color(bg)
+        .corner_radius(Pixels(border_rad))
+        .border_width(Pixels(1.0))
+        .border_color(border_col)
+        .padding_left(Pixels(pad))
+        .padding_right(Pixels(pad))
+        .padding_top(Pixels(pad))
+        .padding_bottom(Pixels(pad))
+        .height(Pixels(28.0))
+        .width(Stretch(1.0));
     }
 }

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara Editor — Asset Vault (完全版＋DDフォルダ)</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ----- リセット＆ベース（元のスタイルをほぼ維持） ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        .editor {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            height: 100vh;
+            background-color: #202020;
+        }
+
+        /* ----- アクティビティバー（VSCodeライク） ----- */
+        .activity-bar {
+            width: 52px;
+            background-color: #2c2c2c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 12px;
+            border-right: 1px solid #3e3e3e;
+            z-index: 20;
+            position: relative;
+        }
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            user-select: none;
+        }
+        .activity-item[draggable="true"]:hover {
+            cursor: grab;
+            opacity: 0.8;
+        }
+        .activity-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .activity-item:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .activity-item.active {
+            color: #fff;
+            background-color: #3a5f8a;
+            box-shadow: inset 0 0 0 2px #4a7ab0;
+        }
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            width: 3px;
+            height: 24px;
+            background-color: #8a8aff;
+            border-radius: 0 4px 4px 0;
+        }
+        .activity-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff8a8a;
+            border-radius: 50%;
+            border: 2px solid #2c2c2c;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #4a6a9a;
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid #2c2c2c;
+        }
+        .plus-badge {
+            background-color: #4a6a9a;
+            font-size: 14px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            border: 2px solid #2c2c2c;
+            color: white;
+        }
+        .is-folder {
+            background-color: #3a4a6a;
+            box-shadow: inset 0 0 0 1px #8a8aff;
+        }
+
+        /* フォルダ展開ポップアップ */
+        .folder-popup {
+            position: fixed;
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 8px;
+            padding: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 140px;
+            backdrop-filter: blur(4px);
+        }
+        .folder-popup-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: #ddd;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+            white-space: nowrap;
+        }
+        .folder-popup-item:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+        .folder-popup-item i {
+            width: 20px;
+            font-size: 16px;
+            color: #8a8aff;
+        }
+
+        /* 右側メインコンテンツ（基本構造は維持） */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .menu-bar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .menu-item { cursor: default; padding: 2px 6px; border-radius: 4px; }
+        .menu-item:hover { background-color: #4a4a4a; }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #3a3a3a;
+            padding: 2px 4px;
+            border-radius: 6px;
+        }
+        .toolbar button {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar button:hover { background-color: #4a4a4a; color: #fff; }
+        .toolbar button.active { background-color: #3a5f8a; color: white; }
+        .separator { width: 1px; height: 24px; background-color: #4a4a4a; margin: 0 4px; }
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            color: #aaa;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        .main-area {
+            display: grid;
+            grid-template-columns: 260px 1fr 320px;
+            gap: 4px;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .resize-handle { position: absolute; top:0; width:4px; height:100%; cursor:col-resize; z-index:10; }
+        .resize-handle.left { left:260px; transform:translateX(-2px); }
+        .resize-handle.right { right:320px; transform:translateX(2px); }
+        .panel {
+            background-color: #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #3e3e3e;
+            border-radius: 4px 4px 0 0;
+        }
+        .panel-header {
+            background-color: #323232;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #bbb;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-content { padding: 12px; overflow-y: auto; flex:1; }
+
+        /* ディレクトリツリー用スタイル */
+        .tree-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .tree-item:hover { background-color: #3a3a3a; }
+        .tree-item i { width: 20px; color: #8a8aff; margin-right: 4px; }
+        .tree-item .indent { width: 20px; }
+        .tree-item.folder { color: #ddd; }
+        .tree-item.file { color: #aaa; margin-left: 20px; }
+
+        /* アセットグリッド＋プレビュー用 */
+        .asset-grid-section {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 12px;
+        }
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            max-height: 60%;
+            overflow-y: auto;
+            background-color: #2a2a2a;
+            padding: 4px;
+            border-radius: 6px;
+        }
+        .asset-item {
+            background-color: #3a3a3a;
+            border-radius: 8px;
+            padding: 10px 4px;
+            text-align: center;
+            border: 1px solid #4a4a4a;
+            cursor: pointer;
+            transition: 0.1s;
+            font-size: 11px;
+        }
+        .asset-item:hover { background-color: #4a5a7a; border-color: #8a8aff; }
+        .asset-item i { font-size: 32px; display: block; margin-bottom: 4px; color: #ddd; }
+        .asset-item.selected { background-color: #2d5a88; border: 2px solid #8a8aff; }
+
+        .preview-area {
+            flex: 1;
+            background-color: #1e1e1e;
+            border-radius: 6px;
+            border: 1px solid #4a4a4a;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .preview-header { font-weight: bold; color: #bbb; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px; }
+        .preview-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            color: #aaa;
+            font-size: 12px;
+        }
+        .preview-image { max-width: 100%; max-height: 120px; object-fit: contain; }
+
+        /* インスペクタ用 */
+        .inspector-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .inspector-group {
+            border-bottom: 1px solid #3e3e3e;
+            padding-bottom: 12px;
+        }
+        .group-title { font-weight: 600; color: #ccc; margin-bottom: 8px; }
+        .property-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .property-label { color: #aaa; }
+        .property-value { color: #8a8aff; max-width: 150px; text-align: right; }
+        .tag { background-color: #3a5f8a; padding: 2px 6px; border-radius: 12px; font-size: 10px; margin-right: 4px; }
+        .usage-list { list-style: none; color: #aaa; font-size: 11px; }
+        .usage-list li { margin-bottom: 2px; }
+
+        /* ボトムタブ */
+        .bottom-tab-panel {
+            background-color: #2a2a2a;
+            border-top: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            min-height: 200px;
+            max-height: 260px;
+        }
+        .tab-header {
+            display: flex; background-color: #323232; border-bottom:1px solid #404040; padding:0 8px; gap:4px;
+        }
+        .tab-item {
+            padding: 8px 16px; font-size:12px; color:#aaa; cursor:pointer; border-bottom:2px solid transparent;
+            display: flex; align-items: center; gap:6px;
+        }
+        .tab-item.active { color:#8a8aff; border-bottom-color:#8a8aff; background-color:#2a2a3a; }
+        .tab-content { display: none; padding:12px; overflow-y:auto; flex:1; }
+        .tab-content.active { display: block; }
+
+        /* ログなど */
+        .log-entry { font-family: monospace; font-size: 11px; padding: 2px 0; border-bottom: 1px solid #3a3a3a; }
+        .log-success { color: #8aff8a; }
+        .log-warning { color: #ffaa8a; }
+        .log-error { color: #ff8a8a; }
+        .missing-item, .duplicate-item { display: flex; justify-content: space-between; padding: 4px; background-color: #323232; margin-bottom: 4px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="editor">
+        <!-- ========== 左アクティビティバー（完全版・ドラッグ＆ドロップ対応） ========== -->
+        <div class="activity-bar" id="activity-bar">
+            <!-- 1. Global Search -->
+            <div class="activity-item" draggable="true" title="Global Search" data-original-icon="fa-search" data-original-title="Global Search">
+                <i class="fas fa-search"></i>
+            </div>
+            <!-- 2. Scene Builder (元々activeだったが、今はAsset Vaultをactiveにする) -->
+            <div class="activity-item" draggable="true" title="Scene Builder" data-original-icon="fa-cubes" data-original-title="Scene Builder">
+                <i class="fas fa-cubes"></i>
+                <span class="badge" style="background-color: #8aff8a;"></span>
+            </div>
+            <!-- 3. Logic Graph -->
+            <div class="activity-item" draggable="true" title="Logic Graph" data-original-icon="fa-project-diagram" data-original-title="Logic Graph">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <!-- 4. Director -->
+            <div class="activity-item" draggable="true" title="Director" data-original-icon="fa-film" data-original-title="Director">
+                <i class="fas fa-film"></i>
+            </div>
+            <!-- 5. Backend & AI -->
+            <div class="activity-item" draggable="true" title="Backend & AI" data-original-icon="fa-terminal" data-original-title="Backend & AI">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <!-- 6. Asset Vault (active) -->
+            <div class="activity-item active" draggable="true" title="Asset Vault" data-original-icon="fa-folder-open" data-original-title="Asset Vault">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <!-- 7. Extensions -->
+            <div class="activity-item" draggable="true" title="Extensions" data-original-icon="fa-puzzle-piece" data-original-title="Extensions">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <!-- 8. New Box (plus-circle) ※ドラッグ不可 -->
+            <div class="activity-item" title="New Box..." style="cursor:pointer;">
+                <i class="fas fa-plus-circle"></i>
+                <span class="plus-badge">+</span>
+            </div>
+            <!-- 下部システムアイコン（ドラッグ不可） -->
+            <div class="activity-bottom">
+                <div class="activity-item" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="activity-item" title="User">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 右側メインコンテンツ (Asset Vault仕様) ========== -->
+        <div class="main-content">
+            <div class="menu-bar">
+                <div class="menu-item">File</div>
+                <div class="menu-item">Edit</div>
+                <div class="menu-item">Assets</div>
+                <div class="menu-item">View</div>
+                <div class="menu-item">Help</div>
+            </div>
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button title="Grid View"><i class="fas fa-th-large"></i> Grid</button>
+                    <button title="List View"><i class="fas fa-list"></i> List</button>
+                </div>
+                <div class="toolbar-group">
+                    <button title="Sort by Name"><i class="fas fa-sort-alpha-down"></i> Name</button>
+                    <button title="Sort by Size"><i class="fas fa-sort-amount-down"></i> Size</button>
+                    <button title="Sort by Date"><i class="fas fa-calendar-alt"></i> Date</button>
+                </div>
+                <div class="toolbar-group" style="flex:1; max-width:300px;">
+                    <i class="fas fa-search" style="color:#aaa; margin-left:6px;"></i>
+                    <input type="text" placeholder="Filter assets..." style="background:transparent; border:none; color:#eee; width:100%; padding:6px;" value="hero">
+                </div>
+                <div class="status-bar">
+                    <span><i class="fas fa-cubes"></i> 124 assets</span>
+                    <span><i class="fas fa-database"></i> 12.4 MB</span>
+                </div>
+            </div>
+            <div class="main-area">
+                <div class="resize-handle left"></div>
+                <div class="resize-handle right"></div>
+                <!-- 左パネル: ディレクトリツリー -->
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-folder-tree"></i> Directory Tree</span><div><i class="fas fa-ellipsis-v"></i></div></div>
+                    <div class="panel-content">
+                        <div style="margin-bottom:8px;"><input type="text" placeholder="Filter tree..." style="width:100%; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:5px;"></div>
+                        <div class="tree-item folder"><i class="fas fa-folder-open"></i> assets/</div>
+                        <div class="tree-item folder" style="margin-left:20px;"><i class="fas fa-folder"></i> models/</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-cube"></i> hero.glb</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-cube"></i> enemy.glb</div>
+                        <div class="tree-item folder" style="margin-left:20px;"><i class="fas fa-folder"></i> textures/</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-image"></i> grass.png</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-image"></i> stone.png</div>
+                        <div class="tree-item folder" style="margin-left:20px;"><i class="fas fa-folder"></i> audio/</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-music"></i> bgm.ogg</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-music"></i> sfx_jump.wav</div>
+                        <div class="tree-item folder" style="margin-left:20px;"><i class="fas fa-folder"></i> scripts/</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-file-code"></i> player.rs</div>
+                        <div class="tree-item folder" style="margin-left:20px;"><i class="fas fa-folder"></i> prefabs/</div>
+                        <div class="tree-item file" style="margin-left:40px;"><i class="fas fa-cubes"></i> player_prefab</div>
+                    </div>
+                </div>
+                <!-- 中央パネル: アセットグリッド + プレビュー -->
+                <div class="panel" style="background-color:#1e1e1e;">
+                    <div class="panel-header"><span><i class="fas fa-th"></i> Asset Grid & Preview</span><span><i class="fas fa-cog"></i></span></div>
+                    <div class="panel-content" style="padding:8px;">
+                        <div class="asset-grid-section">
+                            <div class="asset-grid">
+                                <div class="asset-item selected"><i class="fas fa-cube"></i>hero.glb</div>
+                                <div class="asset-item"><i class="fas fa-cube"></i>enemy.glb</div>
+                                <div class="asset-item"><i class="fas fa-image"></i>grass.png</div>
+                                <div class="asset-item"><i class="fas fa-image"></i>stone.png</div>
+                                <div class="asset-item"><i class="fas fa-music"></i>bgm.ogg</div>
+                                <div class="asset-item"><i class="fas fa-music"></i>sfx_jump.wav</div>
+                                <div class="asset-item"><i class="fas fa-file-code"></i>player.rs</div>
+                                <div class="asset-item"><i class="fas fa-cubes"></i>player_prefab</div>
+                                <div class="asset-item"><i class="fas fa-cube"></i>npc.glb</div>
+                                <div class="asset-item"><i class="fas fa-font"></i>arial.ttf</div>
+                            </div>
+                            <div class="preview-area">
+                                <div class="preview-header"><i class="fas fa-eye"></i> Preview: hero.glb</div>
+                                <div class="preview-content">
+                                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23333'/%3E%3Ccircle cx='50' cy='40' r='20' fill='%238a8aff'/%3E%3Crect x='30' y='60' width='40' height='30' fill='%23666'/%3E%3C/svg%3E" style="max-width:100px; background:#444;" class="preview-image">
+                                    <span style="margin-left:10px;">3D Model (12,450 verts)</span>
+                                </div>
+                                <div style="display:flex; gap:8px; justify-content:center; color:#aaa;">
+                                    <i class="fas fa-rotate-left"></i> <i class="fas fa-rotate-right"></i> <i class="fas fa-search-plus"></i> <i class="fas fa-expand"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右パネル: Inspector (Asset) -->
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-info-circle"></i> Inspector</span><div><i class="fas fa-ellipsis-v"></i></div></div>
+                    <div class="panel-content">
+                        <div class="inspector-section">
+                            <div class="inspector-group">
+                                <div class="group-title"><i class="fas fa-cube"></i> hero.glb</div>
+                                <div class="property-row"><span class="property-label">Path</span><span class="property-value">assets/models/hero.glb</span></div>
+                                <div class="property-row"><span class="property-label">Type</span><span class="property-value">3D Model</span></div>
+                                <div class="property-row"><span class="property-label">Size</span><span class="property-value">2.4 MB (1.8 MB compressed)</span></div>
+                                <div class="property-row"><span class="property-label">SHA256</span><span class="property-value">3f4e...9a2c</span></div>
+                                <div class="property-row"><span class="property-label">Created</span><span class="property-value">2025-02-10</span></div>
+                                <div class="property-row"><span class="property-label">Tags</span><span class="property-value"><span class="tag">Character</span> <span class="tag">Hero</span></span></div>
+                            </div>
+                            <div class="inspector-group">
+                                <div class="group-title">3D Settings</div>
+                                <div class="property-row"><span class="property-label">Scale Factor</span><span class="property-value">1.0</span></div>
+                                <div class="property-row"><span class="property-label">Up Axis</span><span class="property-value">Y-Up</span></div>
+                                <div class="property-row"><span class="property-label">Collider</span><span class="property-value">Convex Hull</span></div>
+                                <div class="property-row"><span class="property-label">Animations</span><span class="property-value">3 clips</span></div>
+                                <div class="property-row"><span class="property-label">LODs</span><span class="property-value">LOD0 (100%)</span></div>
+                                <div class="property-row"><span class="property-label">Vertices</span><span class="property-value">12,450</span></div>
+                            </div>
+                            <div class="inspector-group">
+                                <div class="group-title">Usage</div>
+                                <ul class="usage-list">
+                                    <li>• Main Scene (Player entity)</li>
+                                    <li>• Level2 (Enemy variant)</li>
+                                    <li>• Prefab 'hero_prefab'</li>
+                                </ul>
+                            </div>
+                            <button style="background:#3a5f8a; border:none; color:white; padding:6px; border-radius:20px; width:100%;"><i class="fas fa-sliders-h"></i> Import Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ボトムタブパネル: Import Log / Missing / Duplicates -->
+            <div class="bottom-tab-panel">
+                <div class="tab-header">
+                    <div class="tab-item active" data-tab="importlog"><i class="fas fa-list"></i> Import Log</div>
+                    <div class="tab-item" data-tab="missing"><i class="fas fa-exclamation-triangle"></i> Missing Assets</div>
+                    <div class="tab-item" data-tab="duplicates"><i class="fas fa-copy"></i> Duplicates</div>
+                </div>
+                <div class="tab-content active" id="tab-importlog">
+                    <div class="log-entry log-success">✅ Imported grass.png (1024x1024, compressed to WebP)</div>
+                    <div class="log-entry log-success">✅ Imported hero.glb (12k vertices, collider generated)</div>
+                    <div class="log-entry log-warning">⚠️ bgm.ogg: minor clipping detected</div>
+                    <div class="log-entry log-error">❌ enemy.glb: missing texture 'metal.png'</div>
+                </div>
+                <div class="tab-content" id="tab-missing">
+                    <div class="missing-item"><span><i class="fas fa-question-circle"></i> metal.png (referenced by enemy.glb)</span> <button style="background:#3a5f8a; border:0; color:white; padding:2px 8px; border-radius:12px;">Locate</button></div>
+                    <div class="missing-item"><span><i class="fas fa-question-circle"></i> old_font.ttf (referenced by UI)</span> <button style="background:#3a5f8a; border:0; color:white; padding:2px 8px;">Locate</button></div>
+                </div>
+                <div class="tab-content" id="tab-duplicates">
+                    <div class="duplicate-item"><span><i class="fas fa-file"></i> grass (2 copies, 2.1 MB)</span> <button style="background:#3a5f8a; border:0; color:white; padding:2px 8px;">Merge</button></div>
+                    <div class="duplicate-item"><span><i class="fas fa-file"></i> stone.png (3 copies, 3.4 MB)</span> <button style="background:#3a5f8a; border:0; color:white; padding:2px 8px;">Merge</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ドラッグ＆ドロップ＋フォルダ化スクリプト (元のまま維持、一部タブ切替調整) -->
+    <script>
+        (function() {
+            // アクティビティバーとアイコン要素
+            const bar = document.getElementById('activity-bar');
+            const items = Array.from(bar.querySelectorAll('.activity-item')).filter(item => item.closest('.activity-bottom') === null ? item : false); // 下部以外を抽出
+            const draggableItems = items.filter(item => item.getAttribute('draggable') === 'true');
+
+            // ドラッグ元の情報保存用
+            let draggedItem = null;
+
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    e.dataTransfer.setData('text/plain', item.title);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+
+            bar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            bar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.activity-item');
+                if (!target || !draggedItem || target === draggedItem) return;
+                if (target.getAttribute('draggable') !== 'true') return;
+
+                draggedItem.style.display = 'none';
+
+                if (!target.classList.contains('is-folder')) {
+                    target.classList.add('is-folder');
+                    const icon = target.querySelector('i');
+                    const originalIcon = target.dataset.originalIcon || 'fa-cubes';
+                    target.dataset.originalIcon = originalIcon;
+                    icon.className = 'fas fa-folder';
+
+                    const countBadge = document.createElement('span');
+                    countBadge.className = 'folder-badge';
+                    countBadge.textContent = '1';
+                    target.appendChild(countBadge);
+
+                    target.dataset.folderItems = JSON.stringify([{ title: draggedItem.title, icon: draggedItem.dataset.originalIcon }]);
+                } else {
+                    const existing = JSON.parse(target.dataset.folderItems || '[]');
+                    existing.push({ title: draggedItem.title, icon: draggedItem.dataset.originalIcon });
+                    target.dataset.folderItems = JSON.stringify(existing);
+                    const badge = target.querySelector('.folder-badge');
+                    if (badge) badge.textContent = existing.length;
+                }
+
+                draggedItem.style.display = 'none';
+
+                if (!target.hasAttribute('data-folder-listener')) {
+                    target.setAttribute('data-folder-listener', 'true');
+                    target.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (!this.classList.contains('is-folder')) return;
+
+                        const old = document.querySelector('.folder-popup');
+                        if (old) old.remove();
+
+                        const items = JSON.parse(this.dataset.folderItems || '[]');
+                        if (items.length === 0) return;
+
+                        const popup = document.createElement('div');
+                        popup.className = 'folder-popup';
+
+                        const rect = this.getBoundingClientRect();
+                        popup.style.top = rect.top + 'px';
+                        popup.style.left = (rect.right + 8) + 'px';
+
+                        items.forEach((item, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'folder-popup-item';
+                            div.innerHTML = `<i class="fas ${item.icon || 'fa-cube'}"></i><span>${item.title}</span>`;
+                            div.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                alert(`「${item.title}」を選択しました (本来は対応するBoxに遷移)`);
+                                document.querySelector('.folder-popup')?.remove();
+                            });
+                            popup.appendChild(div);
+                        });
+
+                        document.body.appendChild(popup);
+
+                        const closePopup = (e) => {
+                            if (!popup.contains(e.target) && e.target !== this) {
+                                popup.remove();
+                                document.removeEventListener('click', closePopup);
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', closePopup), 10);
+                    });
+                }
+
+                draggedItem = null;
+            });
+
+            document.addEventListener('dragend', () => {
+                draggedItem = null;
+            });
+
+            // タブ切り替え (Asset Vault用にdata-tab修正)
+            const tabs = document.querySelectorAll('.tab-item');
+            const contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-tab');
+                    contents.forEach(c => {
+                        c.classList.remove('active');
+                        // ID形式: tab-importlog, tab-missing, tab-duplicates
+                        if (c.id === 'tab-' + target) c.classList.add('active');
+                    });
+                });
+            });
+
+            // 旧ヒエラルキー選択イベントは残存するが、該当要素がないので無視
+            // ツールバーボタンのactive切替（Move/Rotate/Scale系）は、新しいツールバーには該当アイコンがないため影響なし
+
+            // 以前のDB Executeは削除 (該当要素なし)
+
+            // アセットグリッドの選択状態トグル（簡易）
+            const assetItems = document.querySelectorAll('.asset-item');
+            assetItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    assetItems.forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                    // プレビュー内容を変更するダミー処理 (簡易)
+                    const previewHeader = document.querySelector('.preview-header');
+                    const previewImg = document.querySelector('.preview-content img');
+                    if (previewHeader && previewImg) {
+                        const name = this.innerText.trim();
+                        previewHeader.innerHTML = `<i class="fas fa-eye"></i> Preview: ${name}`;
+                        // アイコンによって適当なプレビューイメージを変える (ダミー)
+                        if (name.includes('.png') || name.includes('.jpg')) {
+                            previewImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23333'/%3E%3Crect x='10' y='10' width='80' height='80' fill='%238a8aff'/%3E%3C/svg%3E";
+                        } else if (name.includes('.ogg') || name.includes('.wav')) {
+                            previewImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23333'/%3E%3Cpath d='M30,40 L30,70 L50,70 L70,40 Z' fill='%238a8aff'/%3E%3C/svg%3E";
+                        } else {
+                            previewImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23333'/%3E%3Ccircle cx='50' cy='40' r='20' fill='%238a8aff'/%3E%3Crect x='30' y='60' width='40' height='30' fill='%23666'/%3E%3C/svg%3E";
+                        }
+                    }
+                });
+            });
+
+            // ディレクトリツリーの選択風（簡易）
+            const treeItems = document.querySelectorAll('.tree-item');
+            treeItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    treeItems.forEach(i => i.style.backgroundColor = '');
+                    this.style.backgroundColor = '#3a5f8a';
+                });
+            });
+
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara Editor — 設定 (Settings)</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ----- リセット＆ベース（既存のスタイルを維持） ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        .editor {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            height: 100vh;
+            background-color: #202020;
+        }
+
+        /* ----- アクティビティバー（既存のまま） ----- */
+        .activity-bar {
+            width: 52px;
+            background-color: #2c2c2c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 12px;
+            border-right: 1px solid #3e3e3e;
+            z-index: 20;
+            position: relative;
+        }
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            user-select: none;
+        }
+        .activity-item[draggable="true"]:hover {
+            cursor: grab;
+            opacity: 0.8;
+        }
+        .activity-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .activity-item:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .activity-item.active {
+            color: #fff;
+            background-color: #3a5f8a;
+            box-shadow: inset 0 0 0 2px #4a7ab0;
+        }
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            width: 3px;
+            height: 24px;
+            background-color: #8a8aff;
+            border-radius: 0 4px 4px 0;
+        }
+        .activity-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff8a8a;
+            border-radius: 50%;
+            border: 2px solid #2c2c2c;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #4a6a9a;
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid #2c2c2c;
+        }
+        .plus-badge {
+            background-color: #4a6a9a;
+            font-size: 14px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            border: 2px solid #2c2c2c;
+            color: white;
+        }
+        .is-folder {
+            background-color: #3a4a6a;
+            box-shadow: inset 0 0 0 1px #8a8aff;
+        }
+
+        /* 右側メインコンテンツ（簡略化） */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        .menu-bar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .menu-item { cursor: default; padding: 2px 6px; border-radius: 4px; }
+        .menu-item:hover { background-color: #4a4a4a; }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+        }
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            color: #aaa;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* オーバーレイ（設定画面）—— 全画面表示に修正 */
+        .settings-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 0;                /* ← 余白をゼロに */
+            pointer-events: auto;
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; backdrop-filter: blur(0); }
+            to { opacity: 1; backdrop-filter: blur(10px); }
+        }
+        .settings-container {
+            width: 100%;               /* ← 全幅 */
+            max-width: none;           /* ← 制限解除 */
+            height: 100%;              /* ← 全高 */
+            background-color: #1a1a1a;
+            border-radius: 0;          /* ← 角をなくす */
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 25px 50px -12px black, 0 0 0 1px rgba(138, 138, 255, 0.2);
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            overflow: hidden;
+            animation: scaleIn 0.2s ease-out;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.96); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* 左側：設定カテゴリ */
+        .settings-sidebar {
+            background-color: #1e1e1e;
+            border-right: 1px solid #2a2a2a;
+            padding: 24px 12px;
+            overflow-y: auto;
+        }
+        .settings-category {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            color: #bbb;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: background 0.1s;
+        }
+        .settings-category i {
+            width: 20px;
+            font-size: 16px;
+            color: #8a8aff;
+        }
+        .settings-category:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .settings-category.active {
+            background-color: #3a5f8a;
+            color: white;
+        }
+        .settings-category.active i {
+            color: white;
+        }
+
+        /* 右側：設定コンテンツ */
+        .settings-content {
+            background-color: #202020;
+            padding: 24px 28px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .settings-header h2 {
+            font-size: 20px;
+            font-weight: 400;
+            color: #ccc;
+        }
+        .close-button {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: 0.1s;
+        }
+        .close-button:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .settings-section {
+            margin-bottom: 32px;
+        }
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #8a8aff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #2a2a2a;
+            padding-bottom: 6px;
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
+            padding: 4px 0;
+        }
+        .setting-label {
+            width: 140px;
+            color: #aaa;
+            font-size: 13px;
+        }
+        .setting-control {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .setting-control input[type="text"],
+        .setting-control input[type="number"],
+        .setting-control select {
+            background-color: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #eee;
+            font-size: 13px;
+            width: 100%;
+            max-width: 300px;
+            outline: none;
+        }
+        .setting-control input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #8a8aff;
+        }
+        .setting-control input:focus {
+            border-color: #8a8aff;
+            box-shadow: 0 0 0 2px rgba(138,138,255,0.2);
+        }
+        .setting-control button {
+            background-color: #3a5f8a;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .setting-control button:hover {
+            background-color: #4a7ab0;
+        }
+        .setting-help {
+            color: #6a6a6a;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background-color: #4a4a4a;
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: #ccc;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.1s;
+        }
+        .toggle-switch.active {
+            background-color: #4a7ab0;
+        }
+        .toggle-switch.active::before {
+            transform: translateX(20px);
+            background-color: #fff;
+        }
+        .keybinding {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .keybinding kbd {
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #ccc;
+            font-family: monospace;
+        }
+        .keybinding button {
+            background: transparent;
+            border: 1px solid #4a4a4a;
+            color: #ccc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .keybinding button:hover {
+            background-color: #3a3a3a;
+        }
+
+        /* フッター */
+        .settings-footer {
+            margin-top: auto;
+            padding-top: 24px;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .settings-footer button {
+            background: transparent;
+            border: 1px solid #4a4a4a;
+            color: #ccc;
+            padding: 8px 24px;
+            border-radius: 30px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .settings-footer button.primary {
+            background-color: #3a5f8a;
+            border: none;
+            color: white;
+        }
+        .settings-footer button:hover {
+            background-color: #4a4a4a;
+            color: white;
+        }
+        .settings-footer button.primary:hover {
+            background-color: #4a7ab0;
+        }
+
+        /* プレースホルダ */
+        .placeholder {
+            color: #6a6a6a;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor">
+        <!-- ========== 左アクティビティバー（既存のまま） ========== -->
+        <div class="activity-bar" id="activity-bar">
+            <div class="activity-item" draggable="true" title="Global Search"><i class="fas fa-search"></i></div>
+            <div class="activity-item" draggable="true" title="Scene Builder"><i class="fas fa-cubes"></i><span class="badge" style="background-color: #8aff8a;"></span></div>
+            <div class="activity-item" draggable="true" title="Logic Graph"><i class="fas fa-project-diagram"></i></div>
+            <div class="activity-item" draggable="true" title="Director"><i class="fas fa-film"></i></div>
+            <div class="activity-item" draggable="true" title="Backend & AI"><i class="fas fa-terminal"></i></div>
+            <div class="activity-item" draggable="true" title="Asset Vault"><i class="fas fa-folder-open"></i></div>
+            <div class="activity-item" draggable="true" title="Extensions"><i class="fas fa-puzzle-piece"></i></div>
+            <div class="activity-item" title="New Box..." style="cursor:pointer;"><i class="fas fa-plus-circle"></i><span class="plus-badge">+</span></div>
+            <div class="activity-bottom">
+                <!-- 設定ボタン（アクティブ状態をシミュレート） -->
+                <div class="activity-item active" title="Settings"><i class="fas fa-cog"></i></div>
+                <div class="activity-item" title="User"><i class="fas fa-user-circle"></i></div>
+            </div>
+        </div>
+
+        <!-- ========== 右側メインコンテンツ ========== -->
+        <div class="main-content">
+            <!-- メニューバー・ツールバー（最小限） -->
+            <div class="menu-bar">
+                <div class="menu-item">File</div>
+                <div class="menu-item">Edit</div>
+                <div class="menu-item">Assets</div>
+                <div class="menu-item">GameObject</div>
+                <div class="menu-item">Component</div>
+                <div class="menu-item">Window</div>
+                <div class="menu-item">AI</div>
+                <div class="menu-item">Help</div>
+            </div>
+            <div class="toolbar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-cog" style="color:#8a8aff;"></i>
+                    <span>設定画面を開いています</span>
+                </div>
+                <div class="status-bar">
+                    <span><i class="fas fa-chart-line"></i> 120 FPS</span>
+                    <span><i class="fas fa-cubes"></i> 32 Entities</span>
+                </div>
+            </div>
+            <!-- メインエリア（ダミーコンテンツ） -->
+            <div style="background-color: #1e1e1e; display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+                <i class="fas fa-cog" style="font-size: 64px;"></i>
+                <span style="margin-left: 16px;">Settings Overlay (アクティビティバーの設定ボタンを押した状態)</span>
+            </div>
+
+            <!-- ★★★ 設定オーバーレイ (全画面表示) ★★★ -->
+            <div class="settings-overlay">
+                <div class="settings-container">
+                    <!-- 左カテゴリ -->
+                    <div class="settings-sidebar">
+                        <div class="settings-category active" data-category="general">
+                            <i class="fas fa-sliders-h"></i> 一般
+                        </div>
+                        <div class="settings-category" data-category="editor">
+                            <i class="fas fa-edit"></i> エディタ
+                        </div>
+                        <div class="settings-category" data-category="shortcuts">
+                            <i class="fas fa-keyboard"></i> ショートカット
+                        </div>
+                        <div class="settings-category" data-category="ai">
+                            <i class="fas fa-robot"></i> AI / アシスタント
+                        </div>
+                        <div class="settings-category" data-category="db">
+                            <i class="fas fa-database"></i> データベース
+                        </div>
+                        <div class="settings-category" data-category="extensions">
+                            <i class="fas fa-puzzle-piece"></i> 拡張機能
+                        </div>
+                        <div class="settings-category" data-category="build">
+                            <i class="fas fa-hammer"></i> ビルド
+                        </div>
+                        <div class="settings-category" data-category="advanced">
+                            <i class="fas fa-cog"></i> 詳細
+                        </div>
+                    </div>
+
+                    <!-- 右コンテンツ（一般設定をデフォルト表示） -->
+                    <div class="settings-content" id="settings-content-area">
+                        <div class="settings-header">
+                            <h2>一般設定</h2>
+                            <button class="close-button" title="閉じる (Esc)"><i class="fas fa-times"></i></button>
+                        </div>
+
+                        <!-- 動的に切り替わる部分（ここでは一般設定を記述） -->
+                        <div id="settings-dynamic">
+                            <!-- 一般設定 -->
+                            <div class="settings-section">
+                                <div class="settings-section-title">プロジェクト</div>
+                                <div class="setting-row">
+                                    <span class="setting-label">プロジェクト名</span>
+                                    <div class="setting-control">
+                                        <input type="text" value="MyGame" placeholder="プロジェクト名">
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="setting-label">バージョン</span>
+                                    <div class="setting-control">
+                                        <input type="text" value="0.1.0" placeholder="x.y.z">
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="setting-label">ルートパス</span>
+                                    <div class="setting-control">
+                                        <input type="text" value="C:/Projects/MyGame">
+                                        <button><i class="fas fa-folder-open"></i> 参照</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <div class="settings-section-title">言語・地域</div>
+                                <div class="setting-row">
+                                    <span class="setting-label">エディタ言語</span>
+                                    <div class="setting-control">
+                                        <select>
+                                            <option>日本語</option>
+                                            <option>English</option>
+                                            <option>中文</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="setting-label">数値フォーマット</span>
+                                    <div class="setting-control">
+                                        <select>
+                                            <option>1,234.56 (English)</option>
+                                            <option>1.234,56 (European)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <div class="settings-section-title">自動保存</div>
+                                <div class="setting-row">
+                                    <span class="setting-label">自動保存を有効化</span>
+                                    <div class="setting-control">
+                                        <div class="toggle-switch active"></div>
+                                        <span class="setting-help">5分ごとに自動保存</span>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <span class="setting-label">保存間隔</span>
+                                    <div class="setting-control">
+                                        <input type="number" value="5" min="1" max="60" style="width: 80px;"> 分
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- フッターボタン -->
+                        <div class="settings-footer">
+                            <button>キャンセル</button>
+                            <button class="primary">適用</button>
+                            <button class="primary">OK</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- カテゴリ切り替えと閉じる動作のスクリプト -->
+    <script>
+        (function() {
+            // カテゴリ切り替え
+            const categories = document.querySelectorAll('.settings-category');
+            const dynamicArea = document.getElementById('settings-dynamic');
+            const headerTitle = document.querySelector('.settings-header h2');
+
+            // 各カテゴリに対応するHTML断片（簡易的に埋め込み。実際には動的生成）
+            const contents = {
+                general: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">プロジェクト</div>
+                        <div class="setting-row"><span class="setting-label">プロジェクト名</span><div class="setting-control"><input type="text" value="MyGame"></div></div>
+                        <div class="setting-row"><span class="setting-label">バージョン</span><div class="setting-control"><input type="text" value="0.1.0"></div></div>
+                        <div class="setting-row"><span class="setting-label">ルートパス</span><div class="setting-control"><input type="text" value="C:/Projects/MyGame"><button><i class="fas fa-folder-open"></i> 参照</button></div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">言語・地域</div>
+                        <div class="setting-row"><span class="setting-label">エディタ言語</span><div class="setting-control"><select><option>日本語</option><option>English</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">数値フォーマット</span><div class="setting-control"><select><option>1,234.56 (English)</option><option>1.234,56 (European)</option></select></div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">自動保存</div>
+                        <div class="setting-row"><span class="setting-label">自動保存を有効化</span><div class="setting-control"><div class="toggle-switch active"></div><span class="setting-help">5分ごとに自動保存</span></div></div>
+                        <div class="setting-row"><span class="setting-label">保存間隔</span><div class="setting-control"><input type="number" value="5" style="width:80px;"> 分</div></div>
+                    </div>
+                `,
+                editor: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">外観</div>
+                        <div class="setting-row"><span class="setting-label">テーマ</span><div class="setting-control"><select><option>ダーク (デフォルト)</option><option>ライト</option><option>ハイコントラスト</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">フォントサイズ</span><div class="setting-control"><input type="number" value="13" min="8" max="24" style="width:80px;"> px</div></div>
+                        <div class="setting-row"><span class="setting-label">アイコンスタイル</span><div class="setting-control"><select><option>デフォルト</option><option>モノクロ</option><option>カラフル</option></select></div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">レイアウト</div>
+                        <div class="setting-row"><span class="setting-label">パネルの自動保存</span><div class="setting-control"><div class="toggle-switch active"></div> 起動時に前回のレイアウトを復元</div></div>
+                        <div class="setting-row"><span class="setting-label">リサイズハンドル幅</span><div class="setting-control"><input type="number" value="4" min="1" max="10" style="width:60px;"> px</div></div>
+                    </div>
+                `,
+                shortcuts: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">キーボードショートカット</div>
+                        <div class="setting-row">
+                            <span class="setting-label">保存</span>
+                            <div class="setting-control keybinding"><kbd>Ctrl</kbd>+<kbd>S</kbd> <button>変更</button> <button>リセット</button></div>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">Undo</span>
+                            <div class="setting-control keybinding"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <button>変更</button></div>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">Redo</span>
+                            <div class="setting-control keybinding"><kbd>Ctrl</kbd>+<kbd>Y</kbd> <button>変更</button></div>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">グローバル検索</span>
+                            <div class="setting-control keybinding"><kbd>Ctrl</kbd>+<kbd>P</kbd> <button>変更</button></div>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">AIアシスタント</span>
+                            <div class="setting-control keybinding"><kbd>Ctrl</kbd>+<kbd>I</kbd> <button>変更</button></div>
+                        </div>
+                        <div style="margin-top:16px;"><button>すべてデフォルトにリセット</button></div>
+                    </div>
+                `,
+                ai: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">AIアシスタント</div>
+                        <div class="setting-row"><span class="setting-label">有効化</span><div class="setting-control"><div class="toggle-switch active"></div></div></div>
+                        <div class="setting-row"><span class="setting-label">プロバイダ</span><div class="setting-control"><select><option>Claude (Anthropic)</option><option>GPT-4 (OpenAI)</option><option>Gemini (Google)</option><option>ローカルLLM (Ollama)</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">APIキー</span><div class="setting-control"><input type="password" value="sk-xxxxxxxxxxxxxx" style="max-width:250px;"> <button>検証</button></div></div>
+                        <div class="setting-row"><span class="setting-label">モデル</span><div class="setting-control"><input type="text" value="claude-3-opus-20240229"></div></div>
+                        <div class="setting-row"><span class="setting-label">コンテキスト長</span><div class="setting-control"><input type="number" value="8192" min="1024" max="128000" step="1024"> tokens</div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">MCPサーバー</div>
+                        <div class="setting-row"><span class="setting-label">ポート</span><div class="setting-control"><input type="number" value="8765" min="1024" max="65535"> <span class="setting-help">再起動後に有効</span></div></div>
+                        <div class="setting-row"><span class="setting-label">認証</span><div class="setting-control"><select><option>なし (ローカル)</option><option>APIキー</option></select></div></div>
+                    </div>
+                `,
+                db: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">データベース (SurrealDB)</div>
+                        <div class="setting-row"><span class="setting-label">バックエンド</span><div class="setting-control"><select><option>SurrealKV (デフォルト)</option><option>RocksDB</option><option>メモリ (テスト用)</option><option>IndexedDB (WASM)</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">データパス</span><div class="setting-control"><input type="text" value="luminara/db"> <button><i class="fas fa-folder-open"></i> 参照</button></div></div>
+                        <div class="setting-row"><span class="setting-label">キャッシュサイズ</span><div class="setting-control"><input type="number" value="64" min="8" max="1024"> MB</div></div>
+                        <div class="setting-row"><span class="setting-label">自動マイグレーション</span><div class="setting-control"><div class="toggle-switch active"></div> 起動時にスキーマを更新</div></div>
+                        <div class="setting-row"><span class="setting-label">厳密モード</span><div class="setting-control"><div class="toggle-switch"></div> スキーマ検証を有効化</div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">同期</div>
+                        <div class="setting-row"><span class="setting-label">LIVEクエリ</span><div class="setting-control"><div class="toggle-switch active"></div> リアルタイム更新を有効化</div></div>
+                        <div class="setting-row"><span class="setting-label">バッチサイズ</span><div class="setting-control"><input type="number" value="1000"> エンティティ/バッチ</div></div>
+                    </div>
+                `,
+                extensions: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">拡張機能管理</div>
+                        <div class="placeholder">インストール済み拡張機能の一覧と設定はこちらに表示されます。</div>
+                        <div style="display:grid; gap:8px; margin-top:12px;">
+                            <div style="display:flex; align-items:center; padding:8px; background:#2a2a2a; border-radius:8px;">
+                                <i class="fas fa-palette" style="color:#8a8aff; width:30px;"></i>
+                                <span style="flex:1;">Shader Editor</span>
+                                <span style="color:#8a8aff;">v1.0.0</span>
+                                <div class="toggle-switch active" style="margin-left:12px;"></div>
+                            </div>
+                            <div style="display:flex; align-items:center; padding:8px; background:#2a2a2a; border-radius:8px;">
+                                <i class="fas fa-robot" style="color:#8a8aff; width:30px;"></i>
+                                <span style="flex:1;">AI Assistant</span>
+                                <span style="color:#8a8aff;">v2.3.0</span>
+                                <div class="toggle-switch active" style="margin-left:12px;"></div>
+                            </div>
+                        </div>
+                        <button style="margin-top:16px; background:#3a5f8a; border:none; color:white; padding:8px 16px; border-radius:30px;"><i class="fas fa-store"></i> マーケットプレイスを開く</button>
+                    </div>
+                `,
+                build: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">ビルド設定</div>
+                        <div class="setting-row"><span class="setting-label">出力パス</span><div class="setting-control"><input type="text" value="build/"> <button><i class="fas fa-folder-open"></i> 参照</button></div></div>
+                        <div class="setting-row"><span class="setting-label">ターゲット</span><div class="setting-control"><select><option>Windows (x64)</option><option>macOS (universal)</option><option>Linux (x64)</option><option>Web (WASM)</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">最適化レベル</span><div class="setting-control"><select><option>開発</option><option>リリース (サイズ)</option><option>リリース (速度)</option></select></div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">アセット</div>
+                        <div class="setting-row"><span class="setting-label">テクスチャ圧縮</span><div class="setting-control"><select><option>BC (DXT)</option><option>ETC2</option><option>ASTC</option><option>なし</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">ホットリロード</span><div class="setting-control"><div class="toggle-switch active"></div> 開発中に有効</div></div>
+                    </div>
+                `,
+                advanced: `
+                    <div class="settings-section">
+                        <div class="settings-section-title">デバッグ</div>
+                        <div class="setting-row"><span class="setting-label">ログレベル</span><div class="setting-control"><select><option>TRACE</option><option>DEBUG</option><option selected>INFO</option><option>WARN</option><option>ERROR</option></select></div></div>
+                        <div class="setting-row"><span class="setting-label">パフォーマンスプロファイラ</span><div class="setting-control"><div class="toggle-switch"></div> エディタ内でFPS表示</div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">ネットワーク</div>
+                        <div class="setting-row"><span class="setting-label">プロキシ</span><div class="setting-control"><input type="text" placeholder="http://proxy:port"></div></div>
+                    </div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">実験的機能</div>
+                        <div class="setting-row"><span class="setting-label">次世代レンダラー</span><div class="setting-control"><div class="toggle-switch"></div> (不安定)</div></div>
+                    </div>
+                `
+            };
+
+            function switchCategory(category) {
+                // アクティブクラス更新
+                categories.forEach(c => c.classList.remove('active'));
+                document.querySelector(`.settings-category[data-category="${category}"]`).classList.add('active');
+                // ヘッダー更新
+                const catName = document.querySelector(`.settings-category[data-category="${category}"]`).innerText.trim();
+                headerTitle.innerText = catName;
+                // コンテンツ更新
+                dynamicArea.innerHTML = contents[category] || '<div class="placeholder">設定がありません</div>';
+            }
+
+            categories.forEach(cat => {
+                cat.addEventListener('click', () => {
+                    const catKey = cat.getAttribute('data-category');
+                    switchCategory(catKey);
+                });
+            });
+
+            // 初期表示（一般）
+            switchCategory('general');
+
+            // 閉じるボタン（ダミー）
+            document.querySelector('.close-button').addEventListener('click', () => {
+                document.querySelector('.settings-overlay').style.display = 'none';
+            });
+
+            // トグルスイッチの動作（ダミー）
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('toggle-switch')) {
+                    e.target.classList.toggle('active');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

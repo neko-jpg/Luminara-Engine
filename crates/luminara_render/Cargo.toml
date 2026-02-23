@@ -8,6 +8,7 @@ wgpu = "22"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3"
 log = "0.4"
+winit = "0.30"
 luminara_core = { workspace = true }
 luminara_math = { workspace = true }
 luminara_window = { workspace = true }

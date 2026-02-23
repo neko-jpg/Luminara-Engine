@@ -3,16 +3,16 @@
 //! The EngineHandle provides a bridge between the GPUI UI and Luminara Engine,
 //! exposing safe interfaces for ECS, Asset System, Database, and Render Pipeline access.
 
-use luminara_core::World;
 use luminara_asset::AssetServer;
-use parking_lot::{RwLock, Mutex};
-use std::sync::Arc;
-use std::collections::VecDeque;
-use std::collections::HashSet;
-use std::time::Instant;
-use luminara_math::Vec3;
+use luminara_core::World;
 use luminara_math::Transform;
+use luminara_math::Vec3;
 use luminara_scene::Name;
+use parking_lot::{Mutex, RwLock};
+use std::collections::HashSet;
+use std::collections::VecDeque;
+use std::sync::Arc;
+use std::time::Instant;
 
 // Use real Database now that luminara_db is ready
 pub use luminara_db::database::LuminaraDatabase as Database;
@@ -26,6 +26,22 @@ pub struct PreviewBillboard {
     pub radius: f32,
     pub depth: f32,
     pub selected: bool,
+    pub mesh_type: Option<String>,
+}
+
+impl Default for PreviewBillboard {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            name: String::new(),
+            x: 0.0,
+            y: 0.0,
+            radius: 5.0,
+            depth: 1.0,
+            selected: false,
+            mesh_type: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -131,6 +147,33 @@ impl RenderPipeline {
             let sy = (1.0 - (ndc_y * 0.5 + 0.5)) * viewport_height;
             let radius = (8.0 / cam_z.max(0.4)).clamp(3.0, 10.0);
 
+            // Determine mesh type from entity name
+            let mesh_type = if name.contains("Cube") {
+                Some("Cube".to_string())
+            } else if name.contains("Sphere") {
+                Some("Sphere".to_string())
+            } else if name.contains("Plane") {
+                Some("Plane".to_string())
+            } else if name.contains("Cylinder") {
+                Some("Cylinder".to_string())
+            } else if name.contains("Capsule") {
+                Some("Capsule".to_string())
+            } else if name.contains("Cone") {
+                Some("Cone".to_string())
+            } else if name.contains("Light") {
+                if name.contains("Point") {
+                    Some("PointLight".to_string())
+                } else if name.contains("Directional") {
+                    Some("DirectionalLight".to_string())
+                } else {
+                    Some("Light".to_string())
+                }
+            } else if name.contains("Camera") {
+                Some("Camera".to_string())
+            } else {
+                None
+            };
+
             out.push(PreviewBillboard {
                 id: id.clone(),
                 name,
@@ -139,10 +182,15 @@ impl RenderPipeline {
                 radius,
                 depth: cam_z,
                 selected: selected_entities.contains(&id),
+                mesh_type,
             });
         }
 
-        out.sort_by(|a, b| b.depth.partial_cmp(&a.depth).unwrap_or(std::cmp::Ordering::Equal));
+        out.sort_by(|a, b| {
+            b.depth
+                .partial_cmp(&a.depth)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         out
     }
 }
@@ -229,12 +277,27 @@ impl Default for EventBus {
 /// Events that can be published by the engine
 #[derive(Debug, Clone)]
 pub enum Event {
-    EntitySpawned { entity: luminara_core::Entity },
-    EntityDespawned { entity: luminara_core::Entity },
-    ComponentAdded { entity: luminara_core::Entity, component_name: String },
-    ComponentRemoved { entity: luminara_core::Entity, component_name: String },
-    AssetLoaded { asset_path: String },
-    AssetFailed { asset_path: String, error: String },
+    EntitySpawned {
+        entity: luminara_core::Entity,
+    },
+    EntityDespawned {
+        entity: luminara_core::Entity,
+    },
+    ComponentAdded {
+        entity: luminara_core::Entity,
+        component_name: String,
+    },
+    ComponentRemoved {
+        entity: luminara_core::Entity,
+        component_name: String,
+    },
+    AssetLoaded {
+        asset_path: String,
+    },
+    AssetFailed {
+        asset_path: String,
+        error: String,
+    },
 }
 
 /// Bridge between GPUI UI and Luminara Engine
@@ -356,7 +419,7 @@ impl EngineHandle {
     pub fn execute_command(&self, mut command: Box<dyn EditorCommand>) {
         let mut world = self.world_mut();
         command.execute(&mut world);
-        
+
         // Optionally queue for undo/redo
         self.command_queue.lock().push(command);
     }
@@ -386,20 +449,19 @@ impl EngineHandle {
     /// # Requirements
     /// - Requirement 12.1.1: Query entities from ECS
     pub fn query_entity(&self, entity: luminara_core::Entity) -> Option<EntityData> {
-        
         use luminara_math::Transform;
-        use luminara_scene::{Parent, Children};
-        
+        use luminara_scene::{Children, Parent};
+
         let world = self.world();
         let entities = world.entities();
-        
+
         // Check if entity exists
         if !entities.contains(&entity) {
             return None;
         }
 
         let mut components = Vec::new();
-        
+
         // Query Transform component
         if let Some(transform) = world.get_component::<Transform>(entity) {
             if let Ok(json) = serde_json::to_value(transform) {
@@ -409,7 +471,7 @@ impl EngineHandle {
                 });
             }
         }
-        
+
         // Query Parent component
         if let Some(parent) = world.get_component::<Parent>(entity) {
             let parent_json = serde_json::json!({
@@ -420,7 +482,7 @@ impl EngineHandle {
                 data: parent_json,
             });
         }
-        
+
         // Query Children component
         if let Some(children) = world.get_component::<Children>(entity) {
             let children_json = serde_json::json!({
@@ -433,10 +495,7 @@ impl EngineHandle {
             });
         }
 
-        Some(EntityData {
-            entity,
-            components,
-        })
+        Some(EntityData { entity, components })
     }
 
     /// Update a component on an entity
@@ -445,9 +504,13 @@ impl EngineHandle {
     ///
     /// # Requirements
     /// - Requirement 12.1.2: Update components in ECS
-    pub fn update_component<C: luminara_core::Component>(&self, entity: luminara_core::Entity, component: C) -> Result<(), String> {
+    pub fn update_component<C: luminara_core::Component>(
+        &self,
+        entity: luminara_core::Entity,
+        component: C,
+    ) -> Result<(), String> {
         let mut world = self.world_mut();
-        
+
         // Check if entity exists
         let entities = world.entities();
         if !entities.contains(&entity) {
@@ -455,7 +518,8 @@ impl EngineHandle {
         }
 
         // Add the component using add_component
-        world.add_component(entity, component)
+        world
+            .add_component(entity, component)
             .map_err(|e| format!("Failed to update component: {}", e))?;
 
         // Publish event
@@ -475,11 +539,11 @@ impl EngineHandle {
     pub fn spawn_entity(&self) -> luminara_core::Entity {
         let mut world = self.world_mut();
         let entity = world.spawn();
-        
+
         // Publish event
         drop(world);
         self.publish_event(Event::EntitySpawned { entity });
-        
+
         entity
     }
 
@@ -492,13 +556,14 @@ impl EngineHandle {
         B: luminara_core::Bundle,
     {
         let mut world = self.world_mut();
-        let entity = world.spawn_bundle(bundle)
+        let entity = world
+            .spawn_bundle(bundle)
             .map_err(|e| format!("Failed to spawn entity: {}", e))?;
-        
+
         // Publish event
         drop(world);
         self.publish_event(Event::EntitySpawned { entity });
-        
+
         Ok(entity)
     }
 
@@ -508,7 +573,7 @@ impl EngineHandle {
     /// - Requirement 12.1.2: Update ECS state
     pub fn despawn_entity(&self, entity: luminara_core::Entity) -> Result<(), String> {
         let mut world = self.world_mut();
-        
+
         let entities = world.entities();
         if !entities.contains(&entity) {
             return Err(format!("Entity {:?} does not exist", entity));
@@ -518,11 +583,11 @@ impl EngineHandle {
         if !success {
             return Err(format!("Failed to despawn entity {:?}", entity));
         }
-        
+
         // Publish event
         drop(world);
         self.publish_event(Event::EntityDespawned { entity });
-        
+
         Ok(())
     }
 
@@ -530,24 +595,28 @@ impl EngineHandle {
     ///
     /// # Requirements
     /// - Requirement 12.1.2: Update components in ECS
-    pub fn remove_component<C: luminara_core::Component>(&self, entity: luminara_core::Entity) -> Result<(), String> {
+    pub fn remove_component<C: luminara_core::Component>(
+        &self,
+        entity: luminara_core::Entity,
+    ) -> Result<(), String> {
         let mut world = self.world_mut();
-        
+
         let entities = world.entities();
         if !entities.contains(&entity) {
             return Err(format!("Entity {:?} does not exist", entity));
         }
 
-        world.remove_component::<C>(entity)
+        world
+            .remove_component::<C>(entity)
             .map_err(|e| format!("Failed to remove component: {}", e))?;
-        
+
         // Publish event
         drop(world);
         self.publish_event(Event::ComponentRemoved {
             entity,
             component_name: std::any::type_name::<C>().to_string(),
         });
-        
+
         Ok(())
     }
 
@@ -562,12 +631,12 @@ impl EngineHandle {
     /// - Requirement 12.2.7: Async loading without blocking UI
     pub fn load_asset<T: luminara_asset::Asset>(&self, path: &str) -> luminara_asset::Handle<T> {
         let handle = self.asset_server.load(path);
-        
+
         // Publish event when loading starts
         self.publish_event(Event::AssetLoaded {
             asset_path: path.to_string(),
         });
-        
+
         handle
     }
 
@@ -581,11 +650,11 @@ impl EngineHandle {
         priority: luminara_asset::LoadPriority,
     ) -> luminara_asset::Handle<T> {
         let handle = self.asset_server.load_with_priority(path, priority);
-        
+
         self.publish_event(Event::AssetLoaded {
             asset_path: path.to_string(),
         });
-        
+
         handle
     }
 
@@ -595,7 +664,10 @@ impl EngineHandle {
     ///
     /// # Requirements
     /// - Requirement 12.2.1: Use AssetServer for asset loading
-    pub fn get_asset<T: luminara_asset::Asset>(&self, handle: &luminara_asset::Handle<T>) -> Option<Arc<T>> {
+    pub fn get_asset<T: luminara_asset::Asset>(
+        &self,
+        handle: &luminara_asset::Handle<T>,
+    ) -> Option<Arc<T>> {
         self.asset_server.get(handle)
     }
 
@@ -665,7 +737,12 @@ impl EngineHandle {
     ///
     /// # Requirements
     /// - Requirement 12.3.5: Implement optimistic UI updates with DB sync
-    pub fn update_database_optimistic(&self, _table: &str, _id: &str, _data: serde_json::Value) -> Result<(), String> {
+    pub fn update_database_optimistic(
+        &self,
+        _table: &str,
+        _id: &str,
+        _data: serde_json::Value,
+    ) -> Result<(), String> {
         // Placeholder implementation
         // In a real implementation, this would:
         // 1. Update the UI immediately (optimistic)
@@ -697,19 +774,22 @@ impl EngineHandle {
     pub fn mock() -> Self {
         use luminara_core::App;
         use std::path::PathBuf;
-        
+
         // Create a minimal app for testing
         let app = App::new();
         let world = Arc::new(RwLock::new(app.world));
-        
+
         // Create mock subsystems
         let asset_server = Arc::new(AssetServer::new(PathBuf::from("assets")));
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        let database = Arc::new(rt.block_on(Database::new_memory()).expect("Failed to create memory database"));
+        let database = Arc::new(
+            rt.block_on(Database::new_memory())
+                .expect("Failed to create memory database"),
+        );
         drop(rt);
 
         let render_pipeline = Arc::new(RwLock::new(RenderPipeline::mock()));
-        
+
         Self::new(world, asset_server, database, render_pipeline)
     }
 }
@@ -721,7 +801,7 @@ mod tests {
     #[test]
     fn test_engine_handle_creation() {
         let handle = EngineHandle::mock();
-        
+
         // Verify we can access all subsystems
         let _world = handle.world();
         let _asset_server = handle.asset_server();
@@ -731,14 +811,14 @@ mod tests {
     #[test]
     fn test_engine_handle_world_access() {
         let handle = EngineHandle::mock();
-        
+
         // Test read access
         {
             let world = handle.world();
             // World should be accessible - just verify we can get entities
             let _entities = world.entities();
         }
-        
+
         // Test write access
         {
             let mut world = handle.world_mut();

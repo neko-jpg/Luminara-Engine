@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Luminara Team"]
 license = "MIT OR Apache-2.0"
-description = "GPUI-based editor UI for Luminara Engine"
+description = "Vizia-based editor UI for Luminara Engine"
 
 [dependencies]
 # Luminara Engine dependencies
@@ -16,13 +16,21 @@ luminara_scene = { path = "../luminara_scene" }
 luminara_input = { path = "../luminara_input" }
 luminara_db = { path = "../luminara_db" }
 
-# GPUI framework
+# GPUI framework (deprecated - migrating to Vizia)
 # Note: GPUI is part of the Zed repository, using a specific stable release
 # Using release v0.159.5 from October 30, 2024 (sha: bcf6806)
-gpui = { git = "https://github.com/zed-industries/zed", tag = "v0.159.5" }
+# gpui = { git = "https://github.com/zed-industries/zed", tag = "v0.159.5" }
+
+# Vizia framework for UI
+vizia = "0.3.0"
 
 # WGPU for 3D viewport rendering
 wgpu = "22"
+bytemuck = { version = "1.16", features = ["derive"] }
+
+# Winit for creating separate 3D window
+# Note: Using 0.30 for new development
+winit = "0.30"
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }
@@ -45,5 +53,18 @@ log = "0.4"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
 
+[[bin]]
+name = "luminara-editor"
+path = "src/main.rs"
+
+[[example]]
+name = "integrated_editor"
+path = "examples/integrated_editor.rs"
+
+[[example]]
+name = "hybrid_editor"
+path = "examples/hybrid_editor.rs"
+
 [dev-dependencies]
 proptest = "1.0"
+env_logger = "0.11"

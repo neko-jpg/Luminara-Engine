@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara Editor — Logic Graph アクティブ</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        .editor {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            height: 100vh;
+            background-color: #202020;
+        }
+
+        /* ----- アクティビティバー（完全版・変更なし、activeだけ差し替え） ----- */
+        .activity-bar {
+            width: 52px;
+            background-color: #2c2c2c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 12px;
+            border-right: 1px solid #3e3e3e;
+            z-index: 20;
+            position: relative;
+        }
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            user-select: none;
+        }
+        .activity-item[draggable="true"]:hover {
+            cursor: grab;
+            opacity: 0.8;
+        }
+        .activity-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .activity-item:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .activity-item.active {
+            color: #fff;
+            background-color: #3a5f8a;
+            box-shadow: inset 0 0 0 2px #4a7ab0;
+        }
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            width: 3px;
+            height: 24px;
+            background-color: #8a8aff;
+            border-radius: 0 4px 4px 0;
+        }
+        .activity-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff8a8a;
+            border-radius: 50%;
+            border: 2px solid #2c2c2c;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #4a6a9a;
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid #2c2c2c;
+        }
+        .plus-badge {
+            background-color: #4a6a9a;
+            font-size: 14px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            border: 2px solid #2c2c2c;
+            color: white;
+        }
+        .is-folder {
+            background-color: #3a4a6a;
+            box-shadow: inset 0 0 0 1px #8a8aff;
+        }
+
+        .folder-popup {
+            position: fixed;
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 8px;
+            padding: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 140px;
+            backdrop-filter: blur(4px);
+        }
+        .folder-popup-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: #ddd;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+            white-space: nowrap;
+        }
+        .folder-popup-item:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+        .folder-popup-item i {
+            width: 20px;
+            font-size: 16px;
+            color: #8a8aff;
+        }
+
+        /* 右側メインコンテンツ（大幅に改変：グラフキャンバス＋インスペクタ） */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .menu-bar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .menu-item { cursor: default; padding: 2px 6px; border-radius: 4px; }
+        .menu-item:hover { background-color: #4a4a4a; }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #3a3a3a;
+            padding: 2px 4px;
+            border-radius: 6px;
+        }
+        .toolbar button {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar button:hover { background-color: #4a4a4a; color: #fff; }
+        .toolbar button.active { background-color: #3a5f8a; color: white; }
+        .separator { width: 1px; height: 24px; background-color: #4a4a4a; margin: 0 4px; }
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            color: #aaa;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* メインエリア：グラフキャンバス (左) と インスペクタ (右) */
+        .main-area {
+            display: grid;
+            grid-template-columns: 1fr 320px;  /* 左キャンバス、右インスペクタ */
+            gap: 4px;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .resize-handle { position: absolute; top:0; width:4px; height:100%; cursor:col-resize; z-index:10; }
+        .resize-handle.right { right:320px; transform:translateX(2px); }  /* 右のハンドルだけ残す */
+
+        .panel {
+            background-color: #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #3e3e3e;
+            border-radius: 4px 4px 0 0;
+        }
+        .panel-header {
+            background-color: #323232;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #bbb;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-content {
+            padding: 12px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* グラフキャンバス独自スタイル */
+        .graph-canvas {
+            background-color: #1e1e1e;
+            background-image: radial-gradient(circle at 2px 2px, #3a3a3a 1px, transparent 1px);
+            background-size: 30px 30px;
+            height: 100%;
+            position: relative;
+            overflow: hidden; /* スクロールは後で対応 */
+        }
+        .graph-node {
+            position: absolute;
+            background-color: #2d2d2d;
+            border: 1px solid #4a4a4a;
+            border-radius: 8px;
+            padding: 10px 14px;
+            min-width: 120px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            cursor: pointer;
+            transition: box-shadow 0.1s;
+            font-size: 12px;
+        }
+        .graph-node:hover { box-shadow: 0 0 0 2px #5a7ab0; }
+        .graph-node.selected { border-color: #8a8aff; box-shadow: 0 0 0 2px #8a8aff; }
+        .node-title { font-weight: bold; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .node-type-badge {
+            font-size: 10px; background: #3a3a3a; padding: 2px 6px; border-radius: 10px; color: #aaa;
+        }
+        .node-port {
+            position: absolute; width: 12px; height: 12px; background: #5a5a5a; border-radius: 50%;
+            border: 2px solid #2a2a2a;
+        }
+        .node-port.output { right: -6px; top: 50%; transform: translateY(-50%); background: #8a8aff; }
+        .node-port.input { left: -6px; top: 50%; transform: translateY(-50%); background: #ffaa8a; }
+
+        /* 簡易エッジ（線の代わりに文字で表現） */
+        .edge-label {
+            position: absolute; font-size: 10px; color: #aaa; background: #2a2a2a; padding: 2px 4px; border-radius: 4px;
+            white-space: nowrap; transform: translate(-50%, -50%);
+        }
+
+        /* インスペクタ内プロパティ */
+        .inspector-section { margin-bottom: 16px; }
+        .inspector-section h4 { color: #ccc; margin-bottom: 8px; font-size: 12px; border-left: 3px solid #8a8aff; padding-left: 8px; }
+        .property-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .property-label { width: 80px; color: #aaa; }
+        .property-value { flex: 1; }
+        .property-value input, .property-value select { background: #3a3a3a; border: 1px solid #4a4a4a; color: #eee; padding: 4px 8px; border-radius: 4px; width: 100%; }
+        .condition-builder { background: #2a2a3a; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #4a5a8a; }
+        .action-list { list-style: none; margin-top: 5px; }
+        .action-list li { padding: 4px 0; border-bottom: 1px solid #3a3a3a; display: flex; gap: 8px; align-items: center; }
+
+        /* 下部タブパネル（タブ名称変更） */
+        .bottom-tab-panel {
+            background-color: #2a2a2a;
+            border-top: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            min-height: 220px;
+            max-height: 300px;
+        }
+        .tab-header {
+            display: flex; background-color: #323232; border-bottom:1px solid #404040; padding:0 8px; gap:4px;
+        }
+        .tab-item {
+            padding: 8px 16px; font-size:12px; color:#aaa; cursor:pointer; border-bottom:2px solid transparent;
+            display: flex; align-items: center; gap:6px;
+        }
+        .tab-item.active { color:#8a8aff; border-bottom-color:#8a8aff; background-color:#2a2a3a; }
+        .tab-content { display: none; padding:12px; overflow-y:auto; flex:1; }
+        .tab-content.active { display: block; }
+
+        /* タブ内カスタム */
+        .query-editor { background:#1e1e1e; font-family:monospace; padding:10px; border-radius:8px; border:1px solid #4a4a4a; margin-bottom: 8px; }
+        .ai-messages { display: flex; flex-direction: column; gap:10px; max-height:150px; overflow-y:auto; margin-bottom:10px; }
+        .ai-input-area { display: flex; gap:8px; margin-top:12px; }
+        .ai-input-area input { flex:1; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:8px 14px; border-radius:30px; }
+        .palette-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .palette-item { background: #3a3a3a; border-radius: 6px; padding: 8px; text-align: center; border: 1px solid #4a4a4a; cursor: grab; }
+        .vars-table { width: 100%; border-collapse: collapse; }
+        .vars-table td { padding: 6px 4px; border-bottom: 1px solid #3a3a3a; }
+    </style>
+</head>
+<body>
+    <div class="editor">
+        <!-- ========== 左アクティビティバー（完全版・ドラッグ＆ドロップ対応） ========== -->
+        <div class="activity-bar" id="activity-bar">
+            <!-- 1. Global Search -->
+            <div class="activity-item" draggable="true" title="Global Search" data-original-icon="fa-search" data-original-title="Global Search">
+                <i class="fas fa-search"></i>
+            </div>
+            <!-- 2. Scene Builder (activeを外す) -->
+            <div class="activity-item" draggable="true" title="Scene Builder" data-original-icon="fa-cubes" data-original-title="Scene Builder">
+                <i class="fas fa-cubes"></i>
+                <span class="badge" style="background-color: #8aff8a;"></span>
+            </div>
+            <!-- 3. Logic Graph ★ ここをアクティブに -->
+            <div class="activity-item active" draggable="true" title="Logic Graph" data-original-icon="fa-project-diagram" data-original-title="Logic Graph">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <!-- 4. Director -->
+            <div class="activity-item" draggable="true" title="Director" data-original-icon="fa-film" data-original-title="Director">
+                <i class="fas fa-film"></i>
+            </div>
+            <!-- 5. Backend & AI -->
+            <div class="activity-item" draggable="true" title="Backend & AI" data-original-icon="fa-terminal" data-original-title="Backend & AI">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <!-- 6. Asset Vault -->
+            <div class="activity-item" draggable="true" title="Asset Vault" data-original-icon="fa-folder-open" data-original-title="Asset Vault">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <!-- 7. Extensions -->
+            <div class="activity-item" draggable="true" title="Extensions" data-original-icon="fa-puzzle-piece" data-original-title="Extensions">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <!-- 8. New Box -->
+            <div class="activity-item" title="New Box..." style="cursor:pointer;">
+                <i class="fas fa-plus-circle"></i>
+                <span class="plus-badge">+</span>
+            </div>
+            <!-- 下部システムアイコン -->
+            <div class="activity-bottom">
+                <div class="activity-item" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="activity-item" title="User">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 右側メインコンテンツ（Logic Graph ビュー） ========== -->
+        <div class="main-content">
+            <!-- メニューバーはほぼそのまま -->
+            <div class="menu-bar">
+                <div class="menu-item">File</div>
+                <div class="menu-item">Edit</div>
+                <div class="menu-item">Assets</div>
+                <div class="menu-item">GameObject</div>
+                <div class="menu-item">Component</div>
+                <div class="menu-item">Window</div>
+                <div class="menu-item">AI</div>
+                <div class="menu-item">Help</div>
+            </div>
+            <!-- ツールバーをLogic Graph用に調整 -->
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button><i class="fas fa-play"></i><span>Simulate</span></button>
+                    <button><i class="fas fa-stop"></i></button>
+                </div>
+                <div class="separator"></div>
+                <div class="toolbar-group">
+                    <button class="active"><i class="fas fa-arrows-alt"></i> Select</button>
+                    <button><i class="fas fa-sync-alt"></i> Pan</button>
+                    <button><i class="fas fa-search-plus"></i> Zoom</button>
+                    <button><i class="fas fa-vector-square"></i> Auto Layout</button>
+                    <button><i class="fas fa-align-left"></i> Align</button>
+                </div>
+                <div class="status-bar">
+                    <span><i class="fas fa-project-diagram"></i> 8 nodes, 7 edges</span>
+                    <span><i class="fas fa-code-branch"></i> Main Quest</span>
+                    <span><i class="fas fa-database"></i> surreal: logic_graph</span>
+                    <span><i class="fas fa-robot"></i> AI ready</span>
+                </div>
+            </div>
+
+            <!-- メインエリア：左＝グラフキャンバス、右＝インスペクタ -->
+            <div class="main-area">
+                <!-- リサイズハンドルは右のみ（左は不要） -->
+                <div class="resize-handle right"></div>
+
+                <!-- 左：グラフキャンバスパネル -->
+                <div class="panel" style="grid-column: 1;">
+                    <div class="panel-header">
+                        <span><i class="fas fa-project-diagram"></i> Logic Graph [Graph: Main Quest <i class="fas fa-caret-down"></i>]</span>
+                        <div>
+                            <button style="background:#3a5f8a; border:none; color:white; padding:4px 12px; border-radius:4px;"><i class="fas fa-check-circle"></i> Validate</button>
+                        </div>
+                    </div>
+                    <div class="graph-canvas" style="position: relative; height: 100%;">
+                        <!-- ノード群：静的なサンプル配置（Box 3の図を再現） -->
+                        <!-- STARTノード -->
+                        <div class="graph-node" style="top: 40px; left: 60px;">
+                            <div class="node-title"><i class="fas fa-play" style="color:#8aff8a;"></i> START <span class="node-type-badge">State</span></div>
+                            <div class="node-port output"></div>
+                        </div>
+                        <!-- Villageノード -->
+                        <div class="graph-node" style="top: 40px; left: 260px;">
+                            <div class="node-title"><i class="fas fa-flag" style="color:#8a8aff;"></i> Village <span class="node-type-badge">State</span></div>
+                            <div class="node-port input" style="left: -6px;"></div>
+                            <div class="node-port output" style="right: -6px;"></div>
+                        </div>
+                        <!-- Branchノード -->
+                        <div class="graph-node selected" style="top: 40px; left: 460px;">
+                            <div class="node-title"><i class="fas fa-code-branch" style="color:#ffaa00;"></i> Branch <span class="node-type-badge">Condition</span></div>
+                            <div class="node-port input" style="left: -6px;"></div>
+                            <div class="node-port output" style="right: -6px; background: #4caf50;"></div>
+                            <div class="node-port output" style="right: -6px; top: 70%; background: #f44336;"></div>
+                        </div>
+                        <!-- Dragon Quest -->
+                        <div class="graph-node" style="top: 160px; left: 380px;">
+                            <div class="node-title"><i class="fas fa-dragon" style="color:#ff8a8a;"></i> Dragon <span class="node-type-badge">Quest</span></div>
+                            <div class="node-port input" style="left: -6px;"></div>
+                        </div>
+                        <!-- Trade Route -->
+                        <div class="graph-node" style="top: 160px; left: 540px;">
+                            <div class="node-title"><i class="fas fa-handshake" style="color:#8affaa;"></i> Trade <span class="node-type-badge">Quest</span></div>
+                            <div class="node-port input" style="left: -6px;"></div>
+                        </div>
+                        <!-- 簡易エッジ表現（テキストで代用） -->
+                        <div class="edge-label" style="top: 70px; left: 200px;">→</div>
+                        <div class="edge-label" style="top: 70px; left: 390px;">→</div>
+                        <div class="edge-label" style="top: 130px; left: 480px;">true (has_sword)</div>
+                        <div class="edge-label" style="top: 150px; left: 440px;">false</div>
+                        <!-- ミニマップ風 -->
+                        <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(30,30,30,0.8); border:1px solid #4a4a4a; border-radius: 6px; padding: 8px; font-size: 11px;">
+                            <i class="fas fa-map"></i> Mini Map <span style="color:#8a8aff;">[▪]</span> you are here
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右：インスペクタ（Logic Graph用） -->
+                <div class="panel" style="grid-column: 2;">
+                    <div class="panel-header">
+                        <span><i class="fas fa-info-circle"></i> Node Inspector</span>
+                        <div><i class="fas fa-ellipsis-v"></i></div>
+                    </div>
+                    <div class="panel-content">
+                        <!-- ノード選択時のプロパティ (Branchノード) -->
+                        <div class="inspector-section">
+                            <h4>Node: Branch <span style="color:#ffaa00;">(Condition)</span></h4>
+                            <div class="property-row">
+                                <span class="property-label">ID</span>
+                                <span class="property-value">node_42</span>
+                            </div>
+                            <div class="property-row">
+                                <span class="property-label">Label</span>
+                                <span class="property-value"><input type="text" value="Has Sword?"></span>
+                            </div>
+                        </div>
+                        <div class="inspector-section">
+                            <h4>Condition</h4>
+                            <div class="condition-builder">
+                                <div><i class="fas fa-grip-vertical"></i> IF <strong>has_sword</strong> <select><option>==</option></select> <strong>true</strong></div>
+                                <div style="margin-top: 6px;"><i class="fas fa-grip-vertical"></i> AND <strong>gold</strong> <select><option>>=</option></select> <input type="text" value="100" style="width:50px;"></div>
+                                <div style="margin-top:8px;"><button style="background:#3a5f8a; border:none; color:white; padding:4px 8px; border-radius:4px;"><i class="fas fa-plus"></i> Add Condition</button></div>
+                            </div>
+                        </div>
+                        <div class="inspector-section">
+                            <h4>Actions (on_enter)</h4>
+                            <ul class="action-list">
+                                <li><i class="fas fa-dragon"></i> spawn dragon <span style="color:#aaa;">(prefab: enemy_dragon)</span></li>
+                                <li><i class="fas fa-music"></i> play music <span style="color:#aaa;">(boss_battle.mp3)</span></li>
+                                <li><i class="fas fa-comment"></i> show UI "BossWarning"</li>
+                            </ul>
+                            <button style="background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:4px; border-radius:4px; width:100%;"><i class="fas fa-plus"></i> Add Action</button>
+                        </div>
+                        <div class="inspector-section">
+                            <h4>Related</h4>
+                            <div><i class="fas fa-cube"></i> <a href="#" style="color:#8a8aff;">Scene Builder: dungeon</a></div>
+                            <div><i class="fas fa-film"></i> <a href="#" style="color:#8a8aff;">Director: boss_cutscene</a></div>
+                            <div><i class="fas fa-terminal"></i> <a href="#" style="color:#8a8aff;">Script: ai/dragon_behavior.rs</a></div>
+                        </div>
+                        <!-- YAML/Visual toggle -->
+                        <div style="margin-top:16px; display:flex; gap:8px;">
+                            <button style="background:#3a5f8a; border:none; color:white; padding:4px 10px; border-radius:20px;"><i class="fas fa-eye"></i> Visual</button>
+                            <button style="background:#3a3a3a; border:none; color:#ccc; padding:4px 10px; border-radius:20px;"><i class="fas fa-code"></i> YAML</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下部タブパネル（Logic Graph専用タブ） -->
+            <div class="bottom-tab-panel">
+                <div class="tab-header">
+                    <div class="tab-item active" data-tab="dbquery"><i class="fas fa-database"></i> DB Query</div>
+                    <div class="tab-item" data-tab="ai"><i class="fas fa-robot"></i> AI Assistant</div>
+                    <div class="tab-item" data-tab="palette"><i class="fas fa-palette"></i> Node Palette</div>
+                    <div class="tab-item" data-tab="vars"><i class="fas fa-variable"></i> Variables</div>
+                </div>
+                <!-- DB Query タブ -->
+                <div class="tab-content active" id="tab-dbquery">
+                    <div class="query-editor">SELECT * FROM logic_node WHERE graph_id = 'main_quest' AND kind = 'condition';</div>
+                    <button id="execute-query" style="background:#3a5f8a; border:none; color:white; padding:6px 14px; border-radius:6px;"><i class="fas fa-play"></i> Execute</button>
+                    <div style="margin-top:12px;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <tr><th>id</th><th>kind</th><th>label</th></tr>
+                            <tr><td>node_1</td><td>state</td><td>Village</td></tr>
+                            <tr><td>node_42</td><td>condition</td><td>Branch</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <!-- AI Assistant タブ -->
+                <div class="tab-content" id="tab-ai">
+                    <div class="ai-messages">
+                        <div><i class="fas fa-robot" style="color:#8a8aff;"></i> どのようなフローにしますか？</div>
+                        <div><i class="fas fa-user" style="color:#aaa;"></i> 村からダンジョンへの分岐で、鍵を持っている場合のみ進めるようにして</div>
+                    </div>
+                    <div class="ai-input-area">
+                        <input type="text" placeholder="AIに指示...">
+                        <button><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+                <!-- Node Palette タブ -->
+                <div class="tab-content" id="tab-palette">
+                    <div class="palette-grid">
+                        <div class="palette-item" draggable="true"><i class="fas fa-circle" style="color:#5698ff;"></i> State</div>
+                        <div class="palette-item" draggable="true"><i class="fas fa-bolt" style="color:#ffaa00;"></i> Event</div>
+                        <div class="palette-item" draggable="true"><i class="fas fa-code-branch" style="color:#ff8a8a;"></i> Condition</div>
+                        <div class="palette-item" draggable="true"><i class="fas fa-play-circle" style="color:#8aff8a;"></i> Action</div>
+                        <div class="palette-item" draggable="true"><i class="fas fa-comment-dots" style="color:#cf8aff;"></i> Dialogue</div>
+                        <div class="palette-item" draggable="true"><i class="fas fa-layer-group" style="color:#8ac4ff;"></i> Sub-graph</div>
+                    </div>
+                    <div style="margin-top:12px;"><i class="fas fa-star" style="color:gold;"></i> お気に入り: Condition, State</div>
+                </div>
+                <!-- Variables タブ -->
+                <div class="tab-content" id="tab-vars">
+                    <table class="vars-table">
+                        <tr><th>key</th><th>value</th><th>scope</th></tr>
+                        <tr><td>player_hp</td><td>100</td><td>global</td></tr>
+                        <tr><td>has_sword</td><td>true</td><td>global</td></tr>
+                        <tr><td>gold</td><td>150</td><td>global</td></tr>
+                        <tr><td>boss_defeated</td><td>false</td><td>scene</td></tr>
+                    </table>
+                    <button style="margin-top:12px; background:#3a3a3a; border:none; padding:6px; border-radius:6px;"><i class="fas fa-plus"></i> Add variable</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ドラッグ＆ドロップ＋フォルダ化スクリプト（元のまま維持） -->
+    <script>
+        (function() {
+            const bar = document.getElementById('activity-bar');
+            const items = Array.from(bar.querySelectorAll('.activity-item')).filter(item => item.closest('.activity-bottom') === null ? item : false);
+            const draggableItems = items.filter(item => item.getAttribute('draggable') === 'true');
+
+            let draggedItem = null;
+
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    e.dataTransfer.setData('text/plain', item.title);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+
+            bar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            bar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.activity-item');
+                if (!target || !draggedItem || target === draggedItem) return;
+                if (target.getAttribute('draggable') !== 'true') return;
+
+                draggedItem.style.display = 'none';
+
+                if (!target.classList.contains('is-folder')) {
+                    target.classList.add('is-folder');
+                    const icon = target.querySelector('i');
+                    const originalIcon = target.dataset.originalIcon || 'fa-cubes';
+                    target.dataset.originalIcon = originalIcon;
+                    icon.className = 'fas fa-folder';
+
+                    const countBadge = document.createElement('span');
+                    countBadge.className = 'folder-badge';
+                    countBadge.textContent = '1';
+                    target.appendChild(countBadge);
+
+                    target.dataset.folderItems = JSON.stringify([{ title: draggedItem.title, icon: draggedItem.dataset.originalIcon }]);
+                } else {
+                    const existing = JSON.parse(target.dataset.folderItems || '[]');
+                    existing.push({ title: draggedItem.title, icon: draggedItem.dataset.originalIcon });
+                    target.dataset.folderItems = JSON.stringify(existing);
+                    const badge = target.querySelector('.folder-badge');
+                    if (badge) badge.textContent = existing.length;
+                }
+
+                draggedItem.style.display = 'none';
+
+                if (!target.hasAttribute('data-folder-listener')) {
+                    target.setAttribute('data-folder-listener', 'true');
+                    target.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (!this.classList.contains('is-folder')) return;
+
+                        const old = document.querySelector('.folder-popup');
+                        if (old) old.remove();
+
+                        const items = JSON.parse(this.dataset.folderItems || '[]');
+                        if (items.length === 0) return;
+
+                        const popup = document.createElement('div');
+                        popup.className = 'folder-popup';
+
+                        const rect = this.getBoundingClientRect();
+                        popup.style.top = rect.top + 'px';
+                        popup.style.left = (rect.right + 8) + 'px';
+
+                        items.forEach((item, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'folder-popup-item';
+                            div.innerHTML = `<i class="fas ${item.icon || 'fa-cube'}"></i><span>${item.title}</span>`;
+                            div.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                alert(`「${item.title}」を選択しました`);
+                                document.querySelector('.folder-popup')?.remove();
+                            });
+                            popup.appendChild(div);
+                        });
+
+                        document.body.appendChild(popup);
+
+                        const closePopup = (e) => {
+                            if (!popup.contains(e.target) && e.target !== this) {
+                                popup.remove();
+                                document.removeEventListener('click', closePopup);
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', closePopup), 10);
+                    });
+                }
+
+                draggedItem = null;
+            });
+
+            document.addEventListener('dragend', () => {
+                draggedItem = null;
+            });
+
+            // タブ切り替え（新しいタブIDに対応）
+            const tabs = document.querySelectorAll('.tab-item');
+            const contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-tab'); // dbquery, ai, palette, vars
+                    contents.forEach(c => {
+                        c.classList.remove('active');
+                        if (c.id === 'tab-' + target) c.classList.add('active');
+                    });
+                });
+            });
+
+            // ツールバーアクティブ（簡易）
+            const toolbarButtons = document.querySelectorAll('.toolbar button');
+            toolbarButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (this.classList.contains('active')) return;
+                    toolbarButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // DB executeダミー
+            document.getElementById('execute-query')?.addEventListener('click', function() {
+                alert('クエリ実行（デモ）');
+            });
+        })();
+    </script>
+</body>
+</html>

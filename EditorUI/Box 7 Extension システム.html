@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara Editor — Extension Manager (🧩 アクティブ)</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ----- リセット＆ベース（元のスタイルをほぼ維持） ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+        }
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        .editor {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            height: 100vh;
+            background-color: #202020;
+        }
+
+        /* ----- アクティビティバー（VSCodeライク） ----- */
+        .activity-bar {
+            width: 52px;
+            background-color: #2c2c2c;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 12px;
+            border-right: 1px solid #3e3e3e;
+            z-index: 20;
+            position: relative;
+        }
+        .activity-item {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #aaa;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.1s;
+            user-select: none;
+        }
+        .activity-item[draggable="true"]:hover {
+            cursor: grab;
+            opacity: 0.8;
+        }
+        .activity-item[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .activity-item:hover {
+            background-color: #3a3a3a;
+            color: #fff;
+        }
+        .activity-item.active {
+            color: #fff;
+            background-color: #3a5f8a;
+            box-shadow: inset 0 0 0 2px #4a7ab0;
+        }
+        .activity-item.active::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            width: 3px;
+            height: 24px;
+            background-color: #8a8aff;
+            border-radius: 0 4px 4px 0;
+        }
+        .activity-bottom {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff8a8a;
+            border-radius: 50%;
+            border: 2px solid #2c2c2c;
+        }
+        .folder-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: #4a6a9a;
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 1px solid #2c2c2c;
+        }
+        .plus-badge {
+            background-color: #4a6a9a;
+            font-size: 14px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            border: 2px solid #2c2c2c;
+            color: white;
+        }
+        .is-folder {
+            background-color: #3a4a6a;
+            box-shadow: inset 0 0 0 1px #8a8aff;
+        }
+
+        /* フォルダ展開ポップアップ */
+        .folder-popup {
+            position: fixed;
+            background-color: #2a2a2a;
+            border: 1px solid #4a4a4a;
+            border-radius: 8px;
+            padding: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 140px;
+            backdrop-filter: blur(4px);
+        }
+        .folder-popup-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            color: #ddd;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+            white-space: nowrap;
+        }
+        .folder-popup-item:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+        .folder-popup-item i {
+            width: 20px;
+            font-size: 16px;
+            color: #8a8aff;
+        }
+
+        /* 右側メインコンテンツ（元の構造を維持しつつ内容を拡張マネージャ用に変更） */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .menu-bar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 13px;
+            color: #ddd;
+        }
+        .menu-item { cursor: default; padding: 2px 6px; border-radius: 4px; }
+        .menu-item:hover { background-color: #4a4a4a; }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 6px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #3a3a3a;
+            flex-wrap: wrap;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #3a3a3a;
+            padding: 2px 4px;
+            border-radius: 6px;
+        }
+        .toolbar button {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar button:hover { background-color: #4a4a4a; color: #fff; }
+        .toolbar button.active { background-color: #3a5f8a; color: white; }
+        .separator { width: 1px; height: 24px; background-color: #4a4a4a; margin: 0 4px; }
+        .status-bar {
+            margin-left: auto;
+            display: flex;
+            gap: 16px;
+            color: #aaa;
+            font-size: 12px;
+            background-color: #2a2a2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        .main-area {
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            gap: 4px;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .resize-handle { position: absolute; top:0; width:4px; height:100%; cursor:col-resize; z-index:10; }
+        .resize-handle.left { left:280px; transform:translateX(-2px); }
+        .resize-handle.right { right:300px; transform:translateX(2px); }
+        .panel {
+            background-color: #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #3e3e3e;
+            border-radius: 4px 4px 0 0;
+        }
+        .panel-header {
+            background-color: #323232;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #bbb;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-content { padding: 12px; overflow-y: auto; flex:1; }
+
+        /* ---------- 拡張マネージャ専用スタイル ---------- */
+        .extension-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            margin-bottom: 2px;
+            gap: 8px;
+        }
+        .extension-item.selected {
+            background-color: #2d5a88;
+            border-left-color: #8a8aff;
+        }
+        .extension-item:hover:not(.selected) {
+            background-color: #3f3f3f;
+        }
+        .extension-icon {
+            width: 28px;
+            height: 28px;
+            background-color: #3a4a6a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8a8aff;
+        }
+        .extension-info {
+            flex: 1;
+        }
+        .extension-name {
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .extension-meta {
+            font-size: 10px;
+            color: #aaa;
+            display: flex;
+            gap: 8px;
+        }
+        .extension-toggle {
+            margin-left: auto;
+        }
+        .extension-toggle .slider {
+            width: 32px;
+            height: 16px;
+            background-color: #4a4a4a;
+            border-radius: 16px;
+            position: relative;
+            display: inline-block;
+        }
+        .extension-toggle .slider::before {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #ccc;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.1s;
+        }
+        .extension-toggle input:checked + .slider {
+            background-color: #4a7ab0;
+        }
+        .extension-toggle input:checked + .slider::before {
+            transform: translateX(16px);
+            background-color: #fff;
+        }
+        .extension-toggle input {
+            display: none;
+        }
+
+        .tab-header.mini {
+            display: flex;
+            border-bottom: 1px solid #404040;
+            margin-bottom: 12px;
+            gap: 2px;
+        }
+        .tab-header.mini .tab-item {
+            padding: 4px 12px;
+            font-size: 11px;
+            background-color: #323232;
+            border-radius: 16px 16px 0 0;
+            cursor: pointer;
+        }
+        .tab-header.mini .tab-item.active {
+            background-color: #3a5f8a;
+            color: white;
+        }
+
+        .manifest-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .manifest-table td {
+            padding: 6px 4px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        .manifest-table td:first-child {
+            color: #aaa;
+            width: 100px;
+        }
+
+        .marketplace-card {
+            background-color: #323232;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .marketplace-card .icon {
+            width: 32px; height: 32px;
+            background-color: #4a4a6a;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .marketplace-card .info {
+            flex: 1;
+        }
+        .marketplace-card .title {
+            font-weight: 600;
+        }
+        .marketplace-card .stats {
+            font-size: 10px;
+            color: #aaa;
+        }
+        .install-btn {
+            background-color: #3a5f8a;
+            border: none;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .dev-template-box {
+            background-color: #2a3a3a;
+            border: 1px dashed #6a8a8a;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        /* -------------------------------------------- */
+
+        .bottom-tab-panel {
+            background-color: #2a2a2a;
+            border-top: 1px solid #3e3e3e;
+            display: flex;
+            flex-direction: column;
+            min-height: 200px;
+            max-height: 260px;
+        }
+        .tab-header {
+            display: flex; background-color: #323232; border-bottom:1px solid #404040; padding:0 8px; gap:4px;
+        }
+        .tab-item {
+            padding: 8px 16px; font-size:12px; color:#aaa; cursor:pointer; border-bottom:2px solid transparent;
+            display: flex; align-items: center; gap:6px;
+        }
+        .tab-item.active { color:#8a8aff; border-bottom-color:#8a8aff; background-color:#2a2a3a; }
+        .tab-content { display: none; padding:12px; overflow-y:auto; flex:1; }
+        .tab-content.active { display: block; }
+        /* その他の細かいスタイルは元のまま維持 */
+        .query-editor { background:#1e1e1e; font-family:monospace; padding:10px; border-radius:8px; border:1px solid #4a4a4a; }
+        .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); gap:8px; }
+        .asset-item { background:#3a3a3a; border-radius:8px; padding:12px 6px; text-align:center; border:1px solid #4a4a4a; cursor:pointer; }
+        .ai-messages { display: flex; flex-direction: column; gap:10px; max-height:150px; overflow-y:auto; margin-bottom:10px; }
+        .ai-input-area { display: flex; gap:8px; margin-top:12px; }
+        .ai-input-area input { flex:1; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:8px 14px; border-radius:30px; }
+    </style>
+</head>
+<body>
+    <div class="editor">
+        <!-- ========== 左アクティビティバー（Extensionsがactive） ========== -->
+        <div class="activity-bar" id="activity-bar">
+            <!-- 1. Global Search -->
+            <div class="activity-item" draggable="true" title="Global Search" data-original-icon="fa-search" data-original-title="Global Search">
+                <i class="fas fa-search"></i>
+            </div>
+            <!-- 2. Scene Builder (activeでなくなる) -->
+            <div class="activity-item" draggable="true" title="Scene Builder" data-original-icon="fa-cubes" data-original-title="Scene Builder">
+                <i class="fas fa-cubes"></i>
+                <span class="badge" style="background-color: #8aff8a;"></span>
+            </div>
+            <!-- 3. Logic Graph -->
+            <div class="activity-item" draggable="true" title="Logic Graph" data-original-icon="fa-project-diagram" data-original-title="Logic Graph">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <!-- 4. Director -->
+            <div class="activity-item" draggable="true" title="Director" data-original-icon="fa-film" data-original-title="Director">
+                <i class="fas fa-film"></i>
+            </div>
+            <!-- 5. Backend & AI -->
+            <div class="activity-item" draggable="true" title="Backend & AI" data-original-icon="fa-terminal" data-original-title="Backend & AI">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <!-- 6. Asset Vault -->
+            <div class="activity-item" draggable="true" title="Asset Vault" data-original-icon="fa-folder-open" data-original-title="Asset Vault">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <!-- 7. Extensions (🧩 アクティブ) -->
+            <div class="activity-item active" draggable="true" title="Extensions" data-original-icon="fa-puzzle-piece" data-original-title="Extensions">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <!-- 8. New Box (plus-circle) ドラッグ不可 -->
+            <div class="activity-item" title="New Box..." style="cursor:pointer;">
+                <i class="fas fa-plus-circle"></i>
+                <span class="plus-badge">+</span>
+            </div>
+            <!-- 下部システムアイコン（ドラッグ不可） -->
+            <div class="activity-bottom">
+                <div class="activity-item" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="activity-item" title="User">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 右側メインコンテンツ（Extension Manager仕様） ========== -->
+        <div class="main-content">
+            <div class="menu-bar">
+                <div class="menu-item">File</div>
+                <div class="menu-item">Edit</div>
+                <div class="menu-item">Extensions</div>
+                <div class="menu-item">Marketplace</div>
+                <div class="menu-item">Development</div>
+                <div class="menu-item">Help</div>
+            </div>
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button><i class="fas fa-sync-alt"></i> Check Updates</button>
+                    <button><i class="fas fa-download"></i> Install</button>
+                    <button><i class="fas fa-plus-circle"></i> New</button>
+                </div>
+                <div class="separator"></div>
+                <div class="toolbar-group">
+                    <button class="active"><i class="fas fa-list"></i> Installed</button>
+                    <button><i class="fas fa-store"></i> Marketplace</button>
+                    <button><i class="fas fa-code"></i> Develop</button>
+                </div>
+                <div class="status-bar">
+                    <span><i class="fas fa-puzzle-piece"></i> 12 active</span>
+                    <span><i class="fas fa-download"></i> 4 updates</span>
+                    <span><i class="fas fa-database"></i> DB: extensions</span>
+                    <span><i class="fas fa-robot"></i> API ready</span>
+                </div>
+            </div>
+
+            <!-- メインエリア（3ペイン） -->
+            <div class="main-area">
+                <div class="resize-handle left"></div>
+                <div class="resize-handle right"></div>
+
+                <!-- 左ペイン: インストール済み拡張一覧 -->
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-puzzle-piece"></i> Installed Extensions</span><div><i class="fas fa-search"></i><i class="fas fa-ellipsis-v"></i></div></div>
+                    <div class="panel-content">
+                        <div style="margin-bottom:10px; display:flex; gap:4px;">
+                            <input type="text" placeholder="Filter..." style="flex:1; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:6px; border-radius:6px;" value="shader">
+                            <button style="background:#3a5f8a; border:none; color:white; padding:0 12px; border-radius:6px;">Go</button>
+                        </div>
+                        <!-- 拡張アイテム1: Shader Editor（選択状態） -->
+                        <div class="extension-item selected">
+                            <div class="extension-icon"><i class="fas fa-palette"></i></div>
+                            <div class="extension-info">
+                                <div class="extension-name">Shader Editor</div>
+                                <div class="extension-meta">v1.0.0 • by username</div>
+                            </div>
+                            <div class="extension-toggle">
+                                <label>
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- 拡張アイテム2: AI Assistant -->
+                        <div class="extension-item">
+                            <div class="extension-icon"><i class="fas fa-robot"></i></div>
+                            <div class="extension-info">
+                                <div class="extension-name">AI Assistant</div>
+                                <div class="extension-meta">v2.3.0 • by core</div>
+                            </div>
+                            <div class="extension-toggle">
+                                <label>
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- 拡張アイテム3: Terrain Generator -->
+                        <div class="extension-item">
+                            <div class="extension-icon"><i class="fas fa-mountain"></i></div>
+                            <div class="extension-info">
+                                <div class="extension-name">Terrain Generator</div>
+                                <div class="extension-meta">v0.5.0 • by nature</div>
+                            </div>
+                            <div class="extension-toggle">
+                                <label>
+                                    <input type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- さらにいくつか -->
+                        <div class="extension-item">
+                            <div class="extension-icon"><i class="fas fa-plug"></i></div>
+                            <div class="extension-info">
+                                <div class="extension-name">Node Pack: Physics</div>
+                                <div class="extension-meta">v1.2.0 • by phys</div>
+                            </div>
+                            <div class="extension-toggle">
+                                <label>
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 中央ペイン: 選択中の拡張詳細（Shader Editor） -->
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-palette"></i> Shader Editor — Details</span><span><i class="fas fa-cog"></i><i class="fas fa-ellipsis-v"></i></span></div>
+                    <div class="panel-content">
+                        <!-- ミニタブ: 詳細 / 設定 / ノード / アンインストール -->
+                        <div class="tab-header mini">
+                            <div class="tab-item active" data-minitab="details">Details</div>
+                            <div class="tab-item" data-minitab="settings">Settings</div>
+                            <div class="tab-item" data-minitab="nodes">Logic Nodes</div>
+                            <div class="tab-item" data-minitab="uninstall" style="color:#ff8a8a;">Uninstall</div>
+                        </div>
+                        <!-- Details 内容（マニフェスト情報） -->
+                        <div class="mini-tab-content" id="mini-details" style="display:block;">
+                            <table class="manifest-table">
+                                <tr><td>Name</td><td>shader-editor</td></tr>
+                                <tr><td>Version</td><td>1.0.0</td></tr>
+                                <tr><td>Author</td><td>username</td></tr>
+                                <tr><td>Description</td><td>Node-based shader editor</td></tr>
+                                <tr><td>Icon</td><td><i class="fas fa-palette"></i> fa-palette</td></tr>
+                                <tr><td>Min Luminara</td><td>0.1.0</td></tr>
+                                <tr><td>Contributes</td><td>boxes: shader-editor<br>widgets: ShaderGraphCanvas, ShaderPreview<br>components: CustomShader<br>asset_importers: .shadergraph<br>commands: shader.compile<br>logic_nodes: ShaderSwitch</td></tr>
+                                <tr><td>Dependencies</td><td>luminara-core >=0.1.0</td></tr>
+                            </table>
+                            <div style="margin-top:16px;">
+                                <button style="background:#4a6a9a; border:none; color:white; padding:6px 12px; border-radius:6px;"><i class="fas fa-file-export"></i> Export Manifest</button>
+                                <button style="background:#3a5f8a; border:none; color:white; padding:6px 12px; border-radius:6px; margin-left:8px;"><i class="fas fa-sync-alt"></i> Reload</button>
+                            </div>
+                        </div>
+                        <!-- Settings プレースホルダ（本来は動的） -->
+                        <div class="mini-tab-content" id="mini-settings" style="display:none;">
+                            <p>Shader Editor settings will appear here.</p>
+                        </div>
+                        <!-- Nodes プレースホルダ -->
+                        <div class="mini-tab-content" id="mini-nodes" style="display:none;">
+                            <p>Custom logic nodes provided by this extension:</p>
+                            <ul style="margin-left:20px;">
+                                <li>ShaderSwitch (Logic Graph)</li>
+                                <li>TextureSample</li>
+                            </ul>
+                        </div>
+                        <!-- Uninstall プレースホルダ -->
+                        <div class="mini-tab-content" id="mini-uninstall" style="display:none;">
+                            <p style="color:#ff8a8a;">Are you sure? This action cannot be undone.</p>
+                            <button style="background:#8a3a3a; border:none; color:white; padding:8px 16px; border-radius:6px;">Uninstall Extension</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右ペイン: マーケットプレイス／開発クイックアクション -->
+                <div class="panel">
+                    <div class="panel-header"><span><i class="fas fa-store"></i> Marketplace / Dev</span><span><i class="fas fa-ellipsis-v"></i></span></div>
+                    <div class="panel-content">
+                        <div style="margin-bottom:12px;">
+                            <input type="text" placeholder="Search marketplace..." style="width:100%; background:#3a3a3a; border:1px solid #4a4a4a; color:#eee; padding:8px; border-radius:30px;">
+                        </div>
+                        <!-- おすすめ拡張カード -->
+                        <div class="marketplace-card">
+                            <div class="icon"><i class="fas fa-chart-line"></i></div>
+                            <div class="info">
+                                <div class="title">Performance Monitor</div>
+                                <div class="stats"><i class="fas fa-star"></i> 4.8 • 2.3k downloads</div>
+                            </div>
+                            <button class="install-btn">Install</button>
+                        </div>
+                        <div class="marketplace-card">
+                            <div class="icon"><i class="fas fa-video"></i></div>
+                            <div class="info">
+                                <div class="title">Cinematic Sequencer</div>
+                                <div class="stats"><i class="fas fa-star"></i> 4.5 • 1.1k downloads</div>
+                            </div>
+                            <button class="install-btn">Install</button>
+                        </div>
+                        <div class="marketplace-card">
+                            <div class="icon"><i class="fas fa-cubes"></i></div>
+                            <div class="info">
+                                <div class="title">Voxel Importer</div>
+                                <div class="stats"><i class="fas fa-star"></i> 4.2 • 890 downloads</div>
+                            </div>
+                            <button class="install-btn">Install</button>
+                        </div>
+                        <div style="margin-top:16px; border-top:1px solid #404040; padding-top:12px;">
+                            <div class="tab-header mini" style="margin-bottom:8px;">
+                                <div class="tab-item active" data-devtab="templates">Templates</div>
+                                <div class="tab-item" data-devtab="docs">API Docs</div>
+                            </div>
+                            <!-- Templates -->
+                            <div class="dev-tab-content" id="dev-templates">
+                                <div class="dev-template-box">
+                                    <i class="fas fa-puzzle-piece" style="font-size:24px;"></i>
+                                    <div style="font-weight:600;">New Extension</div>
+                                    <div style="font-size:11px;">Create from template</div>
+                                    <button style="margin-top:8px; background:#3a5f8a; border:none; color:white; padding:4px 12px; border-radius:30px;">Generate</button>
+                                </div>
+                                <div class="dev-template-box">
+                                    <i class="fas fa-palette"></i> Widget template
+                                </div>
+                                <div class="dev-template-box">
+                                    <i class="fas fa-code-branch"></i> Logic Node template
+                                </div>
+                            </div>
+                            <!-- API Docs (簡易表示) -->
+                            <div class="dev-tab-content" id="dev-docs" style="display:none;">
+                                <div style="background:#1e1e1e; padding:8px; border-radius:6px; font-family:monospace; font-size:11px;">
+                                    <p><span style="color:#8a8aff;">LuminaraBox</span> trait</p>
+                                    <p>• fn register(…)</p>
+                                    <p>• fn widgets() → Vec&lt;Box&lt;dyn Widget&gt;&gt;</p>
+                                    <p>• fn handle_message(&mut self, …)</p>
+                                    <p><span style="color:#8a8aff;">更多</span> 参见 extension.toml 格式</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下部タブパネル（Console / API Docs / Log） -->
+            <div class="bottom-tab-panel">
+                <div class="tab-header">
+                    <div class="tab-item active" data-tab="console"><i class="fas fa-terminal"></i> Extension Console</div>
+                    <div class="tab-item" data-tab="apidocs"><i class="fas fa-book"></i> API Docs</div>
+                    <div class="tab-item" data-tab="log"><i class="fas fa-history"></i> Change Log</div>
+                </div>
+                <div class="tab-content active" id="tab-console">
+                    <div style="background:#1e1e1e; padding:8px; font-family:monospace; height:100%; overflow:auto;">
+                        [14:32:12] Extension 'Shader Editor' loaded<br>
+                        [14:32:12] Registered widget: ShaderGraphCanvas<br>
+                        [14:32:12] Registered component: CustomShader<br>
+                        [14:32:15] Command 'shader.compile' executed successfully
+                    </div>
+                </div>
+                <div class="tab-content" id="tab-apidocs">
+                    <div style="padding:8px;">📘 <strong>Extension API (Rust)</strong><br>trait LuminaraBox { ... }<br>📦 マニフェスト extension.toml の書き方については <a href="#" style="color:#8a8aff;">こちら</a></div>
+                </div>
+                <div class="tab-content" id="tab-log">
+                    <div style="padding:8px;">• 2025-02-18: Shader Editor 1.0.0 released<br>• 2025-02-10: AI Assistant 2.3.0 added</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ドラッグ＆ドロップ＋フォルダ化スクリプト（元のまま維持＋ミニタブ切り替え追加） -->
+    <script>
+        (function() {
+            // 元のドラッグ＆ドロップ機能（完全維持）
+            const bar = document.getElementById('activity-bar');
+            const items = Array.from(bar.querySelectorAll('.activity-item')).filter(item => item.closest('.activity-bottom') === null ? item : false);
+            const draggableItems = items.filter(item => item.getAttribute('draggable') === 'true');
+            let draggedItem = null;
+
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    e.dataTransfer.setData('text/plain', item.title);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+            });
+
+            bar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            bar.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.activity-item');
+                if (!target || !draggedItem || target === draggedItem) return;
+                if (target.getAttribute('draggable') !== 'true') return;
+
+                draggedItem.style.display = 'none';
+
+                if (!target.classList.contains('is-folder')) {
+                    target.classList.add('is-folder');
+                    const icon = target.querySelector('i');
+                    const originalIcon = target.dataset.originalIcon || 'fa-cubes';
+                    target.dataset.originalIcon = originalIcon;
+                    icon.className = 'fas fa-folder';
+
+                    const countBadge = document.createElement('span');
+                    countBadge.className = 'folder-badge';
+                    countBadge.textContent = '1';
+                    target.appendChild(countBadge);
+
+                    target.dataset.folderItems = JSON.stringify([{ title: draggedItem.title, icon: draggedItem.dataset.originalIcon }]);
+                } else {
+                    const existing = JSON.parse(target.dataset.folderItems || '[]');
+                    existing.push({ title: draggedItem.title, icon: draggedItem.dataset.originalIcon });
+                    target.dataset.folderItems = JSON.stringify(existing);
+                    const badge = target.querySelector('.folder-badge');
+                    if (badge) badge.textContent = existing.length;
+                }
+
+                draggedItem.style.display = 'none';
+
+                if (!target.hasAttribute('data-folder-listener')) {
+                    target.setAttribute('data-folder-listener', 'true');
+                    target.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (!this.classList.contains('is-folder')) return;
+                        const old = document.querySelector('.folder-popup');
+                        if (old) old.remove();
+                        const items = JSON.parse(this.dataset.folderItems || '[]');
+                        if (items.length === 0) return;
+                        const popup = document.createElement('div');
+                        popup.className = 'folder-popup';
+                        const rect = this.getBoundingClientRect();
+                        popup.style.top = rect.top + 'px';
+                        popup.style.left = (rect.right + 8) + 'px';
+                        items.forEach((item, idx) => {
+                            const div = document.createElement('div');
+                            div.className = 'folder-popup-item';
+                            div.innerHTML = `<i class="fas ${item.icon || 'fa-cube'}"></i><span>${item.title}</span>`;
+                            div.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                alert(`「${item.title}」を選択しました`);
+                                document.querySelector('.folder-popup')?.remove();
+                            });
+                            popup.appendChild(div);
+                        });
+                        document.body.appendChild(popup);
+                        const closePopup = (e) => {
+                            if (!popup.contains(e.target) && e.target !== this) {
+                                popup.remove();
+                                document.removeEventListener('click', closePopup);
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', closePopup), 10);
+                    });
+                }
+                draggedItem = null;
+            });
+
+            document.addEventListener('dragend', () => {
+                draggedItem = null;
+            });
+
+            // 元のタブ切り替え（下部パネル）
+            const tabs = document.querySelectorAll('.tab-header:not(.mini) .tab-item');
+            const contents = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-tab');
+                    contents.forEach(c => {
+                        c.classList.remove('active');
+                        if (c.id === 'tab-' + target) c.classList.add('active');
+                    });
+                });
+            });
+
+            // ミニタブ切り替え (中央パネルのDetails/Settings/...)
+            const miniTabs = document.querySelectorAll('.tab-header.mini .tab-item');
+            const miniContents = {
+                details: document.getElementById('mini-details'),
+                settings: document.getElementById('mini-settings'),
+                nodes: document.getElementById('mini-nodes'),
+                uninstall: document.getElementById('mini-uninstall')
+            };
+            miniTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    miniTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    const target = this.getAttribute('data-minitab');
+                    Object.keys(miniContents).forEach(key => {
+                        if (miniContents[key]) miniContents[key].style.display = 'none';
+                    });
+                    if (miniContents[target]) miniContents[target].style.display = 'block';
+                });
+            });
+
+            // 開発タブ切り替え (右ペイン下のTemplates/API Docs)
+            const devTabs = document.querySelectorAll('[data-devtab]');
+            const devTemplates = document.getElementById('dev-templates');
+            const devDocs = document.getElementById('dev-docs');
+            if (devTabs.length) {
+                devTabs.forEach(tab => {
+                    tab.addEventListener('click', function() {
+                        devTabs.forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        const target = this.getAttribute('data-devtab');
+                        if (target === 'templates') {
+                            devTemplates.style.display = 'block';
+                            devDocs.style.display = 'none';
+                        } else if (target === 'docs') {
+                            devTemplates.style.display = 'none';
+                            devDocs.style.display = 'block';
+                        }
+                    });
+                });
+            }
+
+            // ヒエラルキー的な選択（拡張アイテム）
+            const extItems = document.querySelectorAll('.extension-item');
+            extItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    extItems.forEach(i => i.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+
+            // ツールバーボタンのアクティブ切り替え（ダミー）
+            const toolbarButtons = document.querySelectorAll('.toolbar button');
+            toolbarButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (this.parentElement.classList.contains('toolbar-group')) {
+                        // 簡易的なアクティブ切り替え
+                        toolbarButtons.forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+
+        })();
+    </script>
+</body>
+</html>
