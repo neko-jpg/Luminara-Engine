@@ -16,11 +16,6 @@ luminara_scene = { path = "../luminara_scene" }
 luminara_input = { path = "../luminara_input" }
 luminara_db = { path = "../luminara_db" }
 
-# GPUI framework (deprecated - migrating to Vizia)
-# Note: GPUI is part of the Zed repository, using a specific stable release
-# Using release v0.159.5 from October 30, 2024 (sha: bcf6806)
-# gpui = { git = "https://github.com/zed-industries/zed", tag = "v0.159.5" }
-
 # Vizia framework for UI
 vizia = "0.3.0"
 
