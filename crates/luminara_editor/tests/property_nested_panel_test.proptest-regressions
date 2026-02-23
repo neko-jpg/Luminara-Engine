@@ -1,8 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc b7fe9b65994029d1f84a4bfe3845e06852716cda8b3458ed6bf048acac89705e # shrinks to grandparent_size = 50.0, parent_proportion = 0.1, child_proportion = 0.1, parent_min = 50.0, child_min = 426.8082, parent_max_offset = 100.0, child_max_offset = 100.0, resize_factor = 0.5
-cc acb8a7c2f644f949beecd09410a5904b763ca6a9fc769a6fbc45fc0c4befade0 # shrinks to h_parent_size = 50.0, v_child_proportion = 0.1, h_grandchild_proportion = 0.1, v_child_min = 50.0, h_grandchild_min = 496.153, v_max_offset = 100.0, h_max_offset = 100.0, resize_factor = 0.5

@@ -1,33 +1,30 @@
 //! Icons for Luminara Editor UI
 
-/// A collection of standard icons used across the editor.
-/// This acts as a centralized repository for SVG paths or emoji icons.
-pub struct Icons;
-
-impl Icons {
-    pub const SEARCH: &'static str = "🔍";
-    pub const CLOSE: &'static str = "✖";
-    pub const COMMAND: &'static str = "⚡";
-    pub const ENTITY: &'static str = "🧊";
-    pub const ASSET: &'static str = "🖼️";
-    pub const DB: &'static str = "🗄️";
-    pub const AI: &'static str = "🤖";
-    pub const SCRIPT: &'static str = "📜";
-    pub const SCENE: &'static str = "🎬";
-    pub const LOGIC: &'static str = "🔀";
-    pub const FOLDER: &'static str = "📁";
-    pub const FILE: &'static str = "📄";
-    pub const SETTINGS: &'static str = "⚙️";
-    pub const PLAY: &'static str = "▶️";
-    pub const PAUSE: &'static str = "⏸️";
-    pub const STOP: &'static str = "⏹️";
-    pub const REFRESH: &'static str = "🔄";
-    pub const ADD: &'static str = "➕";
-    pub const REMOVE: &'static str = "➖";
-    pub const EDIT: &'static str = "✏️";
-    pub const TRASH: &'static str = "🗑️";
-    pub const WARNING: &'static str = "⚠️";
-    pub const ERROR: &'static str = "❌";
-    pub const SUCCESS: &'static str = "✅";
-    pub const INFO: &'static str = "ℹ️";
-}
+pub const ICON_SEARCH: &str = include_str!("../../assets/icons/search.svg");
+pub const ICON_CUBES: &str = include_str!("../../assets/icons/cubes.svg");
+pub const ICON_LOGIC: &str = include_str!("../../assets/icons/binary-tree.svg"); // approx for logic
+pub const ICON_DIRECTOR: &str = include_str!("../../assets/icons/video-plus.svg"); // approx for director
+pub const ICON_TERMINAL: &str = include_str!("../../assets/icons/terminal.svg");
+pub const ICON_FOLDER: &str = include_str!("../../assets/icons/folder-open.svg");
+pub const ICON_EXTENSIONS: &str = include_str!("../../assets/icons/puzzle.svg");
+pub const ICON_SETTINGS: &str = include_str!("../../assets/icons/settings.svg");
+pub const ICON_USER: &str = include_str!("../../assets/icons/user-circle.svg");
+pub const ICON_PLUS: &str = include_str!("../../assets/icons/plus.svg");
+pub const ICON_CHEVRON_DOWN: &str = include_str!("../../assets/icons/chevron-down.svg");
+pub const ICON_CHEVRON_RIGHT: &str = include_str!("../../assets/icons/chevron-right.svg");
+pub const ICON_PLAY: &str = include_str!("../../assets/icons/play.svg");
+pub const ICON_PAUSE: &str = include_str!("../../assets/icons/pause.svg");
+pub const ICON_STOP: &str = include_str!("../../assets/icons/stop.svg");
+pub const ICON_MOVE: &str = include_str!("../../assets/icons/move.svg");
+pub const ICON_ROTATE: &str = include_str!("../../assets/icons/rotate.svg");
+pub const ICON_SCALE: &str = include_str!("../../assets/icons/scale.svg");
+pub const ICON_SELECT: &str = include_str!("../../assets/icons/select.svg");
+pub const ICON_CHECK: &str = include_str!("../../assets/icons/check.svg");
+pub const ICON_TRASH: &str = include_str!("../../assets/icons/trash.svg");
+pub const ICON_EDIT: &str = include_str!("../../assets/icons/edit.svg");
+pub const ICON_REFRESH: &str = include_str!("../../assets/icons/refresh.svg");
+pub const ICON_GRID: &str = include_str!("../../assets/icons/table.svg");
+pub const ICON_LIST: &str = include_str!("../../assets/icons/file-text.svg");
+pub const ICON_FILE: &str = include_str!("../../assets/icons/file.svg");
+pub const ICON_FOLDER_CLOSED: &str = include_str!("../../assets/icons/folder.svg");
+pub const ICON_INFO: &str = include_str!("../../assets/icons/alert-triangle.svg"); // fallback
